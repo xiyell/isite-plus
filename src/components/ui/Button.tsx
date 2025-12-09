@@ -1,8 +1,10 @@
 import { cn } from '@/lib/utils';
 import { cva, VariantProps } from 'class-variance-authority';
 import { HTMLMotionProps, motion, Transition } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 import React from 'react';
- 
+import { Slot } from '@radix-ui/react-slot';
+
 const buttonVariants = cva(
   "relative overflow-hidden cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
@@ -31,7 +33,7 @@ const buttonVariants = cva(
     },
   },
 );
- 
+
 const rippleVariants = cva('absolute rounded-full size-5 pointer-events-none', {
   variants: {
     variant: {
@@ -46,20 +48,22 @@ const rippleVariants = cva('absolute rounded-full size-5 pointer-events-none', {
     variant: 'default',
   },
 });
- 
+
 type Ripple = {
   id: number;
   x: number;
   y: number;
 };
- 
+
 type RippleButtonProps = HTMLMotionProps<'button'> & {
   children: React.ReactNode;
   rippleClassName?: string;
   scale?: number;
   transition?: Transition;
+  isLoading?: boolean;
+  asChild?: boolean;
 } & VariantProps<typeof buttonVariants>;
- 
+
 function RippleButton({
   ref,
   children,
@@ -70,36 +74,39 @@ function RippleButton({
   size,
   scale = 10,
   transition = { duration: 0.6, ease: 'easeOut' },
+  isLoading = false,
+  disabled,
+  asChild = false,
   ...props
 }: RippleButtonProps) {
   const [ripples, setRipples] = React.useState<Ripple[]>([]);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   React.useImperativeHandle(ref, () => buttonRef.current as HTMLButtonElement);
- 
+
   const createRipple = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       const button = buttonRef.current;
       if (!button) return;
- 
+
       const rect = button.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
- 
+
       const newRipple: Ripple = {
         id: Date.now(),
         x,
         y,
       };
- 
+
       setRipples((prev) => [...prev, newRipple]);
- 
+
       setTimeout(() => {
         setRipples((prev) => prev.filter((r) => r.id !== newRipple.id));
       }, 600);
     },
     [],
   );
- 
+
   const handleClick = React.useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       createRipple(event);
@@ -109,7 +116,19 @@ function RippleButton({
     },
     [createRipple, onClick],
   );
- 
+
+  if (asChild) {
+    return (
+      <Slot
+        ref={ref}
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...(props as any)}
+      >
+        {children}
+      </Slot>
+    );
+  }
+
   return (
     <motion.button
       ref={buttonRef}
@@ -118,8 +137,10 @@ function RippleButton({
       whileTap={{ scale: 0.95 }}
       whileHover={{ scale: 1.05 }}
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={isLoading || disabled}
       {...props}
     >
+      {isLoading && <Loader2 className="animate-spin" />}
       {children}
       {ripples.map((ripple) => (
         <motion.span
@@ -139,5 +160,5 @@ function RippleButton({
     </motion.button>
   );
 }
- 
+
 export { RippleButton as Button, type RippleButtonProps };

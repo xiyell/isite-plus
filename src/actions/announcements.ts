@@ -4,9 +4,9 @@ import { db } from "@/services/firebase";
 import { Announcement } from "@/types/announcement";
 import { addDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 
-export async function getAnnouncements(): Promise<Announcement[]> { 
-    const querySnapshot = await getDocs(collection(db, "announcements"));
-    return querySnapshot.docs.map((doc) => doc.data() as Announcement);
+export async function getAnnouncements(): Promise<Announcement[]> {
+  const querySnapshot = await getDocs(collection(db, "announcements"));
+  return querySnapshot.docs.map((doc) => doc.data() as Announcement);
 }
 
 export async function createAnnouncement(data: Omit<Announcement, "id" | "createdAt">) {

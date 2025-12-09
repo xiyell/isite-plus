@@ -3,7 +3,7 @@ import AnnouncementCarousel from "@/components/home/AnnouncementCarousel";
 import FeatureSection from "@/components/home/FeatureSection";
 import { Button as Button } from "@/components/ui/Button";
 import Divider from "@/components/ui/Divider";
-
+import { AnnouncementsFeed } from "@/components/announcements/AnnouncementFeeds";
 import LoadingTransition from "@/components/ui/LoadingTransition";
 
 
@@ -53,19 +53,17 @@ export default function Home() {
           Get Started
         </Button>
       </section>
-      {/* 
-      -----------------------------------------------------------------
+      {/* -----------------------------------------------------------------
 
         Announcements Section 
 
       -----------------------------------------------------------------
       */}
       <Divider />
-    
-        <AnnouncementCarousel />
- 
-      {/* 
-      -----------------------------------------------------------------
+
+      <AnnouncementCarousel />
+      <AnnouncementsFeed limit={3} />
+      {/* -----------------------------------------------------------------
 
         Platform Features
 
@@ -73,7 +71,7 @@ export default function Home() {
       */}
       <Divider />
       <section id="features" className="py-16 sm:py-24 px-4 sm:px-8 flex flex-col items-center">
-        <FeatureSection/>
+        <FeatureSection />
 
       </section>
     </div>

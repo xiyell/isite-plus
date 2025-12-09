@@ -1,34 +1,32 @@
 'use client';
 import * as React from 'react';
 import { Button as Button } from '@/components/ui/Button';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
     NavigationMenu,
     NavigationMenuItem,
-
     NavigationMenuList,
 } from '@/components/ui/NavigationMenu';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/Popover';
 import { cn } from '@/lib/utils';
 import clsx from 'clsx';
 import Link from 'next/link';
-import { Menu } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { User } from '@/types/user';
 import { useIsScrolled, useScrollProgress } from '@/hooks/use-scroll';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { UserRole } from '@/types/user-role';
 
+// 🚀 IMPORT MODALS (Ensure correct paths: e.g., './login' or './LoginModal')
+import LoginModal from './login';
+import RegisterModal from './register'; // Assuming the new file name is RegisterModal.tsx
 
 export interface NavbarNavLink {
     href: string;
     label: string;
     active?: boolean;
     rolesAllowed: UserRole[];
+    group?: 'tools';
 }
 export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
     logo?: React.ReactNode;
@@ -36,181 +34,306 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
     navigationLinks?: NavbarNavLink[];
 }
 
+// ------------------------------------------------------------------------
+// UPDATED mainNavLinks ARRAY - Structured as requested
+// ------------------------------------------------------------------------
 const mainNavLinks: NavbarNavLink[] = [
-  { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin'] },
-  { href: '/announcement', label: 'Announcement', rolesAllowed: ['guest', 'user', 'admin'] },
-  { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin'] },
-  { href: '/feedback', label: 'Feedback', rolesAllowed: ['user', 'admin'] },
-  { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin'] },
-  { href: '/admin', label: 'Admin', rolesAllowed: ['admin'] }
-];
+    { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin'] },
+    { href: '/announcement', label: 'Announcement', rolesAllowed: ['guest', 'user', 'admin'] },
+    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'guest'] },
 
+    // Grouped links
+
+    { href: '/feedback', label: 'Feedback', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
+    { href: '/profile', label: 'Profile', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
+    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
+    { href: '/iQr', label: 'iQr', rolesAllowed: ['guest', 'admin'], group: 'tools' },
+    { href: '/iReader', label: 'iReader', rolesAllowed: ['guest', 'admin'], group: 'tools' },
+    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['guest', 'admin'], group: 'tools' }
+];
+// ------------------------------------------------------------------------
 
 export default function Navbar() {
     /*
     ------------------------------------------------------------------------
-
         USE STATES 
-
     ------------------------------------------------------------------------
     */
     const [user, setUser] = useState<User | null>(null);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
     const isMobile = useIsMobile();
     const progress = useScrollProgress();
     const isScrolled = useIsScrolled();
-    /*
-     ------------------------------------------------------------------------
-     
-         HANDLERS
- 
-     ------------------------------------------------------------------------
-     */
-    const handleLogin = () => {
-        setUser({ role: 'user' });
-    };
-    const handleRegister = () => {
 
+    /*
+    ------------------------------------------------------------------------
+        HANDLERS
+    ------------------------------------------------------------------------
+    */
+    // Handles successful login from the LoginModal
+    const handleLogin = (loggedUser: any) => {
+        setUser({
+            ...loggedUser,
+            role: loggedUser.role as UserRole || 'user'
+        });
+    };
+
+    // Handles successful registration (usually used to trigger a toast/feedback in the parent)
+    const handleRegistrationSuccess = (user: any) => {
+        console.log('User successfully registered:', user);
+        // We typically don't log in immediately after registration; 
+        // the user must verify their email first (as implemented in your modal logic).
     }
+
     const handleSignOut = () => {
         setUser(null);
         console.log('User signed out');
     }
-    const currentUserRole = user?.role as UserRole|| ('guest' as UserRole);
+    const toggleToolsDropdown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsToolsDropdownOpen(prev => !prev);
+    };
+
+    const currentUserRole = user?.role as UserRole || ('guest' as UserRole);
     const visibleLinks = mainNavLinks.filter(link =>
         link.rolesAllowed.includes(currentUserRole)
     );
 
+    const mainLinks = visibleLinks.filter(link => !link.group);
+    const groupedLinks = visibleLinks.filter(link => link.group === 'tools');
+    const isGroupVisible = groupedLinks.length > 0;
+
+    // Close the dropdown when the mobile menu is opened/closed
+    React.useEffect(() => {
+        if (isMobileMenuOpen) {
+            setIsToolsDropdownOpen(false);
+        }
+    }, [isMobileMenuOpen]);
+
+    // Close the dropdown when a user clicks outside of it (desktop only)
+    React.useEffect(() => {
+        if (!isMobile) {
+            const handleOutsideClick = (event: MouseEvent) => {
+                const navElement = document.getElementById('tools-nav-item');
+                if (navElement && !navElement.contains(event.target as Node)) {
+                    setIsToolsDropdownOpen(false);
+                }
+            };
+
+            document.addEventListener('mousedown', handleOutsideClick);
+            return () => document.removeEventListener('mousedown', handleOutsideClick);
+        }
+    }, [isMobile]);
+
+
     return (
-        <motion.nav
-            initial={{ y: -80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className={clsx(
-                "fixed top-0 w-full z-[100] transition-all duration-500 backdrop-blur-xl border-b",
-                isScrolled
-                    ? "bg-fuchsia-950/70 border-fuchsia-900/60 shadow-[0_4px_20px_rgba(217,70,239,0.25)]"
-                    : "bg-gradient-to-b from-fuchsia-950/40 to-transparent border-transparent"
-            )}
-        >
-            <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10 py-4">
+        <>
+            <motion.nav
+                initial={{ y: -80, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className={clsx(
+                    "fixed top-0 w-full z-[100] transition-all duration-500  backdrop-blur-xl border-b ",
+                    isScrolled
+                        ? "bg-fuchsia-950/70 border-fuchsia-900/60 shadow-[0_4px_20px_rgba(217,70,239,0.25)]"
+                        : "bg-gradient-to-b from-fuchsia-950/40 to-transparent border-transparent"
+                )}
+            >
+                <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10 py-4">
 
-                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
 
-                    {isMobile && (
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    className="text-fuchsia-200 hover:text-fuchsia-400 transition-colors p-2"
-                                    variant="ghost"
-                                    size="icon"
-                                >
-                                    <Menu size={24} />
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="start" className="w-48 p-2">
-                                <NavigationMenu className="max-w-none">
-                                    <NavigationMenuList className="flex-col items-start gap-1">
-                                        {visibleLinks.map((link, index) => (
-                                            <NavigationMenuItem key={index} className="w-full">
-                                                <Link
-                                                    href={link.href}
-                                                    className={cn(
-                                                        "flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer no-underline",
-                                                        link.active
-                                                            ? "bg-accent text-accent-foreground"
-                                                            : "text-foreground/80"
-                                                    )}
-                                                >
-                                                    {link.label}
-                                                </Link>
-                                            </NavigationMenuItem>
-                                        ))}
-                                    </NavigationMenuList>
-                                </NavigationMenu>
-                            </PopoverContent>
-                        </Popover>
-                    )}
-                    {/* Main nav */}
+                        {isMobile && (
+                            <Button
+                                className="text-fuchsia-200 hover:text-fuchsia-400 transition-colors p-2 z-[110] relative"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                            >
+                                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                            </Button>
+                        )}
+                        {/* Main nav */}
+
+                        <div className="flex items-center gap-6">
+                            {/* Logo  */}
+                            <button
+                                onClick={(e) => e.preventDefault()}
+                                className="flex items-center space-x-2 text-primary hover:text-primary/90 transition-colors cursor-pointer"
+                            >
+                                <span className="hidden font-bold text-xl sm:inline-block">
+                                    <h1 className="text-2xl font-bold tracking-wide text-white select-none">
+                                        iSITE<span className="text-fuchsia-400">+</span>
+                                    </h1></span>
+                            </button>
+                            {/* Navigation menu */}
+                        </div>
+                    </div>
                     <div className="flex items-center gap-6">
-                        {/* Logo  */}
-                        <button
-                            onClick={(e) => e.preventDefault()}
-                            className="flex items-center space-x-2 text-primary hover:text-primary/90 transition-colors cursor-pointer"
-                        >
-                            <span className="hidden font-bold text-xl sm:inline-block">
-                                <h1 className="text-2xl font-bold tracking-wide text-white select-none">
-                                    iSITE<span className="text-fuchsia-400">+</span>
-                                </h1></span>
-                        </button>
-                        {/* Navigation menu */}
                         {!isMobile && (
-                            <NavigationMenu className="flex ">
+                            <NavigationMenu className="flex">
                                 <NavigationMenuList className="space-x-8">
-                                    {visibleLinks.map((link, index) => (
+                                    {/* Regular Links (Home, Announcement, Community, Feedback, About) */}
+                                    {mainLinks.map((link, index) => (
                                         <NavigationMenuItem key={index}>
                                             <Link
                                                 href={link.href}
-
                                                 className={cn(
-                                                    "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase",
-                                                    link.active
-                                                        ? ""
-                                                        : ""
+                                                    "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase transition-colors",
+                                                    link.active ? "text-fuchsia-400" : ""
                                                 )}
                                             >
                                                 {link.label}
                                             </Link>
                                         </NavigationMenuItem>
                                     ))}
+
+                                    {/* 🚀 Grouped Links Section - Click-to-Open Logic */}
+                                    {isGroupVisible && (
+                                        <NavigationMenuItem id="tools-nav-item" className="relative">
+                                            <Button
+                                                variant="ghost"
+                                                onClick={toggleToolsDropdown}
+                                                className={cn(
+                                                    "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase px-3 py-2 h-auto flex items-center transition-colors",
+                                                    isToolsDropdownOpen && "text-fuchsia-300"
+                                                )}
+                                            >
+                                                Menu
+                                                <ChevronDown
+                                                    className={cn(
+                                                        "ml-1 h-4 w-4 transition-transform duration-200",
+                                                        isToolsDropdownOpen && "rotate-180"
+                                                    )}
+                                                />
+                                            </Button>
+
+                                            {/* Submenu for grouped links */}
+                                            <AnimatePresence>
+                                                {isToolsDropdownOpen && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, y: -10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        exit={{ opacity: 0, y: -10 }}
+                                                        transition={{ duration: 0.2 }}
+                                                        className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-50 origin-top"
+                                                    >
+                                                        <ul className="w-48 p-1.5 rounded-xl shadow-2xl backdrop-blur-4xl  border border-white/30 bg-black/80">
+                                                            {groupedLinks.map((link, index) => (
+                                                                <li key={index}>
+                                                                    <Link
+                                                                        href={link.href}
+                                                                        onClick={() => setIsToolsDropdownOpen(false)}
+                                                                        className={cn(
+                                                                            "block p-2 text-sm text-fuchsia-100 rounded-lg transition-colors",
+                                                                            link.active
+                                                                                ? "bg-fuchsia-700/50 text-white font-semibold"
+                                                                                : "text-white/80 hover:bg-fuchsia-600/30 hover:text-white"
+                                                                        )}
+                                                                    >
+                                                                        {link.label}
+                                                                    </Link>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </NavigationMenuItem>
+                                    )}
+
                                 </NavigationMenuList>
                             </NavigationMenu>
                         )}
                     </div>
+                    {/* Right side */}
+                    {!user ? <div className=" flex items-center gap-2">
+                        {/* Login Modal Integration */}
+                        <LoginModal
+                            onLogin={handleLogin}
+                        />
+
+                        {/* Register Modal Integration */}
+                        <RegisterModal
+                            onRegister={handleRegistrationSuccess}
+                        />
+
+                    </div> :
+                        <Button
+                            className="text-sm bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-xl px-4 py-1.5 transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleSignOut();
+                            }}
+                        >
+                            Sign Out
+                        </Button>
+                    }
                 </div>
-                {/* Right side */}
-                {!user ? <div className=" flex items-center gap-3">
+                <div
+                    className="h-[3px] bg-gradient-to-r from-fuchsia-400 to-fuchsia-700"
+                    style={{ width: `${progress}%` }}
+                />
+            </motion.nav>
 
-                    <Button
+            {/* Mobile Menu Overlay */}
+            <AnimatePresence>
+                {isMobile && isMobileMenuOpen && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            // 🚀 CHANGED: Increased blur to backdrop-blur-3xl
+                            className="fixed inset-0 z-[105] bg-black/70 backdrop-blur-3xl"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                        />
 
-                        className="text-sm text-fuchsia-200 border-fuchsia-500/50 hover:bg-fuchsia-600/20"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            handleLogin();
-                        }}
-                    >
-                        Login
-                    </Button>
-                    <Button
+                        {/* Popup Card */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: "-50%", x: "-50%" }}
+                            animate={{ opacity: 1, scale: 1, y: "-50%", x: "-50%" }}
+                            exit={{ opacity: 0, scale: 0.9, y: "-50%", x: "-50%" }}
+                            transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+                            // 🚀 CHANGED: Updated background opacity to make it stand out against the heavy blur
+                            className="fixed top-1/2 left-1/2 z-[110] w-[90%] max-w-md bg-fuchsia-950/70 backdrop-blur-2xl border border-fuchsia-500/30 rounded-2xl shadow-2xl p-6 flex flex-col items-center pt-10 gap-6"
+                        >
+                            <div className="flex justify-between items-center w-full border-b border-white/10 pb-4">
+                                <h2 className="text-xl font-bold text-white tracking-wide">Menu</h2>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-fuchsia-200 hover:text-fuchsia-400 hover:bg-white/10 rounded-full"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    <X size={20} />
+                                </Button>
+                            </div>
 
-                        className="text-sm bg-linear-to-r from-fuchsia-500 to-fuchsia-700 text-white rounded-xl px-4 py-1.5"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            handleRegister();
-                        }}
-                    >
-                        Register
-                    </Button>
-                </div> :
-                    <Button
-
-                        className="text-sm bg-linear-to-r from-fuchsia-500 to-fuchsia-700 text-white rounded-xl px-4 py-1.5"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            handleSignOut();
-                        }}
-                    >
-                        Sign Out
-                    </Button>
-                }
-
-            </div>
-            <div
-                className="h-[3px] bg-gradient-to-r from-fuchsia-400 to-fuchsia-700"
-                style={{ width: `${progress}%` }}
-            />
-        </motion.nav>
+                            <div className="flex flex-col items-center gap-4 w-full">
+                                {visibleLinks.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.href}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className={cn(
+                                            "w-full text-center py-3 backdrop-blur-2xl rounded-xl text-lg font-medium transition-all duration-200",
+                                            link.active
+                                                ? "bg-fuchsia-600/40 text-fuchsia-100 border border-fuchsia-500/30"
+                                                : "text-white/80 hover:bg-fuchsia-600/30 hover:text-white"
+                                        )}
+                                    >
+                                        {link.label}
+                                    </Link>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+        </>
     );
 }
-
-
-

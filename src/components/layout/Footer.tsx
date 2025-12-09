@@ -4,9 +4,9 @@ export default function Footer() {
   return (
     <footer className="w-full bg-black text-gray-200 border-t border-fuchsia-900/30">
       <div className="max-w-7xl mx-auto px-6 py-12">
-    
+
         <div className="flex flex-col md:flex-row justify-between gap-12">
-  
+
           <div className="flex flex-col md:w-1/3">
             <h2 className="text-3xl font-extrabold text-white tracking-tight">
               ISITE<span className="text-fuchsia-500">+</span>
@@ -16,7 +16,7 @@ export default function Footer() {
             </p>
           </div>
 
-  
+
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-10 md:w-2/3">
             {/* Menu */}
             <div>
