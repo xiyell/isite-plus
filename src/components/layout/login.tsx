@@ -71,11 +71,23 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 return;
             }
 
+            // Get the ID token from Firebase
+            const token = await user.getIdToken();
+
+            // Send to server to set admin cookie if applicable
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token }),
+            });
+
+            const data = await res.json();
+
             onLogin({
                 name: user.displayName || user.email?.split("@")[0],
                 email: user.email || undefined,
                 uid: user.uid,
-                role: "user",
+                role: data.role || "user",
             });
 
             setToast("✅ Logged in successfully!");

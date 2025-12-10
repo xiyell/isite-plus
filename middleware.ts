@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
     // functionality relying on firebase-admin (Node.js only) cannot run in Edge Middleware.
     // Deep verification should happen in the component or API route.
     if (!token) {
-        return NextResponse.redirect(new URL("/login", req.url));
+        return NextResponse.redirect(new URL("/", req.url));
     }
 
     return NextResponse.next();
