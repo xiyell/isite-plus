@@ -25,7 +25,7 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog"; 
+} from "@/components/ui/dialog";
 
 import ActivityLogsContent from "@/components/dashboard/activityLogs";
 import AttendanceContent from "@/components/dashboard/attendance";
@@ -100,6 +100,7 @@ const MessageBar = ({ message, type }: { message: string, type: 'success' | 'err
 	);
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const SidebarButton = ({ children, className, disabled, onPress, icon: Icon, isActive, ...props }: any) => (
 	<Button
 		variant={isActive ? "secondary" : "ghost"}
@@ -125,6 +126,7 @@ export default function DevDashboard() {
 	const [messageState, setMessageState] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
 	const [logs, setLogs] = useState<LogEntry[]>([]);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [notifications, setNotifications] = useState<any[]>([]);
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
@@ -140,6 +142,7 @@ export default function DevDashboard() {
 		title: "", content: "", image: null,
 		platforms: { websitePost: false, facebook: false, instagram: false, twitter: false },
 	});
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [pendingPosts, setPendingPosts] = useState<any[]>([]);
 
 	const [trashItems, setTrashItems] = useState<TrashedItem[]>([
@@ -253,7 +256,7 @@ export default function DevDashboard() {
 							✏️ Edit User — {user.name}
 						</DialogTitle>
 						<DialogDescription className="text-gray-400">
-							Update the user's basic information and role.
+							Update the user&apos;s basic information and role.
 						</DialogDescription>
 					</DialogHeader>
 

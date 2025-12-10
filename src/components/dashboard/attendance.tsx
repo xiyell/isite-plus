@@ -46,13 +46,12 @@ const mockSummary: SummaryData = {
 
 export default function AttendanceDashboard() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [summary, setSummary] = useState<SummaryData>(mockSummary);
+  const [summary] = useState<SummaryData>(mockSummary);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
   // 1. Data Fetch Simulation (Unchanged)
   useEffect(() => {
-    setIsLoading(true);
     const timer = setTimeout(() => {
       setRecords(mockAttendanceRecords);
       setIsLoading(false);

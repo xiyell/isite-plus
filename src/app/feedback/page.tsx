@@ -41,7 +41,8 @@ if (firebaseConfig && Object.keys(firebaseConfig).length > 0) {
  * Reusable styled Input/Textarea component with Tailwind styling.
  * Apply Glassmorphism: BG opacity, border, and backdrop-blur.
  */
-const StyledInput = ({ label, placeholder, value, onChange, isTextarea = false, ...props }: { label?: string, placeholder?: string, value: string, onChange: (e: any) => void, isTextarea?: boolean, [key: string]: any }) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const StyledInput = ({ label, placeholder, value, onChange, isTextarea = false, ...props }: { label?: string, placeholder?: string, value: string, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void, isTextarea?: boolean, [key: string]: any }) => {
   // Purplish/Glassy input classes
   const inputClasses = [
     "w-full p-3 rounded-xl",
@@ -134,6 +135,7 @@ const initialState = {
   userId: null,
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formReducer(state: any, action: any) {
   switch (action.type) {
     case 'SET_FIELD':
@@ -249,7 +251,7 @@ export default function FeedbackPage() {
     }
   };
 
-  const handleFieldChange = (field: string) => (e: any) => {
+  const handleFieldChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     dispatch({ type: 'SET_FIELD', field, value: e.target.value });
   };
 

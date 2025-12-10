@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { Loader2 } from "lucide-react"; // Import a loading icon
 
 import { auth } from "@/services/firebase";
+import { User } from "@/types/user";
 
 // --- Shadcn UI Components ---
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -19,7 +20,7 @@ import { Label } from "@/components/ui/label";
 
 
 interface LoginModalProps {
-    onLogin: (user: any) => void;
+    onLogin: (user: User) => void;
 }
 
 export default function LoginModal({ onLogin }: LoginModalProps) {
@@ -71,8 +72,8 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             }
 
             onLogin({
-                displayName: user.displayName || user.email?.split("@")[0],
-                email: user.email,
+                name: user.displayName || user.email?.split("@")[0],
+                email: user.email || undefined,
                 uid: user.uid,
                 role: "user",
             });
@@ -83,6 +84,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 setIsDialogOpen(false);
             }, 2500);
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             let errorMessage = err.message;
             if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {

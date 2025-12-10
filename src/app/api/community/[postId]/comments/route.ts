@@ -24,8 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pos
 
         return NextResponse.json({ id: res.id, message: "Comment added" }, { status: 201 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error adding comment:", error);
-        return NextResponse.json({ error: error.message || "Failed to add comment" }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message || "Failed to add comment" }, { status: 500 });
     }
 }

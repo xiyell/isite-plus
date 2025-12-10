@@ -27,7 +27,30 @@ export default function IChat() {
     const [responses, setResponses] = useState<BotResponse[]>([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null);
+
+    const getBotResponse = (text: string) => {
+        if (!botEnabled) return "iBot is currently disabled 🟥";
+        const lower = text.toLowerCase();
+
+        for (const r of responses) {
+            const keywords = r.trigger.split(",").map((k) => k.trim().toLowerCase());
+            if (keywords.some((k) => lower.includes(k))) return r.reply;
+        }
+        return "Hmm 🤔 I don't know that yet, but I'm learning!";
+    };
+
+    const sendMessage = (customText?: string) => {
+        const text = customText || input;
+        if (!text.trim()) return;
+
+        const userMsg: Message = { sender: "user", text };
+        const botReply: Message = { sender: "bot", text: getBotResponse(text) };
+
+        setMessages((prev) => [...prev, userMsg, botReply]);
+        setInput("");
+    };
 
     // Effect 1: Auto-scroll
     useEffect(() => {
@@ -54,13 +77,16 @@ export default function IChat() {
     // Effect 3: Voice setup
     useEffect(() => {
         if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const recognition = new SpeechRecognition();
 
             recognition.lang = "en-US";
             recognition.interimResults = false;
             recognition.onstart = () => setIsListening(true);
             recognition.onend = () => setIsListening(false);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             recognition.onresult = (e: any) => sendMessage(e.results[0][0].transcript);
 
             recognitionRef.current = recognition;
@@ -72,27 +98,7 @@ export default function IChat() {
         else alert("Your browser does not support voice recognition 😢");
     };
 
-    const getBotResponse = (text: string) => {
-        if (!botEnabled) return "iBot is currently disabled 🟥";
-        const lower = text.toLowerCase();
 
-        for (const r of responses) {
-            const keywords = r.trigger.split(",").map((k) => k.trim().toLowerCase());
-            if (keywords.some((k) => lower.includes(k))) return r.reply;
-        }
-        return "Hmm 🤔 I don't know that yet, but I'm learning!";
-    };
-
-    const sendMessage = (customText?: string) => {
-        const text = customText || input;
-        if (!text.trim()) return;
-
-        const userMsg: Message = { sender: "user", text };
-        const botReply: Message = { sender: "bot", text: getBotResponse(text) };
-
-        setMessages((prev) => [...prev, userMsg, botReply]);
-        setInput("");
-    };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") sendMessage();

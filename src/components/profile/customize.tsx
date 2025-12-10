@@ -72,6 +72,13 @@ const SectionSelector = ({ value, onChange, activeTheme }: { value: Section, onC
     );
 };
 
+// Card wrapper for enhanced Glassmorphism
+const GlassCard = ({ children }: { children: React.ReactNode }) => (
+    <Card className="bg-white/5 border border-white/10 backdrop-blur-md shadow-lg shadow-black/30 rounded-xl">
+        {children}
+    </Card>
+);
+
 // ----------------------------
 // PROFILE CUSTOMIZER
 // ----------------------------
@@ -81,7 +88,7 @@ function CustomizeProfile() {
     const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
     const activeThemeStyles = THEME_STYLES[profile.theme];
 
-    const handleChange = (field: keyof UserProfile, value: any) => {
+    const handleChange = (field: keyof UserProfile, value: UserProfile[keyof UserProfile]) => {
         setProfile(prev => ({ ...prev, [field]: value }));
     };
 
@@ -104,12 +111,7 @@ function CustomizeProfile() {
         return "Save Changes";
     };
 
-    // Card wrapper for enhanced Glassmorphism
-    const GlassCard = ({ children }: { children: React.ReactNode }) => (
-        <Card className="bg-white/5 border border-white/10 backdrop-blur-md shadow-lg shadow-black/30 rounded-xl">
-            {children}
-        </Card>
-    );
+
 
     return (
         // Changed padding from p-4 sm:p-6 to a consistent p-4

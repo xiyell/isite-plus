@@ -38,6 +38,7 @@
     "react-hot-toast": "^2.6.0",
     "react-intersection-observer": "^10.0.0",
     "react-zxing": "^2.1.0",
+    "recharts": "^3.5.1",
     "smoothscroll": "^0.4.0",
     "tailwind-merge": "^3.4.0"
   },

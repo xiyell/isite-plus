@@ -120,7 +120,7 @@ export default function UserManagementTab() {
                         ✏️ Edit User — {selectedUser?.name}
                     </DialogTitle>
                     <DialogDescription className="text-gray-400">
-                        Update the user's basic information and role.
+                        Update the user&apos;s basic information and role.
                     </DialogDescription>
                 </DialogHeader>
 

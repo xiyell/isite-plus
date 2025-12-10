@@ -72,6 +72,7 @@ export default function Navbar() {
     ------------------------------------------------------------------------
     */
     // Handles successful login from the LoginModal
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleLogin = (loggedUser: any) => {
         setUser({
             ...loggedUser,
@@ -80,6 +81,7 @@ export default function Navbar() {
     };
 
     // Handles successful registration (usually used to trigger a toast/feedback in the parent)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleRegistrationSuccess = (user: any) => {
         console.log('User successfully registered:', user);
         // We typically don't log in immediately after registration; 

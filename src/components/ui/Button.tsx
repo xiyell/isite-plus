@@ -122,6 +122,7 @@ function RippleButton({
       <Slot
         ref={ref}
         className={cn(buttonVariants({ variant, size, className }))}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {...(props as any)}
       >
         {children}

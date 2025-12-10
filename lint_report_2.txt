@@ -1,0 +1,196 @@
+
+> isite-plus-app@0.1.0 lint
+> eslint
+
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\announcement\page.tsx
+   53:14  warning  'e' is defined but never used                                                                                                                                       @typescript-eslint/no-unused-vars
+  227:12  warning  'page' is assigned a value but never used                                                                                                                           @typescript-eslint/no-unused-vars
+  305:26  warning  'e' is defined but never used                                                                                                                                       @typescript-eslint/no-unused-vars
+  308:8   warning  React Hook useEffect has missing dependencies: 'allAnnouncements.length' and 'nonFeaturedAnnouncements.length'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\api\announcements\route.ts
+  12:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  49:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\api\community\[postId]\comments\route.ts
+  27:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\api\community\route.ts
+   25:23  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   25:31  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   35:21  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   52:24  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   72:21  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   82:39  warning  'userId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  111:21  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\api\users\[id]\route.ts
+  11:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  23:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  34:14  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\api\verify-admin\route.ts
+  14:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\community\page.tsx
+  24:5  warning  'X' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\dashboard\page.tsx
+    3:31   warning  'useCallback' is defined but never used                          @typescript-eslint/no-unused-vars
+    4:10   warning  'signInAnonymously' is defined but never used                    @typescript-eslint/no-unused-vars
+    4:29   warning  'signInWithCustomToken' is defined but never used                @typescript-eslint/no-unused-vars
+    4:52   warning  'onAuthStateChanged' is defined but never used                   @typescript-eslint/no-unused-vars
+    5:14   warning  'auth' is defined but never used                                 @typescript-eslint/no-unused-vars
+    5:20   warning  'analyticsPromise' is defined but never used                     @typescript-eslint/no-unused-vars
+   14:10   warning  'Table' is defined but never used                                @typescript-eslint/no-unused-vars
+   14:17   warning  'TableBody' is defined but never used                            @typescript-eslint/no-unused-vars
+   14:28   warning  'TableCell' is defined but never used                            @typescript-eslint/no-unused-vars
+   14:39   warning  'TableHead' is defined but never used                            @typescript-eslint/no-unused-vars
+   14:50   warning  'TableHeader' is defined but never used                          @typescript-eslint/no-unused-vars
+   14:63   warning  'TableRow' is defined but never used                             @typescript-eslint/no-unused-vars
+   15:10   warning  'Badge' is defined but never used                                @typescript-eslint/no-unused-vars
+   19:10   warning  'Separator' is defined but never used                            @typescript-eslint/no-unused-vars
+   20:29   warning  'AlertDescription' is defined but never used                     @typescript-eslint/no-unused-vars
+   36:8    warning  'users' is defined but never used                                @typescript-eslint/no-unused-vars
+   45:2    warning  'deleteDoc' is defined but never used                            @typescript-eslint/no-unused-vars
+   53:2    warning  'ChevronDown' is defined but never used                          @typescript-eslint/no-unused-vars
+   53:15   warning  'ChevronUp' is defined but never used                            @typescript-eslint/no-unused-vars
+   53:26   warning  'Edit' is defined but never used                                 @typescript-eslint/no-unused-vars
+   53:32   warning  'Trash2' is defined but never used                               @typescript-eslint/no-unused-vars
+   53:40   warning  'MessageSquare' is defined but never used                        @typescript-eslint/no-unused-vars
+   53:64   warning  'KeyRound' is defined but never used                             @typescript-eslint/no-unused-vars
+   53:74   warning  'UserPlus' is defined but never used                             @typescript-eslint/no-unused-vars
+   56:2    warning  'LineChart' is defined but never used                            @typescript-eslint/no-unused-vars
+   56:13   warning  'Line' is defined but never used                                 @typescript-eslint/no-unused-vars
+   56:19   warning  'XAxis' is defined but never used                                @typescript-eslint/no-unused-vars
+   56:26   warning  'YAxis' is defined but never used                                @typescript-eslint/no-unused-vars
+   56:33   warning  'CartesianGrid' is defined but never used                        @typescript-eslint/no-unused-vars
+   56:48   warning  'Tooltip' is defined but never used                              @typescript-eslint/no-unused-vars
+   56:57   warning  'ResponsiveContainer' is defined but never used                  @typescript-eslint/no-unused-vars
+   57:2    warning  'BarChart' is defined but never used                             @typescript-eslint/no-unused-vars
+   57:12   warning  'Bar' is defined but never used                                  @typescript-eslint/no-unused-vars
+   57:17   warning  'PieChart' is defined but never used                             @typescript-eslint/no-unused-vars
+   57:27   warning  'Pie' is defined but never used                                  @typescript-eslint/no-unused-vars
+   57:32   warning  'Cell' is defined but never used                                 @typescript-eslint/no-unused-vars
+   57:38   warning  'Legend' is defined but never used                               @typescript-eslint/no-unused-vars
+   63:7    warning  'severityColor' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  103:100  error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  124:9    warning  'isDropdownOpen' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  128:9    warning  'notifications' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  128:53   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  129:9    warning  'announcements' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  135:17   warning  'setSearch' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+  138:9    warning  'authReady' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+  138:20   warning  'setAuthReady' is assigned a value but never used                @typescript-eslint/no-unused-vars
+  143:51   error    Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  163:8    warning  'postData' is assigned a value but never used                    @typescript-eslint/no-unused-vars
+  200:8    warning  'handleEditUser' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  225:8    warning  'handleRoleChange' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  225:34   warning  'id' is defined but never used                                   @typescript-eslint/no-unused-vars
+  225:46   warning  'newRole' is defined but never used                              @typescript-eslint/no-unused-vars
+  226:35   warning  'id' is defined but never used                                   @typescript-eslint/no-unused-vars
+  227:34   warning  'id' is defined but never used                                   @typescript-eslint/no-unused-vars
+  230:8    warning  'filteredUsers' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  235:8    warning  'ActiveTabIcon' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  256:23   error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\feedback\page.tsx
+    7:44   warning  'setLogLevel' is defined but never used   @typescript-eslint/no-unused-vars
+   44:162  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   44:213  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:29   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:42   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  252:52   error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\iQr\page.tsx
+  9:8  warning  'Image' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\iReader\page.tsx
+  115:22  warning  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  153:25  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  244:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\page.tsx
+  28:164  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\profile\page.tsx
+  26:13  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  26:86  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  30:13  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  30:84  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\dashboard\activityLogs.tsx
+   4:10  warning  'Button' is defined but never used         @typescript-eslint/no-unused-vars
+   6:21  warning  'Trash2' is defined but never used         @typescript-eslint/no-unused-vars
+   6:43  warning  'XCircle' is defined but never used        @typescript-eslint/no-unused-vars
+   6:52  warning  'CheckCircle' is defined but never used    @typescript-eslint/no-unused-vars
+   6:65  warning  'AlertTriangle' is defined but never used  @typescript-eslint/no-unused-vars
+  33:44  warning  'severity' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\dashboard\ibot.tsx
+  14:38  warning  'Check' is defined but never used   @typescript-eslint/no-unused-vars
+  21:5   warning  'getDoc' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\dashboard\trashbin.tsx
+  3:10  warning  'useState' is defined but never used     @typescript-eslint/no-unused-vars
+  3:20  warning  'useEffect' is defined but never used    @typescript-eslint/no-unused-vars
+  3:31  warning  'useCallback' is defined but never used  @typescript-eslint/no-unused-vars
+  5:41  warning  'CardTitle' is defined but never used    @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\dashboard\userManagement.tsx
+  123:40  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\home\AnnouncementCarousel.tsx
+   6:10  warning  'Suspense' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  11:10  warning  'Loading' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+  20:44  error    Unexpected any. Specify a different type                                                                      @typescript-eslint/no-explicit-any
+  40:6   warning  React Hook useEffect has a missing dependency: 'nextSlide'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\layout\Footer.tsx
+  54:83  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\layout\Navbar.tsx
+  75:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  83:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\layout\ichat.tsx
+  30:35  error    Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+  79:50  error    Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+  79:87  error    Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+  86:40  error    Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+  90:8   warning  React Hook useEffect has a missing dependency: 'sendMessage'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\layout\login.tsx
+  22:21  error    Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  41:11  warning  'handleCloseDialog' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  86:23  error    Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\layout\register.tsx
+  22:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  96:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\profile\customize.tsx
+  91:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\ui\Button.tsx
+  125:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\ui\input.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\lib\utils.ts
+  4:10  warning  'Variants' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\services\auth.ts
+   1:10  warning  'User' is defined but never used       @typescript-eslint/no-unused-vars
+  12:65  warning  'studentId' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\types\announcement.ts
+  1:10  warning  'Timestamp' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 129 problems (42 errors, 87 warnings)
+

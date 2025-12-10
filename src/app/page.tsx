@@ -25,7 +25,7 @@ export default function Home() {
         -----------------------------------------------------------------
         */}
       <Divider />
-      <section className="relative flex flex-col justify-center items-center min-h-[100vh] sm:min-h-screen text-center px-4 sm:px-8 py-16 sm:py-0 overflow-hidden">"
+      <section className="relative flex flex-col justify-center items-center min-h-[100vh] sm:min-h-screen text-center px-4 sm:px-8 py-16 sm:py-0 overflow-hidden">
         <div
           className="absolute inset-0 bg-center bg-no-repeat bg-cover opacity-25"
           style={{

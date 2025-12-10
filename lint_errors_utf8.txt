@@ -1,0 +1,24 @@
+﻿
+> isite-plus-app@0.1.0 lint
+> eslint --quiet
+
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\dashboard\page.tsx
+  103:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  128:53   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:51   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\app\feedback\page.tsx
+  44:267  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\home\AnnouncementCarousel.tsx
+  20:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\ui\input.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\jeste\Documents\1CAPSTONE\isite_plus\isite-plus\src\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+Γ£û 7 problems (7 errors, 0 warnings)
+

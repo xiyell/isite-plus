@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
         // Sort in memory instead
         const posts = snapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .sort((a: any, b: any) => {
                 const tA = a.createdAt?.seconds || 0; // handle Firestore Timestamp
                 const tB = b.createdAt?.seconds || 0;
@@ -32,9 +33,9 @@ export async function GET(req: NextRequest) {
             });
 
         return NextResponse.json(posts);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching posts:", error);
-        return NextResponse.json({ error: error.message || "Failed to fetch posts" }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message || "Failed to fetch posts" }, { status: 500 });
     }
 }
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
         }
 
         const db = getAdminDb();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const newPost: any = {
             title,
             description,
@@ -69,9 +71,9 @@ export async function POST(req: NextRequest) {
         const res = await db.collection("community").add(newPost);
 
         return NextResponse.json({ id: res.id, message: "Post created successfully" }, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error creating post:", error);
-        return NextResponse.json({ error: error.message || "Failed to create post" }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message || "Failed to create post" }, { status: 500 });
     }
 }
 
@@ -108,8 +110,8 @@ export async function PATCH(req: NextRequest) {
 
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error updating post:", error);
-        return NextResponse.json({ error: error.message || "Failed to update post" }, { status: 500 });
+        return NextResponse.json({ error: (error as Error).message || "Failed to update post" }, { status: 500 });
     }
 }

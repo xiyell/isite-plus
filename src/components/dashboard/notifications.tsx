@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, AlertTriangle, XCircle, Info, Trash2, Loader2, Zap } from "lucide-react";
+import { CheckCircle, AlertTriangle, XCircle, Info, Trash2, Loader2 } from "lucide-react";
 
 
 // --- Data Structure (Unchanged) ---
@@ -52,7 +52,7 @@ export default function NotificationsDashboard() {
 
     // 1. Placeholder for Fetching Data (Simulates Firestore Snapshot Listener)
     useEffect(() => {
-        setIsLoading(true);
+
 
         // Simulate API/Firebase fetch delay
         const timer = setTimeout(() => {

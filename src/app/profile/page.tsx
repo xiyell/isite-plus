@@ -23,11 +23,11 @@ const PostItem = ({ title, karma, date }: { title: string, karma: number, date: 
 const CommentsContent = () => (
     <div className="space-y-4">
         <p className="text-gray-300 border-l-4 border-white/50 pl-4 py-2 bg-white/5 rounded-r-md">
-            "This is a sample comment on a recent discussion about React performance."
+            &quot;This is a sample comment on a recent discussion about React performance.&quot;
             <span className="block text-xs text-gray-500 mt-1">— 5h ago</span>
         </p>
         <p className="text-gray-300 border-l-4 border-white/50 pl-4 py-2 bg-white/5 rounded-r-md">
-            "Agreed, the new Shadcn component library simplifies styling immensely!"
+            &quot;Agreed, the new Shadcn component library simplifies styling immensely!&quot;
             <span className="block text-xs text-gray-500 mt-1">— 1d ago</span>
         </p>
     </div>

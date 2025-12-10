@@ -51,7 +51,7 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="/about" className="hover:text-fuchsia-400 transition">FAQ</a></li>
-                <li><a href="#" className="hover:text-fuchsia-400 transition">What's New</a></li>
+                <li><a href="#" className="hover:text-fuchsia-400 transition">What&apos;s New</a></li>
                 <li><a href="/feedbacks" className="hover:text-fuchsia-400 transition">Request a Feature</a></li>
                 <li><a href="/feedbacks" className="hover:text-fuchsia-400 transition">Supports</a></li>
               </ul>

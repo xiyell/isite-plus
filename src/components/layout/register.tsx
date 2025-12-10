@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 
 import { handleSignup } from "@/services/auth";
 import { auth } from "@/services/firebase";
+import { User } from "@/types/user";
 
 // --- Shadcn UI Components ---
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -19,7 +20,7 @@ import { Label } from "@/components/ui/label";
 
 
 export interface RegisterModalProps {
-    onRegister?: (user: any) => void;
+    onRegister?: (user: User) => void;
 }
 
 export default function RegisterModal({ onRegister }: RegisterModalProps) {
@@ -85,7 +86,13 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                 }),
             });
 
-            onRegister?.(user);
+            onRegister?.({
+                uid: user.uid,
+                email: user.email || undefined,
+                name: user.displayName || email.split("@")[0],
+                provider: "password",
+                role: "user"
+            });
             await signOut(auth);
             setError("✅ Account created! Check your PUP Webmail to verify.");
 
@@ -93,6 +100,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                 setIsDialogOpen(false);
             }, 2500);
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             let errorMessage = err.message;
             if (err.code === 'auth/email-already-in-use') {

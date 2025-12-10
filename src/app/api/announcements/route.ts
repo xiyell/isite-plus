@@ -9,7 +9,7 @@ export async function GET() {
         const snapshot = await db.collection("announcements").orderBy("createdAt", "desc").get();
         const announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(announcements);
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error fetching announcements:", error);
         // Return empty array instead of error to prevent frontend crash loop if collection empty/missing
         return NextResponse.json([]);
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ message: "Announcement posted" }, { status: 201 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Error posting announcement:", error);
         return NextResponse.json({ error: "Failed to post" }, { status: 500 });
     }

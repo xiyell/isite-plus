@@ -150,10 +150,11 @@ export default function IReader() {
             let rawStudentData: RawQRData | null = null;
             try {
                 rawStudentData = decodeAndValidateQr(result.getText());
-            } catch (e: any) {
-                const message = e.message.includes("expired")
+            } catch (e: unknown) {
+                const err = e as Error;
+                const message = err.message.includes("expired")
                     ? "❌ QR Code has expired."
-                    : e.message.includes("scanned")
+                    : err.message.includes("scanned")
                         ? "⚠️ QR already scanned previously!"
                         : "❌ Invalid QR format/data.";
 
@@ -241,11 +242,12 @@ export default function IReader() {
             }
 
             setIsCameraAllowed(true);
-        } catch (err: any) {
-            console.error("getUserMedia error:", err);
-            if (err.name === "NotAllowedError") {
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error("getUserMedia error:", error);
+            if (error.name === "NotAllowedError") {
                 setError("Camera access was denied. Please allow camera permissions.");
-            } else if (err.name === "NotFoundError") {
+            } else if (error.name === "NotFoundError") {
                 setError("No camera found. Attach a camera and try again.");
             } else {
                 setError("Unable to access camera. Check permissions and HTTPS.");
