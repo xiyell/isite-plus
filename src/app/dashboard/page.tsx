@@ -25,9 +25,8 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog"; // Added Dialog components for inline modals
+} from "@/components/ui/dialog"; 
 
-// --- Imports for your dedicated components (ASSUMED PATHS) ---
 import ActivityLogsContent from "@/components/dashboard/activityLogs";
 import AttendanceContent from "@/components/dashboard/attendance";
 import IBotContent from "@/components/dashboard/ibot";
@@ -167,13 +166,12 @@ export default function DevDashboard() {
 	];
 
 	// ----------------------------------------------------------------------------------
-	// 🔥 DATA & AUTH HANDLERS (Simplified for integration)
+	//  DATA & AUTH HANDLERS (Simplified for integration)
 	// ----------------------------------------------------------------------------------
 
 	useEffect(() => { /* Auth Logic */ }, []);
 	useEffect(() => {
 		fetch("/api/logs").then(res => res.json()).then(setLogs).catch(console.error);
-		// 🔥 USER MANAGEMENT: Real-time Firestore listener for users
 		const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
 			const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as UserData[];
 			setUsers(data);
