@@ -18,3 +18,4 @@ This file tracks all changes made to resolve lint errors for Vercel deployment.
 - Fixed explicit any in src/components/profile/customize.tsx
 - Fixed regressions in src/app/iReader/page.tsx
 - Fixed all 49 blocking lint errors. Build Verified.
+- Fixed Vercel build error by forcing package-lock.json update (added rimraf).
