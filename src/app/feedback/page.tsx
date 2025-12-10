@@ -2,9 +2,9 @@
 
 import { useReducer, useEffect, useState } from "react";
 // Import Firebase modules and singleton pattern utilities
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, Auth } from 'firebase/auth';
-import { getFirestore, collection, addDoc, setLogLevel, Firestore } from 'firebase/firestore';
+import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth'; // Auth functions
+import { collection, addDoc } from 'firebase/firestore'; // Firestore functions
+import { auth, db } from "@/services/firebase"; // Shared instances
 
 // We replace @heroui imports with standard HTML elements and Tailwind styling.
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,27 +12,7 @@ import { CheckCircle, AlertCircle, XCircle, Loader } from "lucide-react"; // Add
 
 // --- Configuration & Constants ---
 const FEEDBACK_TYPES = ["Feedback", "Bug Report", "Suggestion"];
-
-// Initialize global variables (MANDATORY)
-// NOTE: These variables must be correctly defined in your environment/build process
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-// --- Singleton Firebase Initialization (Applied User's Pattern) ---
-let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
-let db: Firestore | undefined;
-
-if (firebaseConfig && Object.keys(firebaseConfig).length > 0) {
-  // Use getApps() for singleton check
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  auth = getAuth(app);
-  db = getFirestore(app);
-  // setLogLevel('debug'); // Enable detailed Firebase logging (Commented out for production readiness)
-} else {
-  console.error("Firebase configuration is missing. Cannot initialize Firebase.");
-}
+const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id';
 
 
 // --- Custom Components for Readability & Reusability ---
@@ -179,11 +159,8 @@ export default function FeedbackPage() {
 
     const signInUser = async () => {
       try {
-        if (initialAuthToken) {
-          await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-          await signInAnonymously(auth);
-        }
+        // Anonymous sign-in is the default for this feedback form
+        await signInAnonymously(auth);
       } catch (error) {
         console.error("Firebase Auth Error during sign-in:", error);
       }

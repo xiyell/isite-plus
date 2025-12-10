@@ -168,6 +168,14 @@ export default function DevDashboard() {
 		{ month: "Aug", posts: 420, platform: 'Website' }, { month: "Sep", posts: 580, platform: 'Facebook' }, { month: "Oct", posts: 770, platform: 'Twitter' },
 	];
 
+	// Aggregated Data for Pie Chart
+	const platformData = [
+		{ name: 'Website', value: 540, color: '#8b5cf6' }, // Purple
+		{ name: 'Facebook', value: 780, color: '#3b82f6' }, // Blue
+		{ name: 'Instagram', value: 310, color: '#ec4899' }, // Pink
+		{ name: 'Twitter', value: 770, color: '#06b6d4' }, // Cyan
+	];
+
 	// ----------------------------------------------------------------------------------
 	//  DATA & AUTH HANDLERS (Simplified for integration)
 	// ----------------------------------------------------------------------------------
@@ -439,7 +447,69 @@ export default function DevDashboard() {
 										</Card>
 									))}
 								</div>
-								{/* Charts (omitted for brevity) */}
+								<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+									<Card className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-lg shadow-black/20">
+										<CardHeader>
+											<CardTitle className="text-xl font-semibold text-gray-200">Post Analytics</CardTitle>
+										</CardHeader>
+										<CardContent className="h-[300px] w-full p-0">
+											<ResponsiveContainer width="100%" height="100%">
+												<LineChart data={postData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+													<CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+													<XAxis dataKey="month" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
+													<YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
+													<Tooltip
+														contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px", color: "#fff" }}
+														itemStyle={{ color: "#fff" }}
+														labelStyle={{ color: "#9ca3af" }}
+													/>
+													<Legend />
+													<Line type="monotone" dataKey="posts" stroke="#8b5cf6" strokeWidth={3} activeDot={{ r: 8 }} dot={{ fill: '#8b5cf6', strokeWidth: 2 }} />
+												</LineChart>
+											</ResponsiveContainer>
+										</CardContent>
+									</Card>
+
+									<Card className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-lg shadow-black/20">
+										<CardHeader>
+											<CardTitle className="text-xl font-semibold text-gray-200">Platform Distribution</CardTitle>
+										</CardHeader>
+										<CardContent className="h-[300px] w-full p-2 flex justify-center items-center">
+											<ResponsiveContainer width="100%" height="100%">
+												<PieChart>
+													<Pie
+														data={platformData}
+														cx="40%" // Shift left to make room for legend
+														cy="50%"
+														innerRadius={70} // Thinner ring
+														outerRadius={90}
+														paddingAngle={5}
+														dataKey="value"
+														nameKey="name"
+													>
+														{platformData.map((entry, index) => (
+															<Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+														))}
+													</Pie>
+													<Tooltip
+														contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "12px", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
+														itemStyle={{ color: "#fff", fontWeight: 600 }}
+														formatter={(value: number) => [`${value} Posts`, '']}
+														separator=""
+													/>
+													<Legend
+														verticalAlign="middle"
+														align="right"
+														layout="vertical"
+														iconType="circle"
+														iconSize={10}
+														formatter={(value) => <span className="text-gray-300 text-sm ml-2">{value}</span>}
+													/>
+												</PieChart>
+											</ResponsiveContainer>
+										</CardContent>
+									</Card>
+								</div>
 							</motion.div>
 						)}
 
