@@ -3,10 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { db, auth, analyticsPromise } from "@/services/firebase";
-
-// ----------------------------------------------------------------------------------
-// ✅ SHADCN IMPORTS (ALL CORRECTED CASE)
-// ----------------------------------------------------------------------------------
+import { UserManagementContent } from "@/components/dashboard/userManagement";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
@@ -31,9 +28,9 @@ import ActivityLogsContent from "@/components/dashboard/activityLogs";
 import AttendanceContent from "@/components/dashboard/attendance";
 import IBotContent from "@/components/dashboard/ibot";
 import NotificationsContent from "@/components/dashboard/notifications";
-import PendingPostsContent from "@/components/dashboard/pendingpost";
+
 import TrashbinContent, { TrashedItem } from "@/components/dashboard/trashbin";
-import users from "@/components/dashboard/userManagement";
+
 
 
 // --- Firebase (User Management specific imports) ---
@@ -56,6 +53,9 @@ import {
 	LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 	BarChart, Bar, PieChart, Pie, Cell, Legend
 } from "recharts";
+import AdminPostModerationPage from "@/components/dashboard/pendingpost";
+import { createAnnouncement } from "@/actions/announcements";
+import OverviewContent from "@/components/dashboard/overview";
 
 
 // --- Types ---
@@ -67,7 +67,7 @@ const severityColor: Record<SeverityLevel, string> = {
 };
 
 type LogEntry = { id: string; category: "posts" | "users" | "system"; action: string; severity: SeverityLevel; message: string; time: string; timestamp: number; };
-type Announcement = { id?: string; title: string; content: string; image: File | null; platforms?: { websitePost: boolean; facebook: boolean; instagram: boolean; twitter: boolean; }; createdAt?: string; };
+type Announcement = { id?: string; title: string; description: string; image: string | null; platforms?: { websitePost: boolean; facebook: boolean; instagram: boolean; twitter: boolean; }; createdAt?: string; updatedAt?: string; };
 interface UserData { id: string; name: string; email: string; role: 'admin' | 'moderator' | 'user'; status: string; lastLogin: string; active: boolean; }
 
 
@@ -116,7 +116,30 @@ const SidebarButton = ({ children, className, disabled, onPress, icon: Icon, isA
 	</Button>
 );
 
+const handleRoleChange = async (id: string, newRole: 'admin' | 'moderator' | 'user') => { 
+    try {
+        const userRef = doc(db, "users", id);
+        await updateDoc(userRef, { role: newRole });
+        setMessageState({ message: `Role for ${id} updated to ${newRole}`, type: "success" });
+    } catch (error) {
+        console.error("Error updating user role:", error);
+        setMessageState({ message: "Failed to update user role", type: "error" });
+    }
+};
 
+const handleDeleteUser = async (id: string, name: string) => {
+    // In a real application, you'd likely soft-delete (move to trash) or call Admin SDK
+    try {
+        // Placeholder for deletion logic:
+        // await deleteDoc(doc(db, "users", id));
+        setMessageState({ message: `User ${name} would be deleted (requires Admin SDK).`, type: "warning" });
+        // After successful deletion, you would remove them from the 'users' state:
+        // setUsers(prev => prev.filter(u => u.id !== id));
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        setMessageState({ message: "Failed to delete user", type: "error" });
+    }
+};
 // --- Dev Dashboard Component ---
 export default function DevDashboard() {
 	const [activeTab, setActiveTab] = useState("overview");
@@ -139,7 +162,7 @@ export default function DevDashboard() {
 
 	const [authReady, setAuthReady] = useState(false);
 	const [announcement, setAnnouncement] = useState<Announcement>({
-		title: "", content: "", image: null,
+		title: "", description: "", image: null,
 		platforms: { websitePost: false, facebook: false, instagram: false, twitter: false },
 	});
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -195,7 +218,39 @@ export default function DevDashboard() {
 	useEffect(() => { fetch("/api/community?status=pending").then(res => res.json()).then(setPendingPosts).catch(console.error); }, []);
 
 	// --- Announcement ---
-	const handlePostAnnouncement = async () => { /* ... logic ... */ };
+	const handlePostAnnouncement = async () => {
+        if (!announcement.title || !announcement.description) {
+            setMessageState({ message: "Title and Content are required.", type: 'warning' });
+            return;
+        }
+
+		try {
+			setMessageState({ message: "Posting announcement...", type: 'warning' });
+			
+			// Prepare data for server action
+			const dataToPost = {
+				title: announcement.title,
+				description: announcement.description,
+				platforms: announcement.platforms,
+				image: announcement.image || "",
+				updatedAt: new Date().toISOString(),
+			};
+			
+			await createAnnouncement(dataToPost);
+
+            // Reset form and display success
+            setAnnouncement({
+                title: "", description: "", image: "",
+                platforms: { websitePost: false, facebook: false, instagram: false, twitter: false },
+            });
+            fetchAnnouncements(); // Refresh the list of announcements
+            setMessageState({ message: "Announcement posted successfully!", type: 'success' });
+            
+        } catch (error) {
+            console.error("Error posting announcement:", error);
+            setMessageState({ message: "Failed to post announcement.", type: 'error' });
+        }
+    };
 
 	// --- Trash Bin Handlers ---
 	const handleRestore = async (id: string, type: string) => {
@@ -209,23 +264,37 @@ export default function DevDashboard() {
 
 
 	const handleEditUser = (user: UserData) => setEditingUser(user);
+const handleSaveUser = async (updatedData: UserData) => {
+        if (!updatedData || !updatedData.id) {
+            setMessageState({ message: "Error: Invalid user data or missing ID.", type: "error" });
+            return;
+        }
 
-	const handleSaveUser = async () => {
-		if (!editingUser) return;
-		try {
-			const userRef = doc(db, "users", editingUser.id);
-			await updateDoc(userRef, {
-				name: editingUser.name,
-				email: editingUser.email,
-				role: editingUser.role,
-			});
-			setMessageState({ message: "User updated successfully", type: "success" });
-			setEditingUser(null);
-		} catch (error) {
-			console.error("Error updating user:", error);
-			setMessageState({ message: "Failed to update user", type: "error" });
-		}
-	};
+        try {
+            // Reference the Firestore document
+            const userRef = doc(db, "users", updatedData.id);
+
+            // Execute the update
+            await updateDoc(userRef, {
+                // IMPORTANT: Only update the fields that can be modified via the UI
+                name: updatedData.name,
+                email: updatedData.email,
+                role: updatedData.role,
+            });
+
+            // If the update succeeds:
+            setMessageState({ message: `${updatedData.name}'s details updated successfully.`, type: "success" });
+            setEditingUser(null); // Close the modal upon success
+
+            // Note: Since you use onSnapshot to fetch users, the table should update automatically
+            // once Firestore confirms the write.
+
+        } catch (error) {
+            console.error("Error updating user:", error);
+            setMessageState({ message: "Failed to update user. Check console for details.", type: "error" });
+            // Do NOT close the modal on error, so the user can try again
+        }
+    };
 
 	const handlePasswordChange = async (newPass: string, userId: string) => {
 		// Placeholder: This typically requires an API call to a backend using Firebase Admin SDK
@@ -248,81 +317,100 @@ export default function DevDashboard() {
 	const handleTabChange = (tabId: string) => { setActiveTab(tabId); setIsDropdownOpen(false); setMessageState(null); };
 
 	// --- Inline Modals ---
+const EditUserModal = () => {
+    const user = editingUser;
+    if (!user) return null;
 
-	const EditUserModal = () => {
-		const user = editingUser;
-		if (!user) return null;
+    // FIX: Use a local state for the form data, initialized with the editingUser
+    const [formData, setFormData] = useState(user);
+    
+    // Reset local state if editingUser changes (e.g., if we open a different user)
+    useEffect(() => {
+        setFormData(user);
+    }, [user]);
 
-		// Ensure data integrity before opening
-		const currentSelectedUser = users.find(u => u.id === user.id) || user;
+    // Helper function to handle input changes locally
+    const handleChange = (field: keyof UserData, value: string | 'admin' | 'moderator' | 'user') => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
 
-		return (
-			<Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-				<DialogContent className="bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
-					<DialogHeader>
-						<DialogTitle className="text-xl font-semibold text-purple-400">
-							✏️ Edit User — {user.name}
-						</DialogTitle>
-						<DialogDescription className="text-gray-400">
-							Update the user&apos;s basic information and role.
-						</DialogDescription>
-					</DialogHeader>
+    const handleFormSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // Call the parent save handler with the locally modified data
+        handleSaveUser(formData);
+    };
+    
+    // Ensure data integrity before rendering
+    const currentSelectedUser = formData; 
 
-					<form onSubmit={(e) => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
+    return (
+        <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+            {/* STYLING REVERTED: Using general dark glassy styles */}
+            <DialogContent className="bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
+                <DialogHeader>
+                    <DialogTitle className="text-xl font-semibold text-gray-200">
+                        ✏️ Edit User — {currentSelectedUser.name}
+                    </DialogTitle>
+                    <DialogDescription className="text-gray-400">
+                        Update the user&apos;s basic information and role.
+                    </DialogDescription>
+                </DialogHeader>
 
-						<Label htmlFor="name" className="block text-sm text-gray-300 mb-1">Full Name</Label>
-						<Input
-							id="name"
-							className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-							value={currentSelectedUser.name}
-							onChange={(e) => setEditingUser({ ...currentSelectedUser, name: e.target.value })}
-						/>
+                <form onSubmit={handleFormSubmit} className="space-y-4">
 
-						<Label htmlFor="email" className="block text-sm text-gray-300 mb-1">Email</Label>
-						<Input
-							id="email"
-							className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-							type="email"
-							value={currentSelectedUser.email}
-							onChange={(e) => setEditingUser({ ...currentSelectedUser, email: e.target.value })}
-						/>
+                    <Label htmlFor="name" className="block text-sm text-gray-300 mb-1">Full Name</Label>
+                    <Input
+                        id="name"
+                        className="w-full bg-white/10 border border-white/20 focus-visible:ring-indigo-500 text-white placeholder-gray-400"
+                        value={currentSelectedUser.name}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                    />
 
-						<Label htmlFor="role" className="block text-sm text-gray-300 mb-1">Role</Label>
-						<Select
-							value={currentSelectedUser.role || "user"}
-							onValueChange={(value: 'admin' | 'moderator' | 'user') => setEditingUser({ ...currentSelectedUser, role: value })}
-						>
-							<SelectTrigger className="w-full bg-white/10 border border-white/20 text-white focus-visible:ring-purple-500">
-								<SelectValue placeholder="Select Role" />
-							</SelectTrigger>
-							<SelectContent className="bg-gray-800 text-white border-gray-700">
-								<SelectItem value="admin">Admin</SelectItem>
-								<SelectItem value="moderator">Moderator</SelectItem>
-								<SelectItem value="user">User</SelectItem>
-							</SelectContent>
-						</Select>
+                    <Label htmlFor="email" className="block text-sm text-gray-300 mb-1">Email</Label>
+                    <Input
+                        id="email"
+                        className="w-full bg-white/10 border border-white/20 focus-visible:ring-indigo-500 text-white placeholder-gray-400"
+                        type="email"
+                        value={currentSelectedUser.email}
+                        onChange={(e) => handleChange('email', e.target.value)}
+                    />
 
-						<DialogFooter className="mt-6 flex justify-end gap-3">
-							<Button
-								variant="secondary"
-								onClick={() => setEditingUser(null)}
-								className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
-								type="button"
-							>
-								Cancel
-							</Button>
-							<Button
-								className="bg-purple-600 hover:bg-purple-700 text-white"
-								type="submit"
-							>
-								Save Changes
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
-		);
-	};
+                    <Label htmlFor="role" className="block text-sm text-gray-300 mb-1">Role</Label>
+                    <Select
+                        value={currentSelectedUser.role || "user"}
+                        onValueChange={(value: 'admin' | 'moderator' | 'user') => handleChange('role', value)}
+                    >
+                        <SelectTrigger className="w-full bg-white/10 border border-white/20 text-white focus-visible:ring-indigo-500">
+                            <SelectValue placeholder="Select Role" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 text-white border-gray-700">
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="moderator">Moderator</SelectItem>
+                            <SelectItem value="user">User</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <DialogFooter className="mt-6 flex justify-end gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setEditingUser(null)}
+                            className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
+                            type="button"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            type="submit"
+                        >
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 	const PasswordModal = () => {
 		const [newPass, setNewPass] = useState('');
@@ -430,87 +518,7 @@ export default function DevDashboard() {
 
 						{/* 1. Overview (RETAINED INLINE) */}
 						{activeTab === "overview" && (
-							<motion.div key="overview" animate={{ opacity: 1, y: 0 }} className="space-y-8" exit={{ opacity: 0, y: -15 }} initial={{ opacity: 0, y: 15 }} transition={{ duration: 0.4 }}>
-								{/* Stats Cards (omitted for brevity) */}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-									{[
-										{ title: "Active Users", stat: "1,254", desc: "+5% this week" },
-										{ title: "Total Posts", stat: "412", desc: "15 drafts pending" },
-										{ title: "Server Uptime", stat: "99.9%", desc: "Last reboot: 6d ago" },
-									].map((card, i) => (
-										<Card key={i} className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all shadow-black/20" asChild>
-											<motion.div whileHover={{ scale: 1.02 }}>
-												<CardTitle className="text-xl font-semibold text-gray-200">{card.title}</CardTitle>
-												<p className="text-5xl font-extrabold mt-2 text-indigo-300">{card.stat}</p>
-												<p className="text-sm text-gray-400 mt-1">{card.desc}</p>
-											</motion.div>
-										</Card>
-									))}
-								</div>
-								<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-									<Card className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-lg shadow-black/20">
-										<CardHeader>
-											<CardTitle className="text-xl font-semibold text-gray-200">Post Analytics</CardTitle>
-										</CardHeader>
-										<CardContent className="h-[300px] w-full p-0">
-											<ResponsiveContainer width="100%" height="100%">
-												<LineChart data={postData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-													<CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-													<XAxis dataKey="month" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
-													<YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
-													<Tooltip
-														contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px", color: "#fff" }}
-														itemStyle={{ color: "#fff" }}
-														labelStyle={{ color: "#9ca3af" }}
-													/>
-													<Legend />
-													<Line type="monotone" dataKey="posts" stroke="#8b5cf6" strokeWidth={3} activeDot={{ r: 8 }} dot={{ fill: '#8b5cf6', strokeWidth: 2 }} />
-												</LineChart>
-											</ResponsiveContainer>
-										</CardContent>
-									</Card>
-
-									<Card className="bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-lg shadow-black/20">
-										<CardHeader>
-											<CardTitle className="text-xl font-semibold text-gray-200">Platform Distribution</CardTitle>
-										</CardHeader>
-										<CardContent className="h-[300px] w-full p-2 flex justify-center items-center">
-											<ResponsiveContainer width="100%" height="100%">
-												<PieChart>
-													<Pie
-														data={platformData}
-														cx="40%" // Shift left to make room for legend
-														cy="50%"
-														innerRadius={70} // Thinner ring
-														outerRadius={90}
-														paddingAngle={5}
-														dataKey="value"
-														nameKey="name"
-													>
-														{platformData.map((entry, index) => (
-															<Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-														))}
-													</Pie>
-													<Tooltip
-														contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "12px", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
-														itemStyle={{ color: "#fff", fontWeight: 600 }}
-														formatter={(value: number) => [`${value} Posts`, '']}
-														separator=""
-													/>
-													<Legend
-														verticalAlign="middle"
-														align="right"
-														layout="vertical"
-														iconType="circle"
-														iconSize={10}
-														formatter={(value) => <span className="text-gray-300 text-sm ml-2">{value}</span>}
-													/>
-												</PieChart>
-											</ResponsiveContainer>
-										</CardContent>
-									</Card>
-								</div>
-							</motion.div>
+							<OverviewContent />
 						)}
 
 						{/* 2. Activity Logs (USES EXTERNAL COMPONENT) */}
@@ -529,69 +537,77 @@ export default function DevDashboard() {
 
 						{/* 4. Announcement (RETAINED INLINE) */}
 						{activeTab === "announcement" && (
-							<motion.div key="announcement" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<Card className="bg-black/10 backdrop-blur-xl border border-white/10 shadow-lg">
-									<CardHeader>
-										<CardTitle className="text-white">Create New Announcement</CardTitle>
-										<CardDescription className="text-gray-300">
-											Post to the website and selected social media platforms simultaneously.
-										</CardDescription>
-									</CardHeader>
-									<CardContent className="space-y-6">
+                <motion.div key="announcement" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <Card className="bg-black/10 backdrop-blur-xl border border-white/10 shadow-lg">
+                        <CardHeader>
+                            <CardTitle className="text-white">Create New Announcement</CardTitle>
+                            <CardDescription className="text-gray-300">
+                                Post to the website and selected social media platforms simultaneously.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
 
-										<Label htmlFor="title" className="text-white font-semibold">Title</Label>
-										<Input
-											id="title" type="text" placeholder="E.g., System Update Next Week" value={announcement.title}
-											onChange={e => setAnnouncement({ ...announcement, title: e.target.value })}
-											className="bg-white/5 text-white border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
-										/>
+                            <Label htmlFor="title" className="text-white font-semibold">Title</Label>
+                            {/* Title Input (unchanged) */}
+                            <Input
+                                id="title" type="text" placeholder="E.g., System Update Next Week" value={announcement.title}
+                                onChange={e => setAnnouncement({ ...announcement, title: e.target.value })}
+                                className="bg-white/5 text-white border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+                            />
 
-										<Label htmlFor="content" className="text-white font-semibold">Content</Label>
-										<Textarea
-											id="content" placeholder="Details about the announcement..." value={announcement.content}
-											onChange={e => setAnnouncement({ ...announcement, content: e.target.value })}
-											className="bg-white/5 text-white border-white/20 h-32 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
-										/>
+                            <Label htmlFor="description" className="text-white font-semibold">Content</Label>
+                            {/* Content Textarea (unchanged) */}
+                            <Textarea
+                                id="description" placeholder="Details about the announcement..." value={announcement.description}
+                                onChange={e => setAnnouncement({ ...announcement, description: e.target.value })}
+                                className="bg-white/5 text-white border-white/20 h-32 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+                            />
 
-										<div className="flex flex-col gap-2">
-											<Label className="text-white font-semibold">Image Upload (Optional)</Label>
-											<Input
-												type="file" onChange={e => setAnnouncement({ ...announcement, image: e.target.files ? e.target.files[0] : null })}
-												className="bg-white/5 text-gray-300 border-white/20 file:text-white file:bg-indigo-600/50 file:border-none file:hover:bg-indigo-600/70"
-											/>
-										</div>
+                            <div className="flex flex-col gap-2">
+                                {/* IMAGE INPUT CHANGED FROM type="file" TO type="text" for URL */}
+                                <Label className="text-white font-semibold" htmlFor="imageUrl">Image URL (Optional)</Label> 
+                                <Input
+                                    id="imageUrl"
+                                    type="text" 
+                                    placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                                    value={announcement.image || ''}
+                                    onChange={e => setAnnouncement({ ...announcement, image: e.target.value })}
+                                    className="bg-white/5 text-gray-300 border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+                                />
+                            </div>
 
-										<div className="space-y-3">
-											<Label className="text-white font-semibold flex items-center gap-2">
-												<Send size={18} className="text-indigo-400" /> Publish to:
-											</Label>
-											<div className="flex gap-6 flex-wrap">
-												{Object.keys(announcement.platforms || {}).map(platform => (
-													<div key={platform} className="flex items-center space-x-2">
-														<Checkbox
-															id={platform} checked={announcement.platforms ? announcement.platforms[platform as keyof typeof announcement.platforms] : false}
-															onCheckedChange={checked => setAnnouncement({ ...announcement, platforms: { ...announcement.platforms!, [platform as keyof NonNullable<Announcement['platforms']>]: checked as boolean } })}
-															className="border-white/50 data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 text-white"
-														/>
-														<Label htmlFor={platform} className="text-gray-300 capitalize flex items-center gap-1 text-sm cursor-pointer">
-															{platform === 'facebook' && <Facebook size={16} className="text-blue-400" />}
-															{platform === 'instagram' && <Instagram size={16} className="text-pink-400" />}
-															{platform === 'twitter' && <Twitter size={16} className="text-blue-300" />}
-															{platform === 'websitePost' && <Send size={16} className="text-indigo-400" />}
-															{platform.replace(/Post/g, '').replace(/website/g, 'Website')}
-														</Label>
-													</div>
-												))}
-											</div>
-										</div>
+                            <div className="space-y-3">
+                                {/* ... Platform Checkboxes (unchanged) ... */}
+                                <Label className="text-white font-semibold flex items-center gap-2">
+                                    <Send size={18} className="text-indigo-400" /> Publish to:
+                                </Label>
+                                <div className="flex gap-6 flex-wrap">
+                                    {Object.keys(announcement.platforms || {}).map(platform => (
+                                        <div key={platform} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={platform} checked={announcement.platforms ? announcement.platforms[platform as keyof typeof announcement.platforms] : false}
+                                                onCheckedChange={checked => setAnnouncement({ ...announcement, platforms: { ...announcement.platforms!, [platform as keyof NonNullable<Announcement['platforms']>]: checked as boolean } })}
+                                                className="border-white/50 data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 text-white"
+                                            />
+                                            <Label htmlFor={platform} className="text-gray-300 capitalize flex items-center gap-1 text-sm cursor-pointer">
+                                                {platform === 'facebook' && <Facebook size={16} className="text-blue-400" />}
+                                                {platform === 'instagram' && <Instagram size={16} className="text-pink-400" />}
+                                                {platform === 'twitter' && <Twitter size={16} className="text-blue-300" />}
+                                                {platform === 'websitePost' && <Send size={16} className="text-indigo-400" />}
+                                                {platform.replace(/Post/g, '').replace(/website/g, 'Website')}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
-										<Button onClick={handlePostAnnouncement} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full sm:w-auto mt-4">
-											<Send size={18} className="mr-2" /> Post Announcement
-										</Button>
-									</CardContent>
-								</Card>
-							</motion.div>
-						)}
+                            <Button onClick={handlePostAnnouncement} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full sm:w-auto mt-4">
+                                <Send size={18} className="mr-2" /> Post Announcement
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            )}
 
 						{/* 5. Notifications (USES EXTERNAL COMPONENT) */}
 						{activeTab === "notifications" && (
@@ -601,15 +617,19 @@ export default function DevDashboard() {
 						)}
 
 						{/* 6. Users (INLINE IMPLEMENTATION of User Management) */}
-						{activeTab === "users" && (
-							<motion.div key="users" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<TrashbinContent
-									trashItems={trashItems}
-									onRestore={handleRestore}
-									onPermanentDelete={handlePermanentDelete}
-								/>
-							</motion.div>
-						)}
+					{activeTab === "usersManagement" && ( // Note: Use "usersManagement" as defined in allTabs
+    <motion.div key="users" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <UserManagementContent 
+            users={filteredUsers} // Filtered by the search input
+            search={search}
+            setSearch={setSearch}
+            handleEditUser={handleEditUser}
+            setPasswordTarget={setPasswordTarget}
+            handleRoleChange={handleRoleChange}
+            handleDeleteUser={handleDeleteUser} 
+        />
+    </motion.div>
+)}
 
 						{/* 7. Trash Bin (USES EXTERNAL COMPONENT) */}
 						{activeTab === "trash" && (
@@ -625,7 +645,7 @@ export default function DevDashboard() {
 						{/* 8. Pending Posts (USES EXTERNAL COMPONENT) */}
 						{activeTab === "pendings" && (
 							<motion.div key="pendings" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<PendingPostsContent posts={pendingPosts} onApprove={handleApprovePost} onReject={handleRejectPost} />
+								<AdminPostModerationPage/>
 							</motion.div>
 						)}
 
@@ -645,4 +665,8 @@ export default function DevDashboard() {
 			<PasswordModal />
 		</div>
 	);
+}
+
+function setMessageState(arg0: { message: string; type: string; }) {
+	throw new Error("Function not implemented.");
 }

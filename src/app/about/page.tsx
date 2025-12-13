@@ -6,7 +6,7 @@ import { Users, Code, Rocket, Sparkles, Bot } from "lucide-react";
 export default function AboutPage() {
   return (
     <div className="w-full min-h-screen flex flex-col items-center text-white px-6 py-20 ">
-      {/* HEADER */}
+
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -21,7 +21,6 @@ export default function AboutPage() {
         </p>
       </motion.div>
 
-      {/* WHY ISITE+ */}
       <motion.section
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -46,7 +45,6 @@ export default function AboutPage() {
         </div>
       </motion.section>
 
-      {/* MISSION / OBJECTIVES / VISION */}
       <motion.section
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}

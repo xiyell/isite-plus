@@ -1,388 +1,238 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-// Import Lucide Icons
-import { AlertCircle, Download, RotateCw, Loader2 } from "lucide-react";
-// Import QRCode library
-import { QRCodeCanvas } from "qrcode.react";
-import Link from "next/link";
-import Image from "next/image";
-import { toast } from "react-hot-toast";
-
-// --- SHADCN/UI IMPORTS ---
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/Card";
-import { Progress } from "@/components/ui/progress";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import { QRCodeCanvas } from "qrcode.react";
+import { auth, db } from "@/services/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { AlertCircle } from "lucide-react";
+import Link from "next/link";
 
-// Define the shape of user data
-interface UserData {
-  name: string;
-  idNumber: string;
-  yearLevel: string;
-  section: string;
-  uid: string;
-}
+export default function IQR() {
+  const [qrValue, setQrValue] = useState("");
+  const [timestamp, setTimestamp] = useState(Date.now());
+  const [timeLeft, setTimeLeft] = useState(300);
+  const [userData, setUserData] = useState<any>(null);
 
-// --- CONSTANTS ---
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const TOTAL_SECONDS = 300; // 5 minutes in seconds
-const QR_SIZE = 300;
+  const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  const TOTAL_SECONDS = 300;
 
-// Helper function to format seconds into MM:SS
-const formatTime = (seconds: number): string => {
-  const m = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = (seconds % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-};
-
-// --- API/FIREBASE MOCK FUNCTION ---
-const fetchUserData = async (userId: string): Promise<UserData | null> => {
-  console.log(`Fetching data for user: ${userId}`);
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        uid: "firebase-user-id-123",
-        name: "Ciel Angelo Q.",
-        idNumber: "2025-12345",
-        yearLevel: "4th Year",
-        section: "BSIT-A",
-      });
-    }, 1200);
-  });
-};
-
-
-const IQR = () => {
-  const [qrValue, setQrValue] = useState<string>("");
-  const [timestamp, setTimestamp] = useState<number>(Date.now());
-  const [timeLeft, setTimeLeft] = useState<number>(TOTAL_SECONDS);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isDataError, setIsDataError] = useState<boolean>(false);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-
-  // 1. Initial Data Fetch
+  // --------------------------------------------------------
+  // Get current user data from Firestore
+  // --------------------------------------------------------
   useEffect(() => {
-    const loadInitialData = async () => {
-      const userId = "mock-user-id";
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
 
       try {
-        const data = await fetchUserData(userId);
-        if (data) {
-          setUserData(data);
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDoc(userRef);
+
+        if (snap.exists()) {
+          const data = snap.data();
+          setUserData({
+            name: data.name || user.displayName || "Unnamed User",
+            idNumber: data.studentId || "N/A",
+            yearLevel: data.yearLevel || "N/A",
+            section: data.section || "N/A",
+          });
         } else {
-          setIsDataError(true);
-          toast.error("Failed to load user profile. Please log in.");
+          console.warn("No user document found in Firestore.");
         }
-      } catch (error) {
-        console.error("Firebase/Data Fetch Error:", error);
-        setIsDataError(true);
-        toast.error("An error occurred while fetching data.");
-      } finally {
-        setIsLoading(false);
+      } catch (err) {
+        console.error("Error fetching user data:", err);
       }
-    };
+    });
 
-    loadInitialData();
+    return () => unsubscribe();
   }, []);
 
-  /**
-   * Generates the encoded QR value based on user data and current timestamp.
-   */
-  const generateQrValue = useCallback((data: UserData, ts: number) => {
-    const generatedAt = new Date(ts).toISOString();
-    const expiresAt = new Date(ts + REFRESH_INTERVAL_MS).toISOString();
-
-    const payload = {
-      uid: data.uid,
-      idNumber: data.idNumber,
-      generatedAt,
-      expiresAt,
-      timestamp: ts,
-    };
-
-    try {
-      const jsonString = JSON.stringify(payload);
-      const encoded = btoa(
-        unescape(encodeURIComponent(jsonString)),
-      );
-      return encoded;
-    } catch (err) {
-      console.error("QR Encoding Error:", err);
-      toast.error("Error generating QR code payload.");
-      return "";
-    }
-  }, []);
-
-  // 2. QR Value Generation Effect
+  // --------------------------------------------------------
+  // Auto refresh QR every 5 minutes
+  // --------------------------------------------------------
   useEffect(() => {
-    if (userData) {
-      setQrValue(generateQrValue(userData, timestamp));
-    } else {
-      setQrValue("");
-    }
-    setIsRefreshing(false);
-  }, [timestamp, userData, generateQrValue]);
+    const interval = setInterval(() => setTimestamp(Date.now()), REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
 
-  // 3. Countdown Timer and Auto-Refresh Logic
+  // --------------------------------------------------------
+  // Countdown Timer
+  // --------------------------------------------------------
   useEffect(() => {
     setTimeLeft(TOTAL_SECONDS);
-
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           setTimestamp(Date.now());
-          toast("QR Code refreshed automatically!", { icon: '🔄' });
           return TOTAL_SECONDS;
         }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [timestamp]);
 
-  // Manual Refresh Handler
-  const handleManualRefresh = useCallback(() => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    setTimestamp(Date.now());
-    toast("QR Code manually refreshed!", { icon: '✅' });
-  }, [isRefreshing]);
+  // --------------------------------------------------------
+  // Generate encoded QR value
+  // --------------------------------------------------------
+  useEffect(() => {
+    if (!userData) return;
 
-  // Progress bar percentage calculation
-  const progressPercent = useMemo(
-    () => ((TOTAL_SECONDS - timeLeft) / TOTAL_SECONDS) * 100,
-    [timeLeft],
-  );
+    const generatedAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + REFRESH_INTERVAL).toISOString();
+    const payload = { ...userData, generatedAt, expiresAt, timestamp };
 
-  // Download QR as PNG
-  const handleDownload = useCallback(() => {
-    const canvas = document.getElementById(
-      "qr-code-canvas",
-    ) as HTMLCanvasElement | null;
-
-    if (!canvas) {
-      toast.error("QR Canvas element not found for download.");
-      return;
-    }
     try {
-      const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
-      link.download = `iQR_Code_${userData?.idNumber}_${Date.now()}.png`;
-      link.click();
-      toast.success("QR Code downloaded successfully!");
-    } catch (error) {
-      console.error("Download Error:", error);
-      toast.error("Failed to download QR code.");
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+      setQrValue(encoded);
+    } catch (err) {
+      console.error("QR Encoding Error:", err);
     }
+  }, [timestamp, userData]);
 
-  }, [userData?.idNumber]);
+  // --------------------------------------------------------
+  // Format countdown display
+  // --------------------------------------------------------
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
 
-  // --- Render Functions ---
+  // --------------------------------------------------------
+  // Progress bar percentage
+  // --------------------------------------------------------
+  const progressPercent = ((TOTAL_SECONDS - timeLeft) / TOTAL_SECONDS) * 100;
 
-  // Loading State
-  if (isLoading) {
+  // --------------------------------------------------------
+  // Download QR as PNG (via ID instead of ref)
+  // --------------------------------------------------------
+  const handleDownload = () => {
+    const canvas = document.getElementById("qr-code-canvas") as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/png");
+    link.download = "iQR_Code.png";
+    link.click();
+  };
+
+  // --------------------------------------------------------
+  // Render
+  // --------------------------------------------------------
+  if (!userData)
     return (
-      // Set the overall container to transparent, relying on parent styling.
-      <div className="flex min-h-screen items-center justify-center bg-transparent p-6">
-        <Card className="w-full max-w-lg bg-white/10 backdrop-blur-xl border border-white/20">
-          <CardHeader className="text-center">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-purple-400 mb-4" />
-            <Skeleton className="mx-auto mb-2 h-6 w-3/5 bg-white/20" />
-            <Skeleton className="mx-auto h-4 w-4/5 bg-white/20" />
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <Skeleton className={`h-[${QR_SIZE}px] w-[${QR_SIZE}px] mb-6 bg-white/20`} />
-
-            {/* Purplish Loading Progress Bar */}
-            <Progress
-              value={50}
-              className="mt-5 h-3 w-full bg-purple-900/50" // Thicker and darker background
-              indicatorClassName="bg-gradient-to-r from-purple-400 to-indigo-500" // Gradient for indicator
-              style={{
-                // This is the purplish glow effect
-                boxShadow: '0 0 10px #A855F7, 0 0 5px #C084FC',
-              }}
-            />
-
-            <div className="mt-6 w-full space-y-2">
-              <Skeleton className="h-4 w-4/5 bg-white/20" />
-              <Skeleton className="h-4 w-3/5 bg-white/20" />
-              <Skeleton className="h-4 w-1/2 bg-white/20" />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="flex w-full gap-2">
-              <Skeleton className="h-10 flex-grow bg-white/20" />
-              <Skeleton className="h-10 flex-grow bg-white/20" />
-            </div>
-          </CardFooter>
-        </Card>
+      <div className="flex items-center justify-center min-h-screen text-white">
+        Loading user data...
       </div>
     );
-  }
 
-  // Error State
-  if (isDataError || !userData) {
-    return (
-      // Set the overall container to transparent
-      <div className="flex min-h-screen items-center justify-center p-6 bg-transparent">
-        <Alert variant="destructive" className="w-full max-w-lg bg-red-900/20 border-red-500/50 backdrop-blur-md text-red-100">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>
-            Failed to load user data. Please ensure you are logged in correctly and try refreshing the page.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  // Main Render
   return (
-    // Base container is now transparent. If this component is placed inside an element 
-    // with no background, it will blend seamlessly.
-    <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-transparent">
-      <Card
-        // Glassmorphism styling remains for the card itself
-        className="w-full max-w-lg backdrop-blur-xl transition-all duration-300 shadow-2xl 
-                   bg-white/10 border border-white/20 text-white"
-      >
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-extrabold text-white">Your iQR Code</CardTitle>
-          <CardDescription className="text-gray-300">
-            Secure, expiring code. Automatically refreshes every {TOTAL_SECONDS / 60} minutes.
-          </CardDescription>
-        </CardHeader>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-transparent via-white/5 to-transparent text-white px-6">
+      <motion.div className="p-6 sm:p-8 rounded-3xl shadow-lg bg-white/10 backdrop-blur-md border border-white/20 text-center w-full max-w-sm">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Your iQR Code</h1>
 
-        <CardContent className="flex flex-col items-center">
-          <div className={`text-xl font-bold mb-6 transition-colors duration-500 ${timeLeft < 60 ? 'text-red-400' : 'text-purple-300'}`}>
-            Next Refresh: {formatTime(timeLeft)}
-          </div>
+        <p className="text-sm text-gray-300 mb-3">
+          Automatically refreshes every 5 minutes
+        </p>
 
-          {/* QR Code Display Container - Solid white background for scanning */}
-          <div
-            className="p-4 shadow-2xl rounded-xl border border-gray-700/50 bg-white"
-            style={{
-              width: `${QR_SIZE + 32}px`,
-              height: `${QR_SIZE + 32}px`,
-            }}
+        <motion.div className="text-lg font-semibold text-yellow-400 mb-6">
+          Refreshing in {formatTime(timeLeft)}
+        </motion.div>
+
+        {/* ✅ Subtle QR animation fix */}
+        <div className="flex justify-center">
+          <motion.div
+            layout
+            className="bg-white/10 p-4 rounded-xl shadow-md flex items-center justify-center"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            <div className="flex h-full w-full items-center justify-center">
-              {qrValue ? (
-                <QRCodeCanvas
-                  key={qrValue}
-                  includeMargin={false}
-                  bgColor="#FFFFFF" // Explicitly white background
-                  fgColor="#000000"
-                  id="qr-code-canvas"
-                  size={QR_SIZE}
-                  value={qrValue}
-                  className="rounded-lg"
-                />
-              ) : (
-                <p className="flex h-[300px] w-[300px] items-center justify-center text-gray-500">
-                  <Loader2 className="h-8 w-8 animate-spin mr-2" />
-                  Generating Code...
-                </p>
-              )}
-            </div>
-          </div>
+            {qrValue ? (
+              <QRCodeCanvas
+                id="qr-code-canvas"
+                key={qrValue}
+                value={qrValue}
+                size={220}
+                includeMargin
+                bgColor="#ffffff"
+                fgColor="#000000"
+                className="rounded-lg bg-white"
+              />
+            ) : (
+              <p className="text-gray-300">Generating QR...</p>
+            )}
+          </motion.div>
+        </div>
 
-          {/* Active Progress Bar with Purplish Glow */}
-          <Progress
-            value={progressPercent}
-            className="mt-8 h-3 w-full bg-purple-900/50" // Thicker background for visibility
-            indicatorClassName="bg-gradient-to-r from-purple-400 to-indigo-500" // Gradient for indicator
-            style={{
-              boxShadow: '0 0 10px #A855F7, 0 0 5px #C084FC', // Purplish glow
-            }}
+        {/* Progress bar */}
+        <div className="w-full bg-gray-700/30 rounded-full h-2 mt-5 overflow-hidden">
+          <motion.div
+            className="h-2 bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ ease: "linear", duration: 1 }}
           />
+        </div>
 
-          {/* User Details */}
-          <div className="mt-8 w-full space-y-2 text-left text-base text-gray-200">
-            <p>
-              <span className="font-bold text-white">Name:</span> {userData.name}
-            </p>
-            <p>
-              <span className="font-bold text-white">ID Number:</span> {userData.idNumber}
-            </p>
-            <p>
-              <span className="font-bold text-white">Class:</span>{" "}
-              <span className="font-medium text-purple-300">
-                {userData.yearLevel} — {userData.section}
-              </span>
-            </p>
-            <p className="mt-4 text-xs text-gray-400">
-              <span className="font-medium">Last Generated:</span>{" "}
-              {new Date(timestamp).toLocaleString("en-PH", {
-                timeZone: "Asia/Manila",
-                dateStyle: "medium",
-                timeStyle: "medium",
-              })}
-            </p>
-          </div>
-        </CardContent>
-
-        <CardFooter className="flex flex-col gap-4">
-          <div className="flex w-full gap-3">
-            <Button
-              onClick={handleDownload}
-              className="flex-grow bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
-              variant="default"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download PNG
-            </Button>
-            <Button
-              onClick={handleManualRefresh}
-              className="flex-grow bg-yellow-600 hover:bg-yellow-700 transition-colors duration-200"
-              variant="secondary"
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCw className="mr-2 h-4 w-4" />
-              )}
-              {isRefreshing ? 'Refreshing...' : 'Manual Refresh'}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+          <div className="w-full sm:flex-1">
+            <Button color="primary" onClick={handleDownload} className="w-full">
+              Download
             </Button>
           </div>
-        </CardFooter>
-      </Card>
+          <div className="w-full sm:flex-1">
+            <Button color="warning" onClick={() => setTimestamp(Date.now())} className="w-full">
+              Refresh
+            </Button>
+          </div>
+        </div>
 
-      {/* Warning Alert - Glassy style */}
-      <Alert
-        className="mt-6 w-full max-w-lg bg-yellow-500/35 backdrop-blur-sm border border-yellow-500/50"
-        variant="default"
+        <div className="mt-6 text-gray-200 text-sm space-y-1">
+          <p>
+            <span className="font-semibold">Name:</span> {userData.name}
+          </p>
+          <p>
+            <span className="font-semibold">ID:</span> {userData.idNumber}
+          </p>
+          <p>
+            <span className="font-semibold">Year & Section:</span>{" "}
+            {userData.yearLevel} — {userData.section}
+          </p>
+          <p>
+            <span className="font-semibold">Generated:</span>{" "}
+            {new Date(timestamp).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}
+          </p>
+          <p className="text-gray-400 text-xs">
+            Expires at:{" "}
+            {new Date(timestamp + REFRESH_INTERVAL).toLocaleString("en-PH", {
+              timeZone: "Asia/Manila",
+            })}
+          </p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mt-10 flex flex-col sm:flex-row items-center sm:justify-center gap-2 text-sm text-white/70 text-center sm:text-left px-4"
       >
-        <AlertCircle className="h-4 w-4 text-white-500 " />
-        <AlertTitle className="text-yellow-400">Important</AlertTitle>
-        <AlertDescription className="text-white">
-          ⚠️ Make sure your **Year and Section** details are correct. Incorrect information may invalidate your attendance.{" "}
+        <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0" />
+        <p className="leading-relaxed">
+          Make sure your <span className="text-white font-medium">Year and Section</span> are
+          correct. Otherwise, your attendance may not be counted.{" "}
           <Link
-            className="font-semibold text-purple-400 underline underline-offset-2 transition-colors hover:text-purple-300"
             href="/profile"
+            className="text-fuchsia-400 hover:text-fuchsia-300 font-semibold underline underline-offset-2 transition-colors"
           >
-            Modify your profile here.
+            Modify here
           </Link>
-
-        </AlertDescription>
-      </Alert>
+          .
+        </p>
+      </motion.div>
     </div>
   );
-};
-
-export default IQR;
+}

@@ -1,392 +1,213 @@
-'use client';
+// This component should ideally be in "@/components/dashboard/UserManagementContent.tsx"
+// But it is defined here for integration clarity.
 
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/Button";
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Edit, Trash2, KeyRound, UserPlus, ChevronUp, ChevronDown, CheckCircle, XCircle } from 'lucide-react';
+
+// Assuming all these Shadcn components are available via imports in DevDashboard.tsx
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/badge";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
-// Third-party imports
-import { motion, AnimatePresence } from "framer-motion";
-import { Users, Search, Edit, Trash2, KeyRound, UserPlus } from "lucide-react";
-
-// Firebase imports (already correct)
-import {
-    collection,
-    onSnapshot,
-    doc,
-    updateDoc,
-    deleteDoc,
-} from "firebase/firestore";
-
-// Assuming db is correctly imported from your firebase service file
-// NOTE: I've corrected the import path based on the structure provided previously.
-import { db } from "@/services/firebase";
-
-// --- Types ---
-interface UserData {
-    id: string;
-    name: string;
-    email: string;
-    role: 'admin' | 'moderator' | 'user';
-    active: boolean; // Assuming 'status' means 'active'
+// --- Types (Re-defined for clarity) ---
+interface UserData { 
+    id: string; 
+    name: string; 
+    email: string; 
+    role: 'admin' | 'moderator' | 'user'; 
+    status: string; 
+    lastLogin: string; 
+    active: boolean; 
 }
 
-// --- Main Component ---
-export default function UserManagementTab() {
-    const [users, setUsers] = useState<UserData[]>([]);
-    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-    const [passwordTarget, setPasswordTarget] = useState<UserData | null>(null);
-    const [search, setSearch] = useState("");
-    const [toast, setToast] = useState<string | null>(null);
+// --- Props for UserManagementContent ---
+interface UserManagementProps {
+    users: UserData[];
+    search: string;
+    setSearch: (value: string) => void;
+    handleEditUser: (user: UserData) => void;
+    setPasswordTarget: (user: UserData | null) => void;
+    handleRoleChange: (id: string, newRole: string) => void;
 
-    // 🧃 Toast helper
-    const showToast = (message: string, duration = 3000) => {
-        setToast(message);
-        setTimeout(() => setToast(null), duration);
-    };
+    handleDeleteUser: (id: string, name: string) => void; 
+}
 
-    // 🔥 Real-time Firestore listener
-    useEffect(() => {
-        // NOTE: Corrected type casting for safety
-        const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
-            const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as UserData[];
-            setUsers(data);
-        });
-        return () => unsub();
-    }, []);
+// --- Component Definition ---
 
-    // ✏️ Update user details
-    const handleSaveUser = async () => {
-        if (!selectedUser) return;
-        try {
-            const ref = doc(db, "users", selectedUser.id);
-            // Ensure only necessary fields are updated
-            await updateDoc(ref, {
-                name: selectedUser.name,
-                email: selectedUser.email,
-                role: selectedUser.role,
-            });
-            showToast("✅ User updated successfully!");
-            setSelectedUser(null);
-        } catch (err) {
-            console.error(err);
-            showToast("❌ Failed to update user.");
+export const UserManagementContent: React.FC<UserManagementProps> = ({
+    users,
+    search,
+    setSearch,
+    handleEditUser,
+    setPasswordTarget,
+    handleRoleChange,
+    handleDeleteUser,
+}) => {
+    const [sortKey, setSortKey] = useState<'name' | 'email' | 'role' | 'lastLogin'>('name');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    
+    const getRoleVariant = (role: string) => {
+        switch (role) {
+            case 'admin': return 'bg-purple-600 hover:bg-purple-700';
+            case 'moderator': return 'bg-indigo-600 hover:bg-indigo-700';
+            default: return 'bg-gray-500 hover:bg-gray-600';
         }
     };
-
-    // ❌ Delete user
-    const handleDeleteUser = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this user? This action is permanent and cannot be undone.")) return;
-        try {
-            await deleteDoc(doc(db, "users", id));
-            showToast("🗑️ User deleted successfully!");
-        } catch (err) {
-            console.error(err);
-            showToast("❌ Failed to delete user.");
+    
+    const handleSort = (key: 'name' | 'email' | 'role' | 'lastLogin') => {
+        if (sortKey === key) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortOrder('asc');
         }
     };
+    
+    const sortedUsers = [...users].sort((a, b) => {
+        const valA = a[sortKey].toString().toLowerCase();
+        const valB = b[sortKey].toString().toLowerCase();
+        
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+    });
 
-    // 🔑 Update password (placeholder for backend)
-    const handlePasswordChange = async (newPass: string, uid: string) => {
-        // ⚠️ Replace this with your Firebase Admin SDK API call later
-        showToast(`✅ Password update request sent for UID: ${uid}`);
-        setPasswordTarget(null);
-    };
-
-    const filteredUsers = users.filter((u) =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase()),
-    );
-
-    // --- Modal Content Components ---
-
-    const EditUserModal = () => (
-        <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-            <DialogContent className="bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold text-purple-400">
-                        ✏️ Edit User — {selectedUser?.name}
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-400">
-                        Update the user&apos;s basic information and role.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <form onSubmit={(e) => { e.preventDefault(); handleSaveUser(); }} className="space-y-4">
-
-                    <div>
-                        <Label htmlFor="name" className="block text-sm text-gray-300 mb-1">Full Name</Label>
-                        <Input
-                            id="name"
-                            className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-                            value={selectedUser?.name || ''}
-                            onChange={(e) => setSelectedUser({ ...selectedUser!, name: e.target.value })}
-                        />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="email" className="block text-sm text-gray-300 mb-1">Email</Label>
-                        <Input
-                            id="email"
-                            className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-                            type="email"
-                            value={selectedUser?.email || ''}
-                            onChange={(e) => setSelectedUser({ ...selectedUser!, email: e.target.value })}
-                        />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="role" className="block text-sm text-gray-300 mb-1">Role</Label>
-                        <Select
-                            value={selectedUser?.role || "user"}
-                            onValueChange={(value: 'admin' | 'moderator' | 'user') =>
-                                setSelectedUser({ ...selectedUser!, role: value })
-                            }
-                        >
-                            <SelectTrigger className="w-full bg-white/10 border border-white/20 text-white focus-visible:ring-purple-500">
-                                <SelectValue placeholder="Select Role" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-gray-800 text-white border-gray-700">
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="moderator">Moderator</SelectItem>
-                                <SelectItem value="user">User</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <DialogFooter className="mt-6 flex justify-end gap-3">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setSelectedUser(null)}
-                            className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
-                            type="button"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            className="bg-purple-600 hover:bg-purple-700 text-white"
-                            type="submit"
-                        >
-                            Save Changes
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-
-    const PasswordModal = () => {
-        const [newPass, setNewPass] = useState('');
-        const [confirmPass, setConfirmPass] = useState('');
-
-        const handleSubmit = (e: React.FormEvent) => {
-            e.preventDefault();
-            if (!newPass || !confirmPass) {
-                return showToast("⚠️ Fill in both fields");
-            }
-            if (newPass !== confirmPass) {
-                return showToast("⚠️ Passwords do not match");
-            }
-            handlePasswordChange(newPass, passwordTarget!.id);
-            setPasswordTarget(null);
-        };
-
-        return (
-            <Dialog open={!!passwordTarget} onOpenChange={() => setPasswordTarget(null)}>
-                <DialogContent className="bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-semibold text-yellow-400">
-                            🔑 Change Password — {passwordTarget?.name}
-                        </DialogTitle>
-                        <DialogDescription className="text-gray-400">
-                            Warning: This action requires Firebase Admin SDK.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <Input
-                            className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-                            name="newPassword"
-                            placeholder="New password"
-                            type="password"
-                            value={newPass}
-                            onChange={(e) => setNewPass(e.target.value)}
-                        />
-                        <Input
-                            className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-                            name="confirmPassword"
-                            placeholder="Confirm password"
-                            type="password"
-                            value={confirmPass}
-                            onChange={(e) => setConfirmPass(e.target.value)}
-                        />
-                        <DialogFooter className="mt-6 flex justify-end gap-3">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setPasswordTarget(null)}
-                                className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
-                                type="button"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
-                                type="submit"
-                            >
-                                Update Password
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        );
+    const SortIcon = ({ keyName }: { keyName: typeof sortKey }) => {
+        if (sortKey !== keyName) return null;
+        return (sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />);
     };
 
     return (
-        <motion.div
-            key="users-tab"
-            animate={{ opacity: 1, y: 0 }}
-            className="relative space-y-8"
-            exit={{ opacity: 0, y: -15 }}
-            initial={{ opacity: 0, y: 15 }}
-            transition={{ duration: 0.4 }}
-        >
-            <h3 className="text-4xl font-extrabold flex items-center gap-3 text-purple-400">
-                <Users size={32} /> User Management
-            </h3>
+        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg">
+            <CardHeader>
+                <CardTitle className="text-white flex justify-between items-center">
+                    User List ({users.length})
+                    <Button variant="outline" className="bg-indigo-600/50 hover:bg-indigo-600/70 border-indigo-500 text-white">
+                        <UserPlus size={18} className="mr-2" /> Add New User
+                    </Button>
+                </CardTitle>
+                <CardDescription className="text-gray-400">Manage user roles, statuses, and access credentials.</CardDescription>
+                <Separator className="my-4 bg-white/10" />
+            </CardHeader>
+            <CardContent className="space-y-6">
 
-            {/* Main Content Card (Glassy) */}
-            <Card className="bg-black/10 backdrop-blur-xl border border-white/10 p-4 md:p-6 rounded-2xl shadow-lg">
-
-                {/* Search and Add */}
-                <CardContent className="p-0 mb-6 space-y-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="relative w-full md:w-1/3">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                className="w-full px-4 pl-10 py-2 bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white placeholder-gray-400"
-                                placeholder="Search users..."
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </div>
-                        <Button
-                            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"
-                            onClick={() => showToast("ℹ️ Add user functionality coming soon")}
-                        >
-                            <UserPlus size={18} /> Add User
-                        </Button>
-                    </div>
-                </CardContent>
-
-                {/* User Table (Shadcn Table) */}
-                <div className="overflow-x-auto rounded-xl border border-white/20">
-                    <Table className="min-w-full md:min-w-0">
+                {/* Search & Filter */}
+                <div className="flex items-center gap-4">
+                    <Search size={20} className="text-gray-400" />
+                    <Input
+                        type="text"
+                        placeholder="Search by Name or Email..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-white/5 border-white/20 text-white"
+                    />
+                </div>
+                
+                {/* User Table */}
+                <div className="overflow-x-auto">
+                    <Table className="min-w-full">
                         <TableHeader>
-                            <TableRow className="bg-white/10 border-white/20 text-gray-200 uppercase text-xs tracking-wider hover:bg-white/10">
-                                <TableHead className="py-3 px-4 text-white">Name</TableHead>
-                                <TableHead className="py-3 px-4 text-white">Email</TableHead>
-                                <TableHead className="py-3 px-4 text-white">Role</TableHead>
-                                <TableHead className="py-3 px-4 text-white">Status</TableHead>
-                                <TableHead className="py-3 px-4 text-white text-right">Actions</TableHead>
+                            <TableRow className="bg-black/20 border-white/10 hover:bg-black/20 text-gray-400">
+                                <TableHead 
+                                    className="cursor-pointer hover:text-white"
+                                    onClick={() => handleSort('name')}
+                                >
+                                    Name <SortIcon keyName="name" />
+                                </TableHead>
+                                <TableHead 
+                                    className="cursor-pointer hover:text-white hidden sm:table-cell"
+                                    onClick={() => handleSort('email')}
+                                >
+                                    Email <SortIcon keyName="email" />
+                                </TableHead>
+                                <TableHead 
+                                    className="cursor-pointer hover:text-white"
+                                    onClick={() => handleSort('role')}
+                                >
+                                    Role <SortIcon keyName="role" />
+                                </TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredUsers.map((user) => (
-                                <TableRow
-                                    key={user.id}
-                                    className="border-b border-white/10 hover:bg-white/10 transition"
+                            <AnimatePresence initial={false}>
+                            {sortedUsers.map((user) => (
+                                <motion.tr 
+                                    key={user.id} 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="border-white/10 hover:bg-white/5 text-gray-200"
                                 >
-                                    <TableCell className="py-3 px-4 text-white font-medium">
-                                        {user.name}
-                                    </TableCell>
-                                    <TableCell className="py-3 px-4 text-gray-300">{user.email}</TableCell>
-                                    <TableCell className="py-3 px-4 text-gray-300 capitalize">
-                                        <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/20">
-                                            {user.role || "user"}
+                                    <TableCell className="font-medium text-white whitespace-nowrap">{user.name}</TableCell>
+                                    <TableCell className="text-gray-300 hidden sm:table-cell">{user.email}</TableCell>
+                                    <TableCell>
+                                        <Badge 
+                                            className={getRoleVariant(user.role)}
+                                            // Optional: Allow quick role switch (requires handleRoleChange implementation)
+                                            // onClick={() => handleRoleChange(user.id, user.role === 'user' ? 'moderator' : 'user')} 
+                                        >
+                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="py-3 px-4">
-                                        <Badge
-                                            className={`${user.active
-                                                ? "bg-green-400/20 text-green-300 border-green-400/20"
-                                                : "bg-red-400/20 text-red-300 border-red-400/20"
-                                                }`}
-                                        >
-                                            {user.active ? "Active" : "Suspended"}
-                                        </Badge>
+                                    <TableCell className="text-center">
+                                        {user.active ? (
+                                            <CheckCircle size={18} className="text-green-400 mx-auto" title="Active" />
+                                        ) : (
+                                            <XCircle size={18} className="text-red-400 mx-auto" title="Inactive" />
+                                        )}
                                     </TableCell>
-                                    <TableCell className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="text-blue-400 border-blue-400/30 hover:bg-blue-500/10"
-                                            onClick={() => setSelectedUser(user)}
-                                        >
-                                            <Edit size={16} />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="text-yellow-400 border-yellow-400/30 hover:bg-yellow-500/10"
-                                            onClick={() => setPasswordTarget(user)}
-                                        >
-                                            <KeyRound size={16} />
-                                        </Button>
-                                        <Button
-                                            variant="destructive"
-                                            size="icon"
-                                            onClick={() => handleDeleteUser(user.id)}
-                                        >
-                                            <Trash2 size={16} />
-                                        </Button>
+                                    <TableCell className="text-right whitespace-nowrap">
+                                        <div className="flex justify-end gap-2">
+                                            <Button 
+                                                variant="outline" 
+                                                size="icon" 
+                                                className="bg-yellow-600/30 hover:bg-yellow-600/50 border-yellow-500/50"
+                                                onClick={() => setPasswordTarget(user)}
+                                                title="Change Password"
+                                            >
+                                                <KeyRound size={16} className="text-yellow-300" />
+                                            </Button>
+                                            <Button 
+                                                variant="outline" 
+                                                size="icon" 
+                                                className="bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/50"
+                                                onClick={() => handleEditUser(user)}
+                                                title="Edit User Info"
+                                            >
+                                                <Edit size={16} className="text-purple-300" />
+                                            </Button>
+                                            <Button 
+                                                variant="outline" 
+                                                size="icon" 
+                                                className="bg-red-600/30 hover:bg-red-600/50 border-red-500/50"
+                                                onClick={() => handleDeleteUser(user.id, user.name)}
+                                                title="Delete User"
+                                            >
+                                                <Trash2 size={16} className="text-red-300" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
-                                </TableRow>
+                                </motion.tr>
                             ))}
+                            </AnimatePresence>
+                            {users.length === 0 && (
+                                <TableRow className="border-white/10 hover:bg-transparent">
+                                    <TableCell colSpan={5} className="text-center text-gray-500 py-6">No users found.</TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </div>
-            </Card>
-
-            {/* --- Toast message (animated) --- */}
-            <AnimatePresence>
-                {toast && (
-                    <motion.div
-                        key="toast"
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        className={`fixed bottom-10 left-1/2 -translate-x-1/2 px-4 py-2 text-sm font-semibold text-white rounded-xl shadow-md backdrop-blur-md z-50 pointer-events-none ${toast.startsWith("✅") || toast.startsWith("🗑️")
-                            ? "bg-green-600/70 border border-green-400/40"
-                            : toast.startsWith("ℹ️")
-                                ? "bg-blue-600/70 border border-blue-400/40"
-                                : "bg-red-600/70 border border-red-400/40"
-                            }`}
-                        exit={{ opacity: 0, y: -15, scale: 0.95 }}
-                        initial={{ opacity: 0, y: -15, scale: 0.95 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                    >
-                        {toast}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {/* --- Edit User Modal --- */}
-            <EditUserModal />
-
-            {/* --- Password Modal --- */}
-            <PasswordModal />
-        </motion.div>
+            </CardContent>
+        </Card>
     );
-}
+};
+
+// ... End of UserManagementContent definition ...

@@ -1,236 +1,348 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-// ✅ CORRECTED CASE: Shadcn UI Component Imports
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, CalendarCheck, CalendarX, Users, Loader2, BarChart } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// --- Data Structures (Unchanged) ---
-interface AttendanceRecord {
-  id: string;
-  studentId: string;
-  studentName: string;
-  date: string;
-  status: 'Present' | 'Absent' | 'Tardy';
-  timeIn: string;
-}
+import { cn } from "@/lib/utils"; 
 
-interface SummaryData {
-  totalStudents: number;
-  presentCount: number;
-  absentCount: number;
-  tardyCount: number;
-}
 
-// --- Placeholder/Mock Data (Unchanged) ---
-const mockAttendanceRecords: AttendanceRecord[] = [
-  { id: 'r001', studentId: 'S1001', studentName: 'Alice Johnson', date: '2025-12-09', status: 'Present', timeIn: '08:00 AM' },
-  { id: 'r002', studentId: 'S1002', studentName: 'Bob Smith', date: '2025-12-09', status: 'Tardy', timeIn: '08:15 AM' },
-  { id: 'r003', studentId: 'S1003', studentName: 'Charlie Davis', date: '2025-12-09', status: 'Absent', timeIn: 'N/A' },
-  { id: 'r004', studentId: 'S1004', studentName: 'Diana Prince', date: '2025-12-09', status: 'Present', timeIn: '07:55 AM' },
-  { id: 'r005', studentId: 'S1005', studentName: 'Ethan Hunt', date: '2025-12-09', status: 'Present', timeIn: '08:05 AM' },
-];
 
-const mockSummary: SummaryData = {
-  totalStudents: 50,
-  presentCount: 42,
-  absentCount: 5,
-  tardyCount: 3,
+type AttendanceRecord = {
+    id: string; // Unique ID from database
+    idNumber: string;
+    name: string;
+    yearLevel: string;
+    section: string;
+    timestamp: string; 
 };
 
-// --- Main Dashboard Component ---
+type SortKeys = 'name' | 'idNumber' | 'timestamp';
+type SortOrder = 'asc' | 'desc';
 
-export default function AttendanceDashboard() {
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [summary] = useState<SummaryData>(mockSummary);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
+// Re-using the Glassy Card class for consistency (Dark Theme)
+const GLASSY_CARD_CLASS =
+    "p-6 sm:p-8 rounded-2xl border border-slate-700 bg-black/10 shadow-2xl backdrop-blur-xl w-full max-w-sm md:max-w-7xl";
 
-  // 1. Data Fetch Simulation (Unchanged)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setRecords(mockAttendanceRecords);
-      setIsLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+// Input component (Dark Theme)
+const Input = React.forwardRef<
+    HTMLInputElement,
+    React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, ...props }, ref) => (
+    <input
+        ref={ref}
+        className={cn(
+            "flex h-11 w-full rounded-lg border border-input bg-transparent px-4 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-base file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+            "border-slate-700 bg-black/30 text-white focus-visible:ring-emerald-500 transition-colors",
+            className,
+        )}
+        {...props}
+    />
+));
+Input.displayName = "Input";
 
-  // 2. Sheet Upload Handler (Unchanged)
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+// --- Main Component: AttendanceTracker ---
 
-    setIsUploading(true);
+export default function AttendanceTracker() {
+    const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
+    const [eventList, setEventList] = useState<string[]>([]); // New state for list of sheet titles
+    const [selectedDate, setSelectedDate] = useState<string>(''); // Selected sheet title (e.g., '2025_12_14')
+    const [loading, setLoading] = useState(false);
+    const [loadingEvents, setLoadingEvents] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortKey, setSortKey] = useState<SortKeys>('timestamp');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-    console.log(`Simulating upload of file: ${file.name}`);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Helper to format sheet name (2025_12_14) to display date (Dec 14, 2025)
+    const formatSheetTitle = (title: string): string => {
+        try {
+            const [year, month, day] = title.split('_');
+            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch {
+            return title;
+        }
+    };
 
-    setIsUploading(false);
-    alert(`File "${file.name}" processed and data updated!`);
-  };
+    // 1. Fetch available sheet titles (Events)
+    const fetchEvents = useCallback(async () => {
+        setLoadingEvents(true);
+        try {
+            const res = await fetch(`/api/events`);
+            if (!res.ok) {
+                throw new Error("Failed to fetch event list.");
+            }
+            const data: string[] = await res.json();
+            setEventList(data.reverse()); // Reverse to show latest event first
+            
+            // Set the latest event as the default selected date
+            if (data.length > 0) {
+                setSelectedDate(data[0]); 
+            } else {
+                setSelectedDate('');
+            }
+        } catch (e: unknown) {
+            const err = e as Error;
+            setError(`Event list error: ${err.message}`);
+        } finally {
+            setLoadingEvents(false);
+        }
+    }, []);
+    
+    // 2. Fetch attendance data for the selected event/sheet
+    const fetchAttendance = useCallback(async (sheetName: string) => {
+        if (!sheetName) {
+            setAttendanceData([]);
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        setAttendanceData([]);
+        
+        try {
+            // Note: The GET API expects the sheet name to be passed as 'sheetDate'
+            const res = await fetch(`/api/attendance?sheetDate=${sheetName}`); 
+            
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                if (res.status === 404) {
+                    throw new Error(`Sheet '${formatSheetTitle(sheetName)}' not found.`);
+                }
+                throw new Error(err.error || "Failed to fetch attendance data.");
+            }
 
-  const presentPercentage = Math.round((summary.presentCount / summary.totalStudents) * 100);
+            const data: AttendanceRecord[] = await res.json();
+            setAttendanceData(data);
+        } catch (e: unknown) {
+            const err = e as Error;
+            setError(err.message);
+            console.error("Fetch Error:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  // Set the overall container to be the primary glass layer: ADJUSTED PADDING FOR MOBILE
-  return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 min-h-screen text-white bg-black/10 backdrop-blur-3xl border border-white/10 shadow-2xl rounded-xl">
+    // Initial load: fetch events
+    useEffect(() => {
+        fetchEvents();
+    }, [fetchEvents]);
+    
+    // Trigger attendance fetch when selectedDate (sheet name) changes
+    useEffect(() => {
+        if (selectedDate) {
+            fetchAttendance(selectedDate);
+        }
+    }, [selectedDate, fetchAttendance]);
 
-      <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Attendance Tracking</h1>
-      <CardDescription className="text-base md:text-lg text-gray-300">Monitoring attendance records for **{new Date().toDateString()}**</CardDescription>
+    // Sorting logic (Unchanged)
+    const handleSort = (key: SortKeys) => {
+        if (sortKey === key) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortOrder('asc');
+        }
+    };
 
-      <Separator className="bg-white/20" />
+    const filteredAndSortedData = useMemo(() => {
+        // ... (Same filter/sort logic as before)
+        const filtered = attendanceData.filter(record => 
+            record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            record.idNumber.includes(searchTerm) ||
+            record.yearLevel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            record.section.toLowerCase().includes(searchTerm.toLowerCase())
+        );
 
-      {/* 3. Summary Cards: ADJUSTED GRID LAYOUT (1 or 2 columns on mobile, 4 on desktop) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        const sorted = filtered.sort((a, b) => {
+            const aValue = a[sortKey];
+            const bValue = b[sortKey];
 
-        <Card className="bg-white/5 backdrop-blur-lg border border-white/10 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-200">Present Students</CardTitle>
-            <CalendarCheck className="h-4 w-4 text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl text-white font-bold">{summary.presentCount} / {summary.totalStudents}</div>
-            <p className="text-xs text-gray-400">{presentPercentage}% Attendance Rate</p>
-          </CardContent>
-        </Card>
+            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
 
-        <Card className="bg-white/5 backdrop-blur-lg border border-white/10 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-200">Absent Today</CardTitle>
-            <CalendarX className="h-4 w-4 text-red-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl text-white font-bold">{summary.absentCount}</div>
-            <p className="text-xs text-gray-400">Requires follow-up</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/5 backdrop-blur-lg border border-white/10 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-200">Tardy Students</CardTitle>
-            <Users className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl text-white font-bold">{summary.tardyCount}</div>
-            <p className="text-xs text-gray-400">Late arrivals</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white/5 backdrop-blur-lg border border-white/10 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-200">Progress</CardTitle>
-            <BarChart className="h-4 w-4 text-indigo-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl text-white font-bold mb-2">Completion</div>
-            <Progress value={presentPercentage} className="h-2 bg-white/20 [&>div]:bg-indigo-500" />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator className="bg-white/20" />
-
-      {/* 4. Data Visualization (Graph Placeholder) */}
-      <Card className="bg-white/5 backdrop-blur-lg border border-white/10 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-gray-200">Attendance Trend Chart</CardTitle>
-          <CardDescription className="text-gray-400">Daily attendance over the last 30 days.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center h-48 md:h-64 bg-black/20 rounded-lg border border-dashed border-white/20">
-            {/* Placeholder for a Chart (e.g., Recharts, Nivo) */}
-            <p className="text-gray-400 text-center p-4">
+        return sorted;
+    }, [attendanceData, searchTerm, sortKey, sortOrder]);
 
 
-              [Image of Bar chart showing student attendance trends]
-              - **Present vs. Absent by Student ID**
+    // Helper for formatting time (Unchanged)
+    const formatTime = (timestamp: string) => {
+        try {
+            return new Date(timestamp).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+            });
+        } catch {
+            return 'N/A';
+        }
+    };
+
+    // Icon for sorting indicator (Unchanged)
+    const SortIcon = ({ currentKey }: { currentKey: SortKeys }) => {
+        if (currentKey !== sortKey) return null;
+        return (
+            <span className="ml-1">
+                {sortOrder === 'asc' ? '▲' : '▼'}
+            </span>
+        );
+    };
+    
+    // --- Render Section ---
+
+    return (
+        <div className="flex flex-col items-center justify-start min-h-screen text-slate-100 px-4 py-8 sm:py-12 md:py-16 ">
+            {/* Event Selection and Summary Card */}
+            <div className={cn(GLASSY_CARD_CLASS, "mb-8")}>
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    
+                    {/* Event Select Dropdown */}
+                    <div className="flex-1 min-w-[200px]">
+                        <label htmlFor="event-select" className="block text-sm font-medium text-slate-300 mb-1">
+                            Select Event/Sheet
+                        </label>
+                        {loadingEvents ? (
+                            <div className="h-11 flex items-center justify-center text-emerald-400 border border-slate-700 rounded-lg bg-black/30">
+                                Loading events...
+                            </div>
+                        ) : (
+                            <select
+                                id="event-select"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className={ "w-full text-lg appearance-none" }
+                                disabled={eventList.length === 0}
+                            >
+                                {eventList.length === 0 ? (
+                                    <option value="">No events available</option>
+                                ) : (
+                                    eventList.map((sheetTitle) => (
+                                        <option key={sheetTitle} value={sheetTitle}>
+                                            {formatSheetTitle(sheetTitle)}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                        )}
+                    </div>
+                    
+                    {/* Summary Display */}
+                    <div className="text-center sm:text-right p-3 rounded-lg bg-emerald-700/50 min-w-[150px] shadow-lg">
+                        <p className="text-3xl font-extrabold text-white">
+                            {loadingEvents ? '-' : filteredAndSortedData.length}
+                        </p>
+                        <p className="text-sm text-slate-200">
+                            Total Attendees
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Attendance List Area */}
+            <div className={cn(GLASSY_CARD_CLASS, "p-4 sm:p-6")}>
+                {/* Search Bar */}
+                <div className="mb-4">
+                    <Input
+                        type="text"
+                        placeholder="Search by Name, ID, Year, or Section..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full"
+                    />
+                </div>
+
+                {loading && (
+                    <p className="text-center text-emerald-400 p-8">Loading attendance...</p>
+                )}
+                
+                {error && (
+                    <p className="text-center text-red-400 p-8">Error: {error}</p>
+                )}
+
+                {!loading && !error && attendanceData.length === 0 && (
+                    <p className="text-center text-slate-400 p-8">
+                        {selectedDate 
+                            ? `No attendance recorded for ${formatSheetTitle(selectedDate)}.`
+                            : "Select an event or check API configuration."}
+                    </p>
+                )}
+
+                {/* Table/List View */}
+                {!loading && attendanceData.length > 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-700">
+                            <thead>
+                                <tr className="text-left text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wider bg-black/20">
+                                    <th 
+                                        scope="col" 
+                                        className="px-4 py-3 cursor-pointer hover:text-emerald-300 transition-colors"
+                                        onClick={() => handleSort('timestamp')}
+                                    >
+                                        Scan Time <SortIcon currentKey="timestamp" />
+                                    </th>
+                                    <th 
+                                        scope="col" 
+                                        className="px-4 py-3 cursor-pointer hover:text-emerald-300 transition-colors"
+                                        onClick={() => handleSort('name')}
+                                    >
+                                        Name <SortIcon currentKey="name" />
+                                    </th>
+                                    <th scope="col" className="px-4 py-3">
+                                        ID Number
+                                    </th>
+                                    <th scope="col" className="px-4 py-3 hidden sm:table-cell">
+                                        Level
+                                    </th>
+                                    <th scope="col" className="px-4 py-3 hidden md:table-cell">
+                                        Section
+                                    </th>
+                                </tr>
+                            </thead>
+                            <AnimatePresence initial={false}>
+                                <tbody className="divide-y divide-slate-800">
+                                    {filteredAndSortedData.map((record) => (
+                                        <motion.tr
+                                            key={record.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, x: -100 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="hover:bg-black/40 transition-colors text-sm sm:text-base text-slate-200"
+                                        >
+                                            <td className="px-4 py-3 whitespace-nowrap font-mono text-emerald-400">
+                                                {formatTime(record.timestamp)}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap font-semibold">
+                                                {record.name}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-slate-400">
+                                                {record.idNumber}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                                                {record.yearLevel}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
+                                                {record.section}
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                </tbody>
+                            </AnimatePresence>
+                        </table>
+                        {filteredAndSortedData.length === 0 && searchTerm && (
+                            <p className="text-center text-slate-500 p-4">
+                                No results found for "{searchTerm}".
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
+            
+            <p className="mt-8 text-slate-500 text-sm">
+                *Data fetched from the `/api/attendance` endpoint.
             </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Separator className="bg-white/20" />
-
-      {/* 5. Sheet Integration & Data Table */}
-      <div className="space-y-4">
-        {/* Header and Upload Button: ADJUSTED FOR MOBILE WRAPPING */}
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-          <CardTitle className="text-gray-200">Attendance Log</CardTitle>
-
-          {/* File Upload Button: WIDER ON MOBILE (w-full) */}
-          <label htmlFor="sheet-upload" className="w-full sm:w-auto">
-            <Button
-              disabled={isUploading}
-              className="bg-indigo-600/70 text-white hover:bg-indigo-600/90 border border-indigo-500/50 w-full"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing Sheet...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Attendance Sheet
-                </>
-              )}
-            </Button>
-          </label>
-          {/* Hidden Input for file selection */}
-          <input
-            id="sheet-upload"
-            type="file"
-            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-            className="hidden"
-            onChange={handleFileUpload}
-            disabled={isUploading}
-          />
         </div>
-
-        {/* Table: WRAPPED IN OVERFLOW-X-AUTO FOR MOBILE SCROLLING */}
-        <Card className="overflow-x-auto bg-black/10 backdrop-blur-lg border border-white/10 shadow-lg">
-          <Table className="min-w-full md:min-w-0">
-            <TableHeader>
-              <TableRow className="bg-black/20 border-white/20 hover:bg-black/20">
-                <TableHead className="w-[120px] text-gray-300 whitespace-nowrap">Student ID</TableHead>
-                <TableHead className="text-gray-300 whitespace-nowrap">Student Name</TableHead>
-                <TableHead className="text-gray-300 whitespace-nowrap">Time In</TableHead>
-                <TableHead className="text-right w-[150px] text-gray-300 whitespace-nowrap">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="text-center text-gray-400 py-10">
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin inline" /> Loading records...
-                  </TableCell>
-                </TableRow>
-              ) : (
-                records.map(record => (
-                  <TableRow
-                    key={record.id}
-                    className={`border-white/10 hover:bg-white/10 ${record.status === 'Absent' ? 'bg-red-500/10 hover:bg-red-500/20' : ''}`}
-                  >
-                    <TableCell className="font-medium text-white whitespace-nowrap">{record.studentId}</TableCell>
-                    <TableCell className="text-gray-200 whitespace-nowrap">{record.studentName}</TableCell>
-                    <TableCell className="text-gray-300 whitespace-nowrap">{record.timeIn}</TableCell>
-                    <TableCell className={`text-right font-semibold whitespace-nowrap ${record.status === 'Present' ? 'text-green-400' :
-                      record.status === 'Tardy' ? 'text-yellow-400' :
-                        'text-red-400'
-                      }`}>
-                      {record.status}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
-      </div>
-    </div>
-  );
+    );
 }

@@ -5,14 +5,12 @@ import { motion, Variants } from "framer-motion";
 import Image from "next/image";
 import { CalendarIcon, MessageSquareIcon, Loader2 } from "lucide-react";
 
-// shadcn/ui components
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AspectRatio } from "@/components/ui/AspectRatio";
-
-// App actions / types
+import AnnouncementModal from "@/components/announcements/AnnouncementModal";
 import { getLatestAnnouncements } from "@/actions/announcements";
 import { Announcement } from "@/types/announcement";
 
@@ -21,10 +19,7 @@ const INITIAL_FETCH_LIMIT = 24;
 
 const GLASSY_CARD_CLASSES =
     "border border-white/20 bg-white/5 backdrop-blur-md transition-all duration-300 shadow-xl shadow-fuchsia-600/20 rounded-xl";
-const GLASSY_MODAL_CLASSES =
-    "max-w-full sm:max-w-[900px] p-0 overflow-hidden border border-fuchsia-300/30 bg-fuchsia-950/80 backdrop-blur-xl shadow-2xl shadow-fuchsia-500/30 rounded-xl";
 
-// --- Fixed version ---
 function sanitizeImageSource(src?: string | null, fallback = "/placeholder.png") {
     if (!src || typeof src !== "string") return fallback;
 
@@ -65,7 +60,7 @@ const AnnouncementSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => {
     return (
         <>
             {Array.from({ length: count }).map((_, i) => (
-                <Card key={i} className={`flex flex-col h-full ${GLASSY_CARD_CLASSES}`}>
+                <Card key={i} className={`flex flex-col h-500 ${GLASSY_CARD_CLASSES}`}>
                     <div className="w-full">
                         <AspectRatio ratio={16 / 9}>
                             <Skeleton className="h-full w-full rounded-t-xl bg-fuchsia-900/50" />
@@ -96,15 +91,17 @@ const AnnouncementCard: React.FC<{
 
     return (
         <motion.div variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -6, scale: 1.01 }} className="h-full">
-            <Card
+   <Card
                 onClick={() => onSelect(item)}
-                className={`flex flex-col h-full cursor-pointer ${GLASSY_CARD_CLASSES} hover:border-fuchsia-500/60`}
+                // Removed h-full to allow the content constraints to determine size
+                className={`flex flex-col cursor-pointer ${GLASSY_CARD_CLASSES} hover:border-fuchsia-500/60`} 
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") onSelect(item);
                 }}
             >
+                {/* 1. Image/Media Container */}
                 <div className="relative w-full">
                     <AspectRatio ratio={16 / 9}>
                         <Image
@@ -118,24 +115,34 @@ const AnnouncementCard: React.FC<{
                     </AspectRatio>
                 </div>
 
-                <CardHeader className="p-3 sm:p-6">
-                    <CardTitle className="line-clamp-2 text-fuchsia-200 text-lg sm:text-xl">{item.title}</CardTitle>
-                    <div className="flex items-center space-x-2 text-sm text-fuchsia-300/80">
-                        <CalendarIcon className="h-4 w-4" />
+                {/* 2. Header (Title and Date) - COMPACTED PADDING */}
+                <CardHeader className="px-3 py-2 sm:px-4 sm:py-3"> {/* Reduced p-6/p-3 to px-3 py-2 */}
+                    <CardTitle className="line-clamp-2 text-fuchsia-200 text-base sm:text-lg">
+                        {item.title}
+                    </CardTitle>
+                    <div className="flex items-center space-x-1.5 text-xs text-fuchsia-300/80"> {/* Reduced text/icon size and spacing */}
+                        <CalendarIcon className="h-3 w-3" />
                         <span className="truncate">{formatDate(item.createdAt)}</span>
                     </div>
                 </CardHeader>
 
-                <CardContent className="flex-grow p-3 pt-0 sm:p-6 sm:pt-0">
-                    <p className="line-clamp-4 text-sm text-fuchsia-100/70 min-h-[60px]">{item.description}</p>
+                {/* 3. Content (Description) - COMPACTED PADDING */}
+                <CardContent className="px-3 py-0 sm:px-4 sm:py-0 flex-grow">
+                    {/* KEY CHANGE: line-clamp-3 maintains a predictable description height */}
+                    <p className="line-clamp-3 text-sm text-fuchsia-100/70">{item.description}</p>
                 </CardContent>
 
-                <CardFooter className="p-3 sm:p-6 pt-0">
-                    <Button variant="outline" className="w-full border-fuchsia-400/50 text-fuchsia-300 hover:bg-fuchsia-700/30">
+                {/* 4. Footer (Button) - COMPACTED PADDING */}
+                <CardFooter className="px-3 py-3 sm:px-4 sm:py-4 pt-2"> {/* Reduced vertical padding, ensuring a small gap above the button */}
+                    <Button 
+                        variant="outline" 
+                        className="w-full h-8 text-sm border-fuchsia-400/50 text-fuchsia-300 hover:bg-fuchsia-700/30"
+                    >
                         View Details
                     </Button>
                 </CardFooter>
             </Card>
+
         </motion.div>
     );
 });
@@ -157,14 +164,22 @@ const FeaturedAnnouncement: React.FC<{
             className="relative w-full max-w-6xl mx-auto overflow-hidden transition-shadow cursor-pointer"
             onClick={() => onSelect(item)}
         >
-            <div className="relative w-full rounded-xl overflow-hidden shadow-2xl shadow-fuchsia-500/50 border border-fuchsia-500/40">
-                <AspectRatio ratio={16 / 9} className="sm:aspect-[21/9]">
-                    <Image src={imageSource} alt={item.title ?? "featured"} fill sizes="100vw" className="object-cover brightness-[0.62]" priority />
-                </AspectRatio>
+<div 
+                className="relative w-full rounded-xl overflow-hidden shadow-2xl shadow-fuchsia-500/50 border border-fuchsia-500/40 
+                           bg-cover bg-center transition-transform duration-500" // Added bg-cover/bg-center
+                style={{ backgroundImage: `url(${imageSource})` }} // Using background image for better overlay handling
+                >
+                {/* Fixed Height to simulate AspectRatio (h-64 sm:h-96 is a good starting point) */}
+                <div className="w-full h-64 sm:h-96" aria-hidden="true" /> 
 
+                {/* Gradient Overlay: Now ensures full coverage of the div */}
                 <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/48 to-transparent" />
-
-                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 z-10">
+                
+                {/* Brightness/Color Overlay: Add a layer to dim the image */}
+                <div className="absolute inset-0 bg-black/40" /> 
+                
+                {/* Content Layer (z-index is implicitly handled as it's the last child) */}
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 z-10"> 
                     <span className="inline-block px-3 py-1 text-xs font-medium text-white bg-fuchsia-600 rounded-full mb-3 shadow-md">⭐ Featured</span>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-3 drop-shadow-lg">{item.title}</h2>
                     <p className="text-sm md:text-lg text-fuchsia-100/90 max-w-2xl line-clamp-2">{item.description}</p>
@@ -172,49 +187,6 @@ const FeaturedAnnouncement: React.FC<{
                 </div>
             </div>
         </motion.section>
-    );
-};
-
-const AnnouncementModal: React.FC<{
-    selected: Announcement | null;
-    onClose: () => void;
-    fallbackImage: string;
-}> = ({ selected, onClose, fallbackImage }) => {
-    if (!selected) return null;
-
-    const imageSrc = sanitizeImageSource(selected.image, fallbackImage);
-
-    return (
-        <Dialog open={!!selected} onOpenChange={onClose}>
-            <DialogContent className={GLASSY_MODAL_CLASSES}>
-                <div className="relative">
-                    <AspectRatio ratio={16 / 9}>
-                        <Image src={imageSrc} alt={selected.title ?? "modal image"} fill className="object-cover" priority />
-                    </AspectRatio>
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
-                </div>
-
-                <div className="p-4 pt-0 sm:p-8 sm:pt-2">
-                    <div className="flex flex-wrap items-center gap-x-4 text-sm text-fuchsia-200 mb-4">
-                        <div className="flex items-center space-x-2">
-                            <CalendarIcon className="h-4 w-4" />
-                            <span>{formatDate(selected.createdAt)}</span>
-                        </div>
-                        {selected.postedBy?.name && (
-                            <div className="flex items-center space-x-2">
-                                <MessageSquareIcon className="h-4 w-4" />
-                                <span>Posted by: {selected.postedBy.name}</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-white">{selected.title}</h2>
-                    <p className="text-sm sm:text-base text-fuchsia-100/90 whitespace-pre-line leading-relaxed">{selected.description}</p>
-
-                    <Button onClick={onClose} className="mt-6 w-full bg-fuchsia-600 hover:bg-fuchsia-700">Close</Button>
-                </div>
-            </DialogContent>
-        </Dialog>
     );
 };
 

@@ -1,32 +1,56 @@
-import { User } from "@/types/user";
 import { useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   User as FirebaseUser
 } from "firebase/auth";
-import { auth } from "@/services/firebase";
+import { auth, db } from "@/services/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
-// Ensure this matches what your components expect. 
-// The register component calls: handleSignup(email, password, student_id)
 export const handleSignup = async (email: string, pass: string, studentId: string) => {
-  // Note: studentId isn't used in the basic auth creation but passed for the API call in the component.
-  // Ideally, we might want to store it in the user profile here or just return the user to let the component handle the DB save.
   const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
   return userCredential.user;
 };
 
+function normalizeRole(rawRole?: string): "guest" | "user" | "admin" {
+  if (!rawRole) return "guest";
+  if (rawRole === "admin") return "admin";
+  return "user";
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<(FirebaseUser & { role?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setUser(null);
+        document.cookie = "userRole=guest; path=/; max-age=0;";
+        setLoading(false);
+        return;
+      }
+
+      // Load Firestore user document
+      const ref = doc(db, "users", firebaseUser.uid);
+      const snap = await getDoc(ref);
+      const firestoreData = snap.exists() ? snap.data() : {};
+
+      // Normalize for middleware
+      const normalized = normalizeRole(firestoreData.role);
+
+      // Save normalized role cookie
+      document.cookie = `userRole=${normalized}; path=/; secure; samesite=strict`;
+
+      setUser({
+        ...firebaseUser,
+        ...firestoreData,
+        role: firestoreData.role,
+      });
+
       setLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
