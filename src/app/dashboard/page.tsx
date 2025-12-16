@@ -119,13 +119,12 @@ const SidebarButton = ({ children, className, disabled, onPress, icon: Icon, isA
 // --- Dev Dashboard Component ---
 export default function DevDashboard() {
 	const [activeTab, setActiveTab] = useState("overview");
-	const [filter, setFilter] = useState("all");
-	const [sortOrder, setSortOrder] = useState("newest");
+
 	// State for the mobile dropdown menu
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const [messageState, setMessageState] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
-	const [logs, setLogs] = useState<LogEntry[]>([]);
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
@@ -180,7 +179,6 @@ export default function DevDashboard() {
 
 	useEffect(() => { /* Auth Logic */ }, []);
 	useEffect(() => {
-		fetch("/api/logs").then(res => res.json()).then(setLogs).catch(console.error);
 		const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
 			const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as UserData[];
 			setUsers(data);
@@ -299,7 +297,7 @@ export default function DevDashboard() {
 	const handleApprovePost = async (id: string) => { /* ... logic ... */ };
 	const handleRejectPost = async (id: string) => { /* ... logic ... */ };
 
-	const filteredLogs = logs.filter(log => filter === "all" || log.category === filter).sort((a, b) => sortOrder === "newest" ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
+
 	const filteredUsers = users
 		.filter(u => u.status !== 'deleted') // exclude deleted users
 		.filter(u =>

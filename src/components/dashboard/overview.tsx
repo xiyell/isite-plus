@@ -38,6 +38,9 @@ const GLASSY_CARD_CLASS = "bg-white/5 backdrop-blur-xl border border-white/10 p-
 
 
 export default function OverviewContent() {
+    const [attendanceData, setAttendanceData] = useState<{ name: string; value: number; color: string }[]>([]);
+    const [latestEventDate, setLatestEventDate] = useState<string>("");
+
     const [stats, setStats] = useState<OverviewStats | null>(null);
     const [monthlyPostData, setMonthlyPostData] = useState<MonthlyData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -105,7 +108,51 @@ export default function OverviewContent() {
             // --- 3. Aggregate Monthly Data ---
             aggregatePostsByMonth(communitySnapshot);
 
-            // --- 4. Simulate External Data ---
+            // --- 4. Fetch Attendance Data for Pie Chart ---
+            // A. Get latest event
+            const eventsRes = await fetch('/api/events');
+            if (eventsRes.ok) {
+                const events: string[] = await eventsRes.json();
+                if (events.length > 0) {
+                    // Events are usually returned sorted, but let's take the last one or first based on API.
+                    // Assuming API returns sorted or we just take the first one if reversed.
+                    // Based on attendance.tsx, it reverses the list. Let's assume index 0 after reverse is latest.
+                    // Actually, let's just reverse it here to be safe if the API returns chronological.
+                    // But attendance.tsx did: setEventList(data.reverse());
+                    // So let's check the API response format. If typically chronological, last is latest.
+                    // Let's assume the API returns chronological [oldest, ..., newest].
+                    // So we want the last one.
+                    const latestEvent = events[events.length - 1];
+
+                    // Format date for display
+                    let displayDate = latestEvent;
+                    try {
+                        const [year, month, day] = latestEvent.split('_');
+                        const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                        displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    } catch (e) { console.error("Date parse error", e); }
+                    setLatestEventDate(displayDate);
+
+                    // B. Get attendance for this event
+                    const attRes = await fetch(`/api/attendance?sheetDate=${latestEvent}`);
+                    if (attRes.ok) {
+                        const attendees: any[] = await attRes.json();
+                        const attendedCount = attendees.length;
+                        // const absentCount = Math.max(0, totalUsers - attendedCount); // Simple calculation
+                        // Actually, 'totalUsers' might include admins, etc.
+                        // Ideally we check total *students* vs attended, but totalUsers is a good proxy for now.
+                        const absentCount = Math.max(0, totalUsers - attendedCount);
+
+                        setAttendanceData([
+                            { name: 'Attended', value: attendedCount, color: '#4ade80' }, // Green-400
+                            { name: 'Did Not Attend', value: absentCount, color: '#f87171' }, // Red-400
+                        ]);
+                    }
+                }
+            }
+
+
+            // --- 5. Simulate External Data ---
             const serverUptime = "99.9% (6d ago)";
 
             setStats({
@@ -219,44 +266,50 @@ export default function OverviewContent() {
                     </CardContent>
                 </Card>
 
-                {/* Platform Distribution (Pie Chart) - MOCK */}
+                {/* Attendance Distribution (Pie Chart) - REAL DATA */}
                 <Card className={GLASSY_CARD_CLASS}>
                     <CardHeader>
-                        <CardTitle className="text-xl font-semibold text-gray-200">Platform Distribution (Mock)</CardTitle>
+                        <CardTitle className="text-xl font-semibold text-gray-200">
+                            Attendance Status <span className="text-sm font-normal text-gray-400 block sm:inline sm:ml-2">({latestEventDate || "Loading event..."})</span>
+                        </CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px] w-full p-2 flex justify-center items-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={platformData}
-                                    cx="40%"
-                                    cy="50%"
-                                    innerRadius={70}
-                                    outerRadius={90}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    nameKey="name"
-                                >
-                                    {platformData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "12px", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
-                                    itemStyle={{ color: "#fff", fontWeight: 600 }}
-                                    formatter={(value: number) => [`${value} Posts`, '']}
-                                    separator=""
-                                />
-                                <Legend
-                                    verticalAlign="middle"
-                                    align="right"
-                                    layout="vertical"
-                                    iconType="circle"
-                                    iconSize={10}
-                                    formatter={(value) => <span className="text-gray-300 text-sm ml-2">{value}</span>}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        {attendanceData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={attendanceData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={70}
+                                        outerRadius={90}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        nameKey="name"
+                                    >
+                                        {attendanceData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "12px", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
+                                        itemStyle={{ color: "#fff", fontWeight: 600 }}
+                                        formatter={(value: number) => [`${value} Students`, '']}
+                                        separator=""
+                                    />
+                                    <Legend
+                                        verticalAlign="middle"
+                                        align="right"
+                                        layout="vertical"
+                                        iconType="circle"
+                                        iconSize={10}
+                                        formatter={(value) => <span className="text-gray-300 text-sm ml-2">{value}</span>}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="text-center text-gray-500">No attendance data found for the latest event.</div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

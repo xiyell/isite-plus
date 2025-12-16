@@ -32,14 +32,57 @@ export default function IChat() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null);
 
+    const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+
+    // Helper: Levenshtein Distance for fuzzy matching
+    const levenshtein = (a: string, b: string): number => {
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                    matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j - 1] + 1, // substitution
+                        matrix[i][j - 1] + 1,     // insertion
+                        matrix[i - 1][j] + 1      // deletion
+                    );
+                }
+            }
+        }
+        return matrix[b.length][a.length];
+    };
+
     const getBotResponse = (text: string) => {
         if (!botEnabled) return "iBot is currently disabled 🟥";
-        const lower = text.toLowerCase();
 
+        const normalizedInput = normalize(text);
+
+        // 1. Direct/Exact Match Check (Best Performance)
         for (const r of responses) {
-            const keywords = r.trigger.split(",").map((k) => k.trim().toLowerCase());
-            if (keywords.some((k) => lower.includes(k))) return r.reply;
+            const keywords = r.trigger.split(",").map((k) => normalize(k).trim()).filter(k => k.length > 0);
+            if (keywords.some((k) => normalizedInput.includes(k))) return r.reply;
         }
+
+        // 2. Fuzzy Match Check (Handle Typos)
+        // Allow up to 2 typos for words > 4 chars, 1 typo for short words
+        for (const r of responses) {
+            const keywords = r.trigger.split(",").map((k) => normalize(k).trim()).filter(k => k.length > 0);
+
+            for (const keyword of keywords) {
+                // Check if any word in the input vaguely resembles the keyword
+                const inputWords = normalizedInput.split(" ");
+                for (const word of inputWords) {
+                    const dist = levenshtein(word, keyword);
+                    const threshold = keyword.length > 4 ? 2 : 1;
+                    if (dist <= threshold) return r.reply;
+                }
+            }
+        }
+
         return "Hmm 🤔 I don't know that yet, but I'm learning!";
     };
 
@@ -84,12 +127,21 @@ export default function IChat() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const recognition = new SpeechRecognition();
 
-            recognition.lang = "en-US";
-            recognition.interimResults = false;
+            recognition.lang = "en-PH"; // Optimize for Filipino accents
+            recognition.interimResults = true; // Show text while speaking
             recognition.onstart = () => setIsListening(true);
             recognition.onend = () => setIsListening(false);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            recognition.onresult = (e: any) => sendMessage(e.results[0][0].transcript);
+            recognition.onresult = (e: any) => {
+                const result = e.results[e.resultIndex];
+                const transcript = result[0].transcript;
+
+                if (result.isFinal) {
+                    sendMessage(transcript);
+                } else {
+                    setInput(transcript); // Show real-time preview
+                }
+            };
 
             recognitionRef.current = recognition;
         }

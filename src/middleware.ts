@@ -16,6 +16,8 @@ const accessRules: Record<string, ("guest" | "user" | "admin")[]> = {
 };
 
 export async function middleware(req: NextRequest) {
+  return NextResponse.next();
+
   // const { pathname } = req.nextUrl;
   // console.log("🔒 Middleware Active:", pathname);
 

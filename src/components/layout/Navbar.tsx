@@ -50,9 +50,9 @@ const mainNavLinks: NavbarNavLink[] = [
     { href: '/feedback', label: 'Feedback', rolesAllowed: ['user', 'admin'], group: 'tools' },
     { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin'], group: 'tools' },
     { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
-    { href: '/iQr', label: 'iQr', rolesAllowed: ['admin'], group: 'tools' },
-    { href: '/iReader', label: 'iReader', rolesAllowed: ['admin'], group: 'tools' },
-    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin'], group: 'tools' }
+    { href: '/iQr', label: 'iQr', rolesAllowed: ['admin', 'user', 'guest'], group: 'tools' },
+    { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'user', 'guest'], group: 'tools' },
+    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'user', 'guest'], group: 'tools' }
 ];
 // ------------------------------------------------------------------------
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { useToast } from "@/components/ui/use-toast";
+
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
@@ -69,13 +71,8 @@ export default function IBot() {
     const [responses, setResponses] = useState<BotResponse[]>([]);
     const [editing, setEditing] = useState<BotResponse | null>(null);
     const [botEnabled, setBotEnabled] = useState(true);
+    const { toast } = useToast();
 
-    const [toast, setToast] = useState<string>("");
-
-    const showToast = useCallback((msg: string) => {
-        setToast(msg);
-        setTimeout(() => setToast(""), 2000);
-    }, []);
 
     // ──────────────────────────────────────────────────────────
     // LOAD FIREBASE DATA (Real-time listener)
@@ -99,7 +96,7 @@ export default function IBot() {
     // SAVE (Add or Edit)
     // ──────────────────────────────────────────────────────────
     const handleSave = async () => {
-        if (!trigger || !reply) return showToast("❌ Fill all fields");
+        if (!trigger || !reply) return toast({ title: "Validation Error", description: "Please fill all fields", variant: "destructive" });
 
         const body = { trigger, reply };
 
@@ -108,20 +105,20 @@ export default function IBot() {
                 const ref = doc(db, "ibot_responses", editing.id);
                 await updateDoc(ref, body);
                 setEditing(null);
-                showToast("✅ Reply updated");
+                toast({ title: "Success", description: "Reply updated successfully", variant: "success" });
             } else {
                 await addDoc(collection(db, "ibot_responses"), {
                     ...body,
                     createdAt: Date.now(),
                 });
-                showToast("✅ Reply added");
+                toast({ title: "Success", description: "Reply added successfully", variant: "success" });
             }
 
             setTrigger("");
             setReply("");
         } catch (error) {
             console.error("Error saving reply:", error);
-            showToast("🛑 Save failed");
+            toast({ title: "Error", description: "Failed to save reply", variant: "destructive" });
         }
     };
 
@@ -131,10 +128,10 @@ export default function IBot() {
     const handleDelete = async (id: string) => {
         try {
             await deleteDoc(doc(db, "ibot_responses", id));
-            showToast("🗑️ Reply deleted");
+            toast({ title: "Deleted", description: "Reply removed", variant: "default" });
         } catch (error) {
             console.error("Error deleting reply:", error);
-            showToast("🛑 Delete failed");
+            toast({ title: "Error", description: "Delete failed", variant: "destructive" });
         }
     };
 
@@ -148,10 +145,14 @@ export default function IBot() {
         try {
             await setDoc(ref, { enabled: newStatus }, { merge: true });
             setBotEnabled(newStatus);
-            showToast(newStatus ? "🟩 iBot Enabled" : "🟥 iBot Disabled");
+            toast({
+                title: newStatus ? "iBot Enabled" : "iBot Disabled",
+                description: newStatus ? "Auto-replies are active" : "Auto-replies paused",
+                variant: newStatus ? "success" : "warning"
+            });
         } catch (error) {
             console.error("Error toggling bot status:", error);
-            showToast("🛑 Toggle failed");
+            toast({ title: "Error", description: "Together failed", variant: "destructive" });
         }
     };
 
@@ -212,7 +213,7 @@ export default function IBot() {
                                     setEditing(null);
                                     setTrigger("");
                                     setReply("");
-                                    showToast("🖊️ Editing cancelled");
+                                    toast({ title: "Cancelled", description: "Editing cancelled" });
                                 }}
                                 className="text-gray-400 hover:text-white hover:bg-white/10"
                             >
@@ -273,7 +274,7 @@ export default function IBot() {
                                         setEditing(r);
                                         setTrigger(r.trigger);
                                         setReply(r.reply);
-                                        showToast(`🖊️ Editing: ${r.trigger.substring(0, 15)}...`);
+                                        toast({ title: "Editing Mode", description: `Editing: ${r.trigger}` });
                                     }}
                                 >
                                     <Edit size={18} />
@@ -294,31 +295,7 @@ export default function IBot() {
             </Card>
 
 
-            {/* 4. Center Toast (RETAINED) */}
-            <AnimatePresence>
-                {toast && (
-                    <motion.div
-                        key="toast"
-                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        transition={{ duration: 0.3 }}
-                    >
-                        <div
-                            className={`px-6 py-3 text-lg font-semibold shadow-2xl rounded-full border 
-             ${toast.startsWith("✅") || toast.includes("🟩")
-                                    ? "bg-green-600/90 text-white border-green-300"
-                                    : toast.startsWith("🗑️") || toast.startsWith("❌") || toast.startsWith("🛑")
-                                        ? "bg-red-600/90 text-white border-red-300"
-                                        : "bg-purple-600/90 text-white border-purple-300"
-                                }`}
-                        >
-                            {toast}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
         </div>
     );
 }

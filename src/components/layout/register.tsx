@@ -54,6 +54,16 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
 
     const studentIdPattern = /^\d{4}-\d{5}-SM-\d$/;
 
+    const [matchError, setMatchError] = useState<boolean>(false); // New state for mismatch feedback
+
+    useEffect(() => {
+        if (confirmPassword && password !== confirmPassword) {
+            setMatchError(true);
+        } else {
+            setMatchError(false);
+        }
+    }, [password, confirmPassword]);
+
     /**
      * Client-side validation for strong password requirements.
      */
@@ -70,10 +80,10 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             errors.push("one lowercase letter");
         }
         if (!/[0-9]/.test(pass)) {
-            errors.push("one digit (0-9)");
+            errors.push("one digit");
         }
-        // Allows common special characters: !@#$%^&*()_+{}[]:;<>,.?~\\-
-        if (!/[!@#$%^&*()_+{}[\]:;<>,.?~\\-]/.test(pass)) {
+        // Broader special character check: Any character that is NOT a letter or number
+        if (!/[^A-Za-z0-9]/.test(pass)) {
             errors.push("one special character");
         }
 
@@ -115,10 +125,9 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             return setError("Invalid Student ID format. Use format like 2023-00097-SM-0.");
         }
 
-        // NEW: Check password complexity
+        // Check password complexity again (redundant but safe)
         if (!validatePassword(password)) {
             setIsSubmitting(false);
-            // Error message is already set by validatePassword function
             return setError("Password does not meet complexity requirements.");
         }
 
@@ -266,12 +275,6 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                         🚨 {passwordError}
                                     </p>
                                 )}
-                                {/* HINT for minimum requirements */}
-                                {!passwordError && (
-                                    <p className="text-xs text-fuchsia-300/80">
-                                        Must be 8+ characters and include uppercase, lowercase, number, and special character.
-                                    </p>
-                                )}
                             </div>
 
                             {/* Confirm Password Field */}
@@ -285,10 +288,15 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                     type="password"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                    className={`h-10 bg-fuchsia-900/40 border focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 ${matchError ? 'border-red-500 ring-1 ring-red-500' : 'border-fuchsia-700/50'}`}
                                     required
                                     disabled={isSubmitting}
                                 />
+                                {matchError && (
+                                    <p className="text-xs text-red-400 font-semibold">
+                                        ❌ Passwords do not match
+                                    </p>
+                                )}
                             </div>
 
                             {/* Error/Success Toast Message */}
@@ -313,8 +321,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                             {/* Buttons */}
                             <div className="flex flex-col space-y-2 pt-2"> {/* Reduced spacing */}
                                 <Button
-                                    className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all"
-                                    disabled={isSubmitting || !!passwordError || password !== confirmPassword}
+                                    className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isSubmitting || !!passwordError || matchError || !password || !confirmPassword}
                                     type="submit"
                                 >
                                     {isSubmitting ? (

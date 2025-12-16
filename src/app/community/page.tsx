@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // Shadcn/ui Toast Imports
 import { useToast } from "@/components/ui/use-toast"; // <-- NEW IMPORT
+import { ToastAction } from "@/components/ui/toast";
 
 // Icons
 import {
@@ -54,7 +55,7 @@ import Comment from "@/types/comment";
 import { User } from "@/types/user";
 
 // --- Configuration Constants ---
-const categories = ["All", "Tech", "Gaming", "Art", "Science"];
+const categories = ["All", "Tech", "Gaming", "Art", "Science", "Fun", "Other"];
 const ADMIN_UIDS: string[] = []; // Replace with actual admin UIDs
 const postsPerPage = 10;
 const commentsPerPage = 5;
@@ -234,38 +235,46 @@ export default function CommunityPage() {
 
 
   // --- Action Handlers (Using Server Actions) ---
-  const handleDeletePost = async (postId: string) => {
+  const handleDeletePost = (postId: string) => {
     if (!currentUser) return;
 
-    const confirmed = confirm(
-      "Are you sure you want to delete this post permanently? This action cannot be undone."
-    );
-    if (!confirmed) return;
+    toast({
+      title: "Confirm Delete",
+      description: "Permanently remove this post?",
+      variant: "destructive",
+      action: (
+        <ToastAction
+          altText="Confirm Delete"
+          className="bg-red-600 text-white hover:bg-red-700 border-none"
+          onClick={async () => {
+            try {
+              await movePostToRecycleBin(postId, currentUser.uid);
 
-    try {
-      await movePostToRecycleBin(postId, currentUser.uid);
+              if (openPost?.id === postId) {
+                setOpenPost(null);
+              }
 
-      if (openPost?.id === postId) {
-        setOpenPost(null);
-      }
+              await fetchPosts();
 
-      await fetchPosts();
-
-      // REPLACEMENT 1/10
-      toast({
-        title: "Post Deleted",
-        description: "The post has been moved to the recycle bin permanently.",
-        variant: "destructive",
-      });
-    } catch (err) {
-      console.error("Failed to delete post:", err);
-      // REPLACEMENT 2/10
-      toast({
-        title: "Deletion Failed",
-        description: "Could not delete post due to a server error.",
-        variant: "destructive",
-      });
-    }
+              toast({
+                title: "Post Deleted",
+                description: "The post was successfully deleted.",
+                variant: "success",
+              });
+            } catch (err) {
+              console.error("Failed to delete post:", err);
+              toast({
+                title: "Deletion Failed",
+                description: "Could not delete post due to a server error.",
+                variant: "destructive",
+              });
+            }
+          }}
+        >
+          Delete
+        </ToastAction>
+      ),
+    });
   };
   const canDeletePost = (post: Post) => {
     if (!currentUser) return false;
