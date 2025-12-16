@@ -18,6 +18,7 @@ import {
   limit as firestoreLimit,
   DocumentReference,
 } from "firebase/firestore";
+import { addLog } from "./logs";
 
 // --- Type Helpers for Firestore Data ---
 const convertFirestoreTimestamp = (timestamp: any): string | null => {
@@ -128,9 +129,8 @@ export interface NewPostData {
 export async function createCommunityPost(data: NewPostData) {
   const { postedBy, ...rest } = data;
   
-
   const postedByRef = doc(db, 'users', postedBy);
-  
+  const user = (await getDoc(doc(db, "users", postedBy))).data();
   await addDoc(collection(db, "community"), {
     ...rest,
     postedBy: postedByRef, 
@@ -138,6 +138,13 @@ export async function createCommunityPost(data: NewPostData) {
     dislikesCount: 0,
     createdAt: serverTimestamp(),
   });
+   await addLog({
+        category: "posts",
+        action: "CREATE_POST",
+        severity: "low",
+        actorRole: user?.role,
+        message: `User ${user?.name} created a new post: "${data.title}"`,
+      });
 }
 
 
@@ -167,7 +174,7 @@ export async function updatePostLikeStatus(postId: string, userId: string, actio
       likedBy: arrayRemove(userId)
     };
   } else {
-    // Action already performed or is redundant
+  
     return;
   }
 
@@ -193,14 +200,20 @@ export async function addCommunityComment(data: NewCommentData) {
 
   // NOTE: If you store commentedBy as a Firestore Document Reference, use:
   const commentedByRef = doc(db, 'users', commentedBy);
-  
+   const user = (await getDoc(doc(db, "users", commentedBy))).data();
   // Add comment to the subcollection
   await addDoc(collection(postRef, "comments"), {
     text: text,
     commentedBy: commentedByRef, // Stored as a DocumentReference
     createdAt: serverTimestamp(),
   });
-  
+  await addLog({
+        category: "posts",
+        action: "CREATE_COMMENT",
+        severity: "low",
+        actorRole: user?.role,
+        message: `User ${user?.name} commented "${data.text}" at post ID: ${postId}`,
+      });
   // Optional: Update the comment count on the main post (for better queries/denormalization)
   // await updateDoc(postRef, {
   //   commentCount: increment(1)
@@ -218,5 +231,27 @@ export async function updatePostStatus(postId: string, status: 'approved' | 'rej
   await updateDoc(postRef, {
     status: status,
     updatedAt: serverTimestamp(),
+  });
+}
+
+export async function movePostToRecycleBin(postId: string, actorUid: string) {
+  const postRef = doc(db, "community", postId);
+  const userRef = doc(db, "users", actorUid);
+
+  const userSnap = await getDoc(userRef);
+  const user = userSnap.data();
+
+  await updateDoc(postRef, {
+    status: "deleted",
+    deletedAt: serverTimestamp(),
+    deletedBy: userRef,
+  });
+
+  await addLog({
+    category: "posts",
+    action: "MOVE_TO_RECYCLE_BIN",
+    severity: "medium",
+    actorRole: user?.role,
+    message: `Post "${postId}" was moved to recycle bin by ${user?.name}`,
   });
 }

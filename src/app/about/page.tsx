@@ -1,9 +1,45 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Users, Code, Rocket, Sparkles, Bot } from "lucide-react";
+import { Users, Code, Rocket, Sparkles, Bot, User } from "lucide-react"; // Imported User icon for avatar fallback
+
+// Custom Placeholder Avatar Component
+const DeveloperAvatar = ({ name, imageSrc }: { name: string, imageSrc?: string }) => {
+  // Generates initials from the name
+  const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+  if (imageSrc) {
+    return (
+      // In a real app, use next/image here
+      <img
+        src={imageSrc}
+        alt={name}
+        className="w-16 h-16 rounded-full object-cover border-2 border-purple-400/50 mb-3 mx-auto"
+      />
+    );
+  }
+
+  // Placeholder using User icon and initials
+  return (
+    <div className="w-16 h-16 rounded-full bg-purple-700/50 border-2 border-purple-400/70 mb-3 mx-auto flex items-center justify-center text-xl font-bold text-white shadow-inner">
+      {initials || <User className="w-8 h-8 text-purple-300" />}
+    </div>
+  );
+};
+
 
 export default function AboutPage() {
+
+  // Enhanced Contributor data structure to include optional image source
+  const contributors = [
+    { name: "Gabriel Suarez", role: "Quality Assurance", imageSrc: "/images/contributors/gabriel.jpg" }, // Example path
+    { name: "Ciel Angelo Mendoza", role: "Backend Developer", imageSrc: "/images/contributors/ciel.jpg" },
+    { name: "Carl Andrei Espino", role: "Backend Developer", imageSrc: "" }, // Placeholder will be used
+    { name: "Joshua Aniban", role: "Frontend Developer", imageSrc: "" },
+    { name: "Levie Jeans Panese", role: "Frontend Developer", imageSrc: "/images/contributors/levie.jpg" },
+  ];
+
+
   return (
     <div className="w-full min-h-screen flex flex-col items-center text-white px-6 py-20 ">
 
@@ -31,7 +67,7 @@ export default function AboutPage() {
         <div className="rounded-3xl border border-purple-500/20 bg-gradient-to-br from-white/10 via-purple-500/5 to-transparent backdrop-blur-xl p-10 shadow-[0_8px_40px_rgba(155,0,255,0.15)]">
           <h2 className="text-4xl font-bold text-center mb-6 text-purple-300">Why iSITE+</h2>
           <p className="text-white/85 text-center text-lg leading-relaxed mb-4">
-            iSITE+ is inspired by the success of UP’s Y4T, which began as a student initiative and grew into a national platform.  
+            iSITE+ is inspired by the success of UP’s Y4T, which began as a student initiative and grew into a national platform.
             Similarly, iSITE+ aims to become Bulacan’s flagship IT event — bridging academic learning and industry innovation.
           </p>
           <div className="text-center text-white/80 mt-6 leading-relaxed">
@@ -81,7 +117,7 @@ export default function AboutPage() {
             text: (
               <>
                 <p>
-                  iSITE envisions a stronger impact beyond the walls of PUP Santa Maria.  
+                  iSITE envisions a stronger impact beyond the walls of PUP Santa Maria.
                   With iSITE+, it expands into a district-wide, and eventually provincial, platform connecting students and industry.
                 </p>
                 <ul className="space-y-1 mt-3">
@@ -129,7 +165,7 @@ export default function AboutPage() {
         </div>
       </motion.section>
 
-      {/* CONTRIBUTORS */}
+      {/* CONTRIBUTORS - MODIFIED SECTION */}
       <motion.section
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -141,21 +177,17 @@ export default function AboutPage() {
           <Users className="text-blue-400" /> Project Contributors
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {[
-            { name: "Gabriel Suarez", role: "Quality Assurance" },
-            { name: "Ciel Angelo Mendoza", role: "Backend Developer" },
-            { name: "Carl Andrei Espino", role: "Backend Developer" },
-            { name: "Joshua Aniban", role: "Frontend Developer" },
-            { name: "Levie Jeans Panese", role: "Frontend Developer" },
-          ].map((p, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {contributors.map((p, i) => (
             <motion.div
               key={i}
               whileHover={{ y: -6 }}
               transition={{ type: "spring", stiffness: 200, damping: 18 }}
               className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/10 via-purple-500/5 to-transparent backdrop-blur-xl p-6 text-center shadow-[0_8px_32px_rgba(255,255,255,0.08)]"
             >
-              <h3 className="text-xl font-semibold text-white">{p.name}</h3>
+              <DeveloperAvatar name={p.name} imageSrc={p.imageSrc} />
+
+              <h3 className="text-xl font-semibold text-white mt-1">{p.name}</h3>
               <p className="text-sm text-purple-300 font-medium">{p.role}</p>
             </motion.div>
           ))}

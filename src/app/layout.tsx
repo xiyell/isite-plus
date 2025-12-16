@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import IChat from "@/components/layout/ichat";
+import { Toaster } from "@/components/ui/toaster";
 
 
 export const fontMono = Noto_Sans_Mono({
@@ -59,6 +60,7 @@ export default function RootLayout({
 
           <Footer />
         </div>
+        <Toaster />
       </body>
     </html>
   );

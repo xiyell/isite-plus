@@ -15,4 +15,4 @@ export default interface Post {
     createdAtISO?: string | null;
 }
 
-type PostStatus = "pending" | "approved" | "rejected";
+type PostStatus = "pending" | "approved" | "rejected" | "deleted";

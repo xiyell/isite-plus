@@ -15,6 +15,7 @@ import { db } from "@/services/firebase";
 
 export type SeverityLevel = "low" | "medium" | "high";
 
+
 export interface LogEntry {
   id: string;
   category: "posts" | "users" | "system";
@@ -22,7 +23,9 @@ export interface LogEntry {
   severity: SeverityLevel;
   message: string;
   time: string;
+  actorRole: string;
   timestamp: number;
+
 }
 
 /* ---------------- GET LOGS ---------------- */
@@ -46,6 +49,7 @@ export async function getLogs(): Promise<LogEntry[]> {
       message: data.message,
       time: data.time,
       timestamp: (data.timestamp as Timestamp).toMillis(),
+      actorRole: data.actorRole,
     };
   });
 }
@@ -57,17 +61,20 @@ export async function addLog({
   action,
   severity,
   message,
+  actorRole = "system", // Default to 'system' if not provided
 }: {
   category: "posts" | "users" | "system";
   action: string;
   severity: SeverityLevel;
   message: string;
+  actorRole?: string;
 }) {
   await addDoc(collection(db, "activitylogs"), {
     category,
     action,
     severity,
     message,
+    actorRole,
     timestamp: serverTimestamp(),
     time: new Date().toLocaleString(),
   });

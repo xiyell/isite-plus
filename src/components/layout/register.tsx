@@ -30,6 +30,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [passwordError, setPasswordError] = useState<string | null>(null); // New state for password complexity feedback
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     useEffect(() => {
@@ -41,34 +42,97 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
+        // Reset form state on close
+        setEmail("");
+        setStudentId("");
+        setPassword("");
+        setConfirmPassword("");
+        setError(null);
+        setPasswordError(null);
+        setIsSubmitting(false);
     };
 
     const studentIdPattern = /^\d{4}-\d{5}-SM-\d$/;
 
+    /**
+     * Client-side validation for strong password requirements.
+     */
+    const validatePassword = (pass: string): boolean => {
+        const errors = [];
+
+        if (pass.length < 8) {
+            errors.push("at least 8 characters");
+        }
+        if (!/[A-Z]/.test(pass)) {
+            errors.push("one uppercase letter");
+        }
+        if (!/[a-z]/.test(pass)) {
+            errors.push("one lowercase letter");
+        }
+        if (!/[0-9]/.test(pass)) {
+            errors.push("one digit (0-9)");
+        }
+        // Allows common special characters: !@#$%^&*()_+{}[]:;<>,.?~\\-
+        if (!/[!@#$%^&*()_+{}[\]:;<>,.?~\\-]/.test(pass)) {
+            errors.push("one special character");
+        }
+
+        if (errors.length > 0) {
+            setPasswordError(`Password requires: ${errors.join(', ')}.`);
+            return false;
+        }
+
+        setPasswordError(null);
+        return true;
+    };
+
+    // Update password validation feedback whenever the password changes
+    useEffect(() => {
+        if (password) {
+            validatePassword(password);
+        } else {
+            setPasswordError(null);
+        }
+    }, [password]);
+
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setIsSubmitting(true);
 
         // --- Validation Checks ---
         if (!email.endsWith("@iskolarngbayan.pup.edu.ph")) {
+            setIsSubmitting(false);
             return setError("Only PUP Webmail accounts are allowed.");
         }
         if (!student_id.trim()) {
+            setIsSubmitting(false);
             return setError("Please enter your Student ID.");
         }
         if (!studentIdPattern.test(student_id)) {
+            setIsSubmitting(false);
             return setError("Invalid Student ID format. Use format like 2023-00097-SM-0.");
         }
+
+        // NEW: Check password complexity
+        if (!validatePassword(password)) {
+            setIsSubmitting(false);
+            // Error message is already set by validatePassword function
+            return setError("Password does not meet complexity requirements.");
+        }
+
         if (password !== confirmPassword) {
+            setIsSubmitting(false);
             return setError("Passwords do not match!");
         }
         if (!email || !password) {
+            setIsSubmitting(false);
             return setError("Email and Password fields are required.");
         }
         // --- End Validation Checks ---
 
 
-        setIsSubmitting(true);
         try {
             const user = await handleSignup(email, password, student_id);
 
@@ -105,9 +169,13 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             let errorMessage = err.message;
             if (err.code === 'auth/email-already-in-use') {
                 errorMessage = 'This email is already registered. Try logging in.';
+            } else if (err.code === 'auth/weak-password') {
+                // Firebase Auth will still catch simple passwords, provide friendly error
+                errorMessage = 'The password is too weak. Please choose a stronger one.';
             }
             setError(errorMessage);
         } finally {
+            // Only stop spinning if registration failed or the success message is not shown
             if (!error?.startsWith('✅')) {
                 setIsSubmitting(false);
             }
@@ -127,7 +195,6 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
 
             {/* DIALOG CONTENT (The modal box) */}
             <DialogContent
-                // 🚀 MODIFIED: Reduced max-width and added max-h and overflow for mobile scrolling
                 className="sm:max-w-[380px] w-[95%] max-h-[90vh] overflow-y-auto p-0 bg-transparent border-none"
             >
 
@@ -193,6 +260,18 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                     required
                                     disabled={isSubmitting}
                                 />
+                                {/* NEW: Password complexity feedback */}
+                                {passwordError && (
+                                    <p className={`text-xs ${passwordError.includes('requires') ? 'text-yellow-400' : 'text-red-400'}`}>
+                                        🚨 {passwordError}
+                                    </p>
+                                )}
+                                {/* HINT for minimum requirements */}
+                                {!passwordError && (
+                                    <p className="text-xs text-fuchsia-300/80">
+                                        Must be 8+ characters and include uppercase, lowercase, number, and special character.
+                                    </p>
+                                )}
                             </div>
 
                             {/* Confirm Password Field */}
@@ -235,7 +314,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                             <div className="flex flex-col space-y-2 pt-2"> {/* Reduced spacing */}
                                 <Button
                                     className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !!passwordError || password !== confirmPassword}
                                     type="submit"
                                 >
                                     {isSubmitting ? (

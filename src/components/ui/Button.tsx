@@ -23,6 +23,7 @@ const buttonVariants = cva(
       size: {
         default: 'h-10 px-4 py-2 has-[>svg]:px-3',
         sm: 'h-9 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
+        xs: 'h-7 rounded-md px-2 text-xs',
         lg: 'h-11 px-8 has-[>svg]:px-6',
         icon: 'size-10',
       },
@@ -162,4 +163,4 @@ function RippleButton({
   );
 }
 
-export { RippleButton as Button, type RippleButtonProps };
+export { RippleButton as Button, type RippleButtonProps, buttonVariants };

@@ -10,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 // --- FIREBASE IMPORTS (Adjust path as necessary) ---
-import { db } from "@/services/firebase"; 
+import { db } from "@/services/firebase";
 import { collection, getDocs, query, Timestamp } from "firebase/firestore";
 
 // --- TYPE DEFINITIONS ---
@@ -55,7 +55,7 @@ export default function OverviewContent() {
         communitySnapshot.docs.forEach((doc: any) => {
             const data = doc.data();
             // Assuming primary posts have a 'title' field
-            if (data.title && data.createdAt instanceof Timestamp) { 
+            if (data.title && data.createdAt instanceof Timestamp) {
                 postRecords.push({ timestamp: data.createdAt, title: data.title });
             }
         });
@@ -91,10 +91,10 @@ export default function OverviewContent() {
 
             let totalPosts = 0;
             let pendingPosts = 0;
-            
+
             communitySnapshot.docs.forEach(doc => {
                 const data = doc.data();
-                if (data.title) { 
+                if (data.title) {
                     totalPosts++;
                     if (data.status === "pending") {
                         pendingPosts++;
@@ -127,8 +127,8 @@ export default function OverviewContent() {
     useEffect(() => {
         fetchOverviewStats();
     }, [fetchOverviewStats]);
-    
-    
+
+
     const displayStats: OverviewStats = stats || { totalUsers: 0, totalPosts: 0, pendingPosts: 0, serverUptime: "Loading..." };
 
     if (loading) {
@@ -140,35 +140,35 @@ export default function OverviewContent() {
     }
 
     return (
-        <motion.div 
-            key="overview" 
-            animate={{ opacity: 1, y: 0 }} 
-            className="space-y-8" 
-            exit={{ opacity: 0, y: -15 }} 
-            initial={{ opacity: 0, y: 15 }} 
+        <motion.div
+            key="overview"
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+            exit={{ opacity: 0, y: -15 }}
+            initial={{ opacity: 0, y: 15 }}
             transition={{ duration: 0.4 }}
         >
-            
+
             {/* 1. Stats Cards: Dynamic Data */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { 
-                        title: "Total Users", 
-                        stat: displayStats.totalUsers.toLocaleString(), 
+                    {
+                        title: "Total Users",
+                        stat: displayStats.totalUsers.toLocaleString(),
                         desc: "Registered Accounts",
                         icon: Users,
                         color: 'text-indigo-300'
                     },
-                    { 
-                        title: "Total Posts", 
-                        stat: displayStats.totalPosts.toLocaleString(), 
+                    {
+                        title: "Total Posts",
+                        stat: displayStats.totalPosts.toLocaleString(),
                         desc: `${displayStats.pendingPosts} drafts pending`,
                         icon: Upload,
                         color: 'text-cyan-300'
                     },
-                    { 
-                        title: "Server Uptime", 
-                        stat: displayStats.serverUptime.split(' ')[0], 
+                    {
+                        title: "Server Uptime",
+                        stat: displayStats.serverUptime.split(' ')[0],
                         desc: `Last checked: ${displayStats.serverUptime.split('(')[1]?.replace(')', '') || 'N/A'}`,
                         icon: Server,
                         color: 'text-green-300'
@@ -188,7 +188,7 @@ export default function OverviewContent() {
                     </Card>
                 ))}
             </div>
-            
+
             {/* 2. Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Post Analytics (Line Chart) - DYNAMIC */}
@@ -200,7 +200,7 @@ export default function OverviewContent() {
                         {monthlyPostData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={monthlyPostData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDashArray="3 3" stroke="#ffffff10" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
                                     <XAxis dataKey="monthYear" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
                                     <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} domain={[0, 'auto']} />
                                     <Tooltip
@@ -214,7 +214,7 @@ export default function OverviewContent() {
                                 </LineChart>
                             </ResponsiveContainer>
                         ) : (
-                             <div className="text-center text-gray-500 pt-12">No posts with timestamps found for monthly trend.</div>
+                            <div className="text-center text-gray-500 pt-12">No posts with timestamps found for monthly trend.</div>
                         )}
                     </CardContent>
                 </Card>
@@ -229,9 +229,9 @@ export default function OverviewContent() {
                             <PieChart>
                                 <Pie
                                     data={platformData}
-                                    cx="40%" 
+                                    cx="40%"
                                     cy="50%"
-                                    innerRadius={70} 
+                                    innerRadius={70}
                                     outerRadius={90}
                                     paddingAngle={5}
                                     dataKey="value"

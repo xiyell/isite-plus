@@ -24,8 +24,10 @@ interface UserProfile {
     section: Section;
     theme: ThemeColor;
     showOnlineStatus: boolean;
+    photoURL: string;
 }
 
+// Update initial profile
 const initialProfile: UserProfile = {
     username: "coder_glass_vibe",
     bio: "Building sleek UIs with React and a touch of Glassmorphism.",
@@ -33,8 +35,8 @@ const initialProfile: UserProfile = {
     section: "BSIT-4A",
     theme: "cyan",
     showOnlineStatus: true,
+    photoURL: `https://eu.ui-avatars.com/api/?name=${encodeURIComponent("Default")}&size=250`, // placeholder image
 };
-
 // Map theme names to Tailwind utility classes for consistent styling
 const THEME_STYLES: Record<ThemeColor, { bg: string, shadow: string, switch: string }> = {
     cyan: { bg: "bg-cyan-500", shadow: "shadow-cyan-500/30", switch: "data-[state=checked]:bg-cyan-500" },
@@ -117,7 +119,39 @@ function CustomizeProfile() {
         // Changed padding from p-4 sm:p-6 to a consistent p-4
         <div className="p-4 space-y-8 max-w-3xl mx-auto">
             <h2 className="text-3xl font-bold text-white mb-6">Profile Customization ✨</h2>
+                  <Separator className="bg-white/10" />
+        <GlassCard>
+            <CardHeader>
+                <CardTitle className="text-white">Profile Picture</CardTitle>
+                <CardDescription className="text-gray-400">
+                    Enter the URL of your profile picture
+                </CardDescription>
+            </CardHeader>
 
+            <CardContent className="space-y-4 flex flex-col items-center">
+                {/* Image Preview */}
+                <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-white/20">
+                    <img
+                        src={profile.photoURL}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+
+                {/* URL Input */}
+                <div className="w-full">
+                    <Label className="text-sm text-gray-300">Photo URL</Label>
+                    <Input
+                        className="bg-white/10 border-white/20 text-white mt-1"
+                        value={profile.photoURL}
+                        onChange={(e) => handleChange("photoURL", e.target.value)}
+                        placeholder="https://example.com/myphoto.jpg"
+                    />
+                </div>
+            </CardContent>
+        </GlassCard>
+        <h1>hi</h1>
+      <Separator className="bg-white/10" />
             {/* GENERAL INFO */}
             <GlassCard>
                 <CardHeader>

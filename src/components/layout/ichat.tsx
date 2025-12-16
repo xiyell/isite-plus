@@ -8,6 +8,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Send, X, Mic, Bot } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/components/ui/use-toast";
 
 import { collection, doc, onSnapshot, getDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
@@ -17,6 +18,7 @@ interface Message { sender: "user" | "bot"; text: string; }
 interface BotResponse { id: string; trigger: string; reply: string; }
 
 export default function IChat() {
+    const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
@@ -95,7 +97,11 @@ export default function IChat() {
 
     const startListening = () => {
         if (recognitionRef.current) recognitionRef.current.start();
-        else alert("Your browser does not support voice recognition 😢");
+        else toast({
+            title: "Not Supported",
+            description: "Your browser does not support voice recognition 😢",
+            variant: "destructive",
+        });
     };
 
 

@@ -12,7 +12,7 @@ export const handleSignup = async (email: string, pass: string, studentId: strin
   return userCredential.user;
 };
 
-function normalizeRole(rawRole?: string): "guest" | "user" | "admin" {
+function normalizeRole(rawRole?: string): "guest" | "user" | "admin" | "moderator" {
   if (!rawRole) return "guest";
   if (rawRole === "admin") return "admin";
   return "user";

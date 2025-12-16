@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 // --- Firebase Imports ---
-import { auth, db } from "@/services/firebase"; 
+import { auth, db } from "@/services/firebase";
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, getDocs, collection, query, where, DocumentReference, Timestamp, setDoc } from 'firebase/firestore'; 
+import { doc, getDoc, getDocs, collection, query, where, DocumentReference, Timestamp, setDoc } from 'firebase/firestore';
 // --- UI Imports ---
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
@@ -26,17 +26,28 @@ import { Switch } from "@/components/ui/switch";
 
 type ThemeColor = "cyan" | "purple" | "green";
 type YearLevelOption = '1st Year' | '2nd Year' | '3rd Year' | '4th Year';
-type SectionOption = '1' | '2' | '3' | '4'; // Allow dynamic sections
+type SectionOption = '1' | '2' | '3' | '4';
 
 interface UserProfile {
     username: string;
     bio: string;
-    yearLevel: YearLevelOption | string;
+    yearLevel: string;
     section: SectionOption;
     theme: ThemeColor;
     showOnlineStatus: boolean;
+    photoURL: string;
 }
 
+// Update initial profile
+const initialProfile: UserProfile = {
+    username: "coder_glass_vibe",
+    bio: "Building sleek UIs with React and a touch of Glassmorphism.",
+    yearLevel: "4th Year",
+    section: "2",
+    theme: "cyan",
+    showOnlineStatus: true,
+    photoURL: `https://eu.ui-avatars.com/api/?name=${encodeURIComponent("Default")}&size=250`, // placeholder image
+};
 interface FirestoreProfile {
     bio?: string;
     createdAt?: Timestamp;
@@ -49,7 +60,7 @@ interface FirestoreProfile {
     uid: string;
     yearLevel?: string;
     wallpaper?: string;
-    karma?: number; 
+    karma?: number;
     theme?: string;
     showOnlineStatus?: boolean;
 }
@@ -60,7 +71,7 @@ interface PostData {
     description: string;
     likesCount: number;
     dislikesCount: number;
-    createdAt: Timestamp; 
+    createdAt: Timestamp;
 }
 
 interface CommentData {
@@ -118,15 +129,16 @@ const GlassCard = ({ children }: { children: React.ReactNode }) => (
 // ====================================================================
 
 function CustomizeProfile({ initialData, onClose }: { initialData: FirestoreProfile | null, onClose: () => void }) {
-    const uid = auth.currentUser?.uid; 
+    const uid = auth.currentUser?.uid;
 
     const initialProfile: UserProfile = useMemo(() => ({
         username: initialData?.name || "New User",
         bio: initialData?.bio || "Set your bio here.",
-        yearLevel: initialData?.yearLevel || "4th Year",
-        section: initialData?.section || "1",
+        yearLevel: initialData?.yearLevel || "2",
+        section: (initialData?.section as SectionOption) || "1",
         theme: (initialData?.theme as ThemeColor) || "cyan",
         showOnlineStatus: initialData?.showOnlineStatus ?? true,
+        photoURL: initialData?.photoURL || `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(initialData?.name || "New User")}&size=250`,
     }), [initialData]);
 
     const [profile, setProfile] = useState<UserProfile>(initialProfile);
@@ -156,7 +168,7 @@ function CustomizeProfile({ initialData, onClose }: { initialData: FirestoreProf
 
         try {
             const userRef = doc(db, "users", uid);
-            
+
             // Prepare data for Firestore update
             const dataToSave = {
                 name: profile.username, // Using 'name' for username in Firestore
@@ -166,21 +178,22 @@ function CustomizeProfile({ initialData, onClose }: { initialData: FirestoreProf
                 theme: profile.theme,
                 showOnlineStatus: profile.showOnlineStatus,
                 updatedAt: Timestamp.now(),
+                photoURL: profile.photoURL,
             };
 
-            await setDoc(userRef, dataToSave, { merge: true }); 
+            await setDoc(userRef, dataToSave, { merge: true });
 
             setIsSaving(false);
             setSaveStatus("success");
 
             // Manually update the parent component's data or rely on a global listener
             // For simplicity here, we rely on the main profile component refreshing.
-            
+
             setTimeout(() => {
                 setSaveStatus("idle");
                 onClose(); // Close the modal upon successful save
             }, 1000);
-            
+
         } catch (error) {
             console.error("Save failed:", error);
             setIsSaving(false);
@@ -201,6 +214,36 @@ function CustomizeProfile({ initialData, onClose }: { initialData: FirestoreProf
             <h2 className="text-3xl font-bold text-white mb-6">Profile Customization ✨</h2>
 
             {/* General Info */}
+            <GlassCard>
+                <CardHeader>
+                    <CardTitle className="text-white">Profile Picture</CardTitle>
+                    <CardDescription className="text-gray-400">
+                        Enter the URL of your profile picture
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4 flex flex-col items-center">
+                    {/* Image Preview */}
+                    <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-white/20">
+                        <img
+                            src={profile.photoURL}
+                            alt="Profile Preview"
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+
+                    {/* URL Input */}
+                    <div className="w-full">
+                        <Label className="text-sm text-gray-300">Photo URL</Label>
+                        <Input
+                            className="bg-white/10 border-white/20 text-white mt-1"
+                            value={profile.photoURL}
+                            onChange={(e) => handleChange("photoURL", e.target.value)}
+                            placeholder="https://example.com/myphoto.jpg"
+                        />
+                    </div>
+                </CardContent>
+            </GlassCard>
             <GlassCard>
                 <CardHeader>
                     <CardTitle className="text-white">General Information</CardTitle>
@@ -321,7 +364,7 @@ function CustomizeProfile({ initialData, onClose }: { initialData: FirestoreProf
                                 ? "bg-green-600"
                                 : saveStatus === "error"
                                     ? "bg-red-600"
-                                    : `${activeThemeStyles.bg} shadow-lg ${activeThemeStyles.shadow} hover:brightness-110` 
+                                    : `${activeThemeStyles.bg} shadow-lg ${activeThemeStyles.shadow} hover:brightness-110`
                         }`}
                 >
                     {getButtonText()}
@@ -371,11 +414,10 @@ export default function StudentProfilePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Helper functions (defined in section 1 of the file)
     const getAvatarUrl = useCallback((userData: any) => {
         const baseName = userData?.name?.replace(/\s+/g, "") || "User";
         const defaultAvatar = `https://eu.ui-avatars.com/api/?name=${encodeURIComponent(baseName)}&size=250`;
-        return userData?.photoURL?.trim() || defaultAvatar;
+        return userData?.photoURL || defaultAvatar;
     }, []);
 
     // 1. Core Data Fetching Function (Refreshes everything)
@@ -384,7 +426,7 @@ export default function StudentProfilePage() {
         setError(null);
         try {
             const userRef = doc(db, "users", uid);
-            
+
             // --- Fetch Profile ---
             const profileSnap = await getDoc(userRef);
             if (!profileSnap.exists()) {
@@ -392,30 +434,30 @@ export default function StudentProfilePage() {
                 // Skip for this implementation to keep it clean, but handle error.
                 throw new Error("Profile document not found.");
             }
-            const profile = { id: profileSnap.id, ...profileSnap.data() } as FirestoreProfile;
+            const profile = { id: profileSnap.id, ...profileSnap.data() } as unknown as FirestoreProfile;
             setProfileData(profile);
 
             // --- Fetch Activity ---
-            const userDocRef: DocumentReference = userRef; 
-            const q = query(collection(db, "community"), where("postedBy", "==", userDocRef));
+            const userDocRef: DocumentReference = userRef;
+            const q = query(collection(db, "community"), where("postedBy", "==", userDocRef), where("status", "==", "approved"));
             const activitySnapshot = await getDocs(q);
-            
+
             let fetchedPosts: PostData[] = [];
             let fetchedComments: CommentData[] = [];
 
             activitySnapshot.docs.forEach(doc => {
-                const data = { id: doc.id, ...doc.data() };
-                
-                if (data.title) { 
+                const data = { id: doc.id, ...doc.data() } as any;
+
+                if (data.title) {
                     fetchedPosts.push(data as PostData);
-                } else if (data.text) { 
+                } else if (data.text) {
                     fetchedComments.push(data as CommentData);
                 }
             });
 
             setPostsData(fetchedPosts);
             setCommentsData(fetchedComments);
-            
+
         } catch (err: any) {
             console.error("Error fetching profile data:", err);
             setError(err.message || "Failed to load profile data.");
@@ -451,12 +493,12 @@ export default function StudentProfilePage() {
     const studentData = useMemo(() => {
         const profile = profileData || {} as FirestoreProfile;
         const userName = profile.name || profile.email?.split('@')[0] || "Anonymous";
-        
+
         return {
             studentId: profile.studentId || "N/A",
             yearLevel: profile.yearLevel || "N/A",
             section: profile.section || "N/A",
-            karma: profile.karma || 0, 
+            karma: profile.karma || 0,
             posts: postsData.length,
             comments: commentsData.length,
             username: userName,
@@ -483,7 +525,7 @@ export default function StudentProfilePage() {
             </div>
         );
     }
-    
+
     if (!firebaseUser) {
         return (
             <div className="min-h-screen p-8 flex items-center justify-center text-white">
@@ -493,7 +535,7 @@ export default function StudentProfilePage() {
     }
 
     if (error) {
-         return (
+        return (
             <div className="min-h-screen p-8 flex items-center justify-center text-white">
                 <p className="text-lg text-red-400">Error: {error}</p>
             </div>

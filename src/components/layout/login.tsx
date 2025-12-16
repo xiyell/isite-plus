@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 // Assuming @heroui/button is the Button your form uses (aliased here)
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,6 +24,7 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ onLogin }: LoginModalProps) {
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     // Renamed 'loading' to 'isSubmitting' for clarity in the form context
@@ -79,6 +80,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ token }),
+                credentials: "include"
             });
 
             const data = await res.json();
@@ -94,6 +96,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
 
             setTimeout(() => {
                 setIsDialogOpen(false);
+                router.push("/")
             }, 2500);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

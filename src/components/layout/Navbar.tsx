@@ -16,6 +16,9 @@ import { User } from '@/types/user';
 import { useIsScrolled, useScrollProgress } from '@/hooks/use-scroll';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserRole } from '@/types/user-role';
+import { auth } from '@/services/firebase';
+import { useAuth } from '@/services/auth';
+import { useToast } from "@/components/ui/use-toast";
 
 // 🚀 IMPORT MODALS (Ensure correct paths: e.g., './login' or './LoginModal')
 import LoginModal from './login';
@@ -39,17 +42,17 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
 // ------------------------------------------------------------------------
 const mainNavLinks: NavbarNavLink[] = [
     { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin'] },
-    { href: '/announcement', label: 'Announcement', rolesAllowed: ['guest', 'user', 'admin'] },
-    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'guest'] },
+    { href: '/announcement', label: 'Announcement', rolesAllowed: ['user', 'admin', 'guest'] },
+    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin',] },
 
     // Grouped links
 
-    { href: '/feedback', label: 'Feedback', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
-    { href: '/profile', label: 'Profile', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
+    { href: '/feedback', label: 'Feedback', rolesAllowed: ['user', 'admin'], group: 'tools' },
+    { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin'], group: 'tools' },
     { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
-    { href: '/iQr', label: 'iQr', rolesAllowed: ['guest', 'admin'], group: 'tools' },
-    { href: '/iReader', label: 'iReader', rolesAllowed: ['guest', 'admin'], group: 'tools' },
-    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['guest', 'admin'], group: 'tools' }
+    { href: '/iQr', label: 'iQr', rolesAllowed: ['admin'], group: 'tools' },
+    { href: '/iReader', label: 'iReader', rolesAllowed: ['admin'], group: 'tools' },
+    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin'], group: 'tools' }
 ];
 // ------------------------------------------------------------------------
 
@@ -59,7 +62,28 @@ export default function Navbar() {
         USE STATES 
     ------------------------------------------------------------------------
     */
+    const { toast } = useToast();
+    const { user: authUser, loading: authLoading } = useAuth();
     const [user, setUser] = useState<User | null>(null);
+
+    // Sync global auth state to local navbar state
+    React.useEffect(() => {
+        if (!authLoading && authUser) {
+            // Try to recover role from public cookie
+            const getCookie = (name: string) => {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop()?.split(';').shift();
+            }
+            const storedRole = getCookie('ui_role') as UserRole || 'user';
+
+            setUser({
+                ...authUser as unknown as User,
+                role: storedRole
+            });
+        }
+    }, [authUser, authLoading]);
+
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
     const isMobile = useIsMobile();
@@ -88,9 +112,30 @@ export default function Navbar() {
         // the user must verify their email first (as implemented in your modal logic).
     }
 
-    const handleSignOut = () => {
-        setUser(null);
-        console.log('User signed out');
+    // Updated logout handler to clear both Firebase auth and server cookies
+    const handleSignOut = async () => {
+        try {
+            console.log("Logout initiated...");
+            // 1. Sign out from Firebase
+            await auth.signOut();
+            console.log("Firebase signOut complete");
+
+            // 2. Clear server-side admin cookie
+            await fetch('/api/auth/logout', { method: 'POST' });
+            console.log("Server logout complete");
+
+            setUser(null);
+
+            // 3. Force redirect to home
+            window.location.href = "/";
+        } catch (error) {
+            console.error("Logout failed", error);
+            toast({
+                title: "Logout Failed",
+                description: (error as Error).message,
+                variant: "destructive",
+            });
+        }
     }
     const toggleToolsDropdown = (e: React.MouseEvent) => {
         e.preventDefault();

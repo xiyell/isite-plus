@@ -14,14 +14,14 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 // --- Types (Re-defined for clarity) ---
-interface UserData { 
-    id: string; 
-    name: string; 
-    email: string; 
-    role: 'admin' | 'moderator' | 'user'; 
-    status: string; 
-    lastLogin: string; 
-    active: boolean; 
+interface UserData {
+    id: string;
+    name: string;
+    email: string;
+    role: 'admin' | 'moderator' | 'user';
+    status: string;
+    lastLogin: string;
+    active: boolean;
 }
 
 // --- Props for UserManagementContent ---
@@ -33,7 +33,7 @@ interface UserManagementProps {
     setPasswordTarget: (user: UserData | null) => void;
     handleRoleChange: (id: string, newRole: string) => void;
 
-    handleDeleteUser: (id: string, name: string) => void; 
+    handleDeleteUser: (id: string, name: string) => void;
 }
 
 // --- Component Definition ---
@@ -49,7 +49,7 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
 }) => {
     const [sortKey, setSortKey] = useState<'name' | 'email' | 'role' | 'lastLogin'>('name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-    
+
     const getRoleVariant = (role: string) => {
         switch (role) {
             case 'admin': return 'bg-purple-600 hover:bg-purple-700';
@@ -57,7 +57,7 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
             default: return 'bg-gray-500 hover:bg-gray-600';
         }
     };
-    
+
     const handleSort = (key: 'name' | 'email' | 'role' | 'lastLogin') => {
         if (sortKey === key) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -66,11 +66,11 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
             setSortOrder('asc');
         }
     };
-    
+
     const sortedUsers = [...users].sort((a, b) => {
         const valA = a[sortKey].toString().toLowerCase();
         const valB = b[sortKey].toString().toLowerCase();
-        
+
         if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
@@ -106,25 +106,25 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         className="w-full bg-white/5 border-white/20 text-white"
                     />
                 </div>
-                
+
                 {/* User Table */}
                 <div className="overflow-x-auto">
                     <Table className="min-w-full">
                         <TableHeader>
                             <TableRow className="bg-black/20 border-white/10 hover:bg-black/20 text-gray-400">
-                                <TableHead 
+                                <TableHead
                                     className="cursor-pointer hover:text-white"
                                     onClick={() => handleSort('name')}
                                 >
                                     Name <SortIcon keyName="name" />
                                 </TableHead>
-                                <TableHead 
+                                <TableHead
                                     className="cursor-pointer hover:text-white hidden sm:table-cell"
                                     onClick={() => handleSort('email')}
                                 >
                                     Email <SortIcon keyName="email" />
                                 </TableHead>
-                                <TableHead 
+                                <TableHead
                                     className="cursor-pointer hover:text-white"
                                     onClick={() => handleSort('role')}
                                 >
@@ -136,66 +136,70 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         </TableHeader>
                         <TableBody>
                             <AnimatePresence initial={false}>
-                            {sortedUsers.map((user) => (
-                                <motion.tr 
-                                    key={user.id} 
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="border-white/10 hover:bg-white/5 text-gray-200"
-                                >
-                                    <TableCell className="font-medium text-white whitespace-nowrap">{user.name}</TableCell>
-                                    <TableCell className="text-gray-300 hidden sm:table-cell">{user.email}</TableCell>
-                                    <TableCell>
-                                        <Badge 
-                                            className={getRoleVariant(user.role)}
+                                {sortedUsers.map((user) => (
+                                    <motion.tr
+                                        key={user.id}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="border-white/10 hover:bg-white/5 text-gray-200"
+                                    >
+                                        <TableCell className="font-medium text-white whitespace-nowrap">{user.name}</TableCell>
+                                        <TableCell className="text-gray-300 hidden sm:table-cell">{user.email}</TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                className={getRoleVariant(user.role)}
                                             // Optional: Allow quick role switch (requires handleRoleChange implementation)
                                             // onClick={() => handleRoleChange(user.id, user.role === 'user' ? 'moderator' : 'user')} 
-                                        >
-                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        {user.active ? (
-                                            <CheckCircle size={18} className="text-green-400 mx-auto" title="Active" />
-                                        ) : (
-                                            <XCircle size={18} className="text-red-400 mx-auto" title="Inactive" />
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right whitespace-nowrap">
-                                        <div className="flex justify-end gap-2">
-                                            <Button 
-                                                variant="outline" 
-                                                size="icon" 
-                                                className="bg-yellow-600/30 hover:bg-yellow-600/50 border-yellow-500/50"
-                                                onClick={() => setPasswordTarget(user)}
-                                                title="Change Password"
                                             >
-                                                <KeyRound size={16} className="text-yellow-300" />
-                                            </Button>
-                                            <Button 
-                                                variant="outline" 
-                                                size="icon" 
-                                                className="bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/50"
-                                                onClick={() => handleEditUser(user)}
-                                                title="Edit User Info"
-                                            >
-                                                <Edit size={16} className="text-purple-300" />
-                                            </Button>
-                                            <Button 
-                                                variant="outline" 
-                                                size="icon" 
-                                                className="bg-red-600/30 hover:bg-red-600/50 border-red-500/50"
-                                                onClick={() => handleDeleteUser(user.id, user.name)}
-                                                title="Delete User"
-                                            >
-                                                <Trash2 size={16} className="text-red-300" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </motion.tr>
-                            ))}
+                                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            {user.active ? (
+                                                <span title="Active" className="flex justify-center">
+                                                    <CheckCircle size={18} className="text-green-400" />
+                                                </span>
+                                            ) : (
+                                                <span title="Inactive" className="flex justify-center">
+                                                    <XCircle size={18} className="text-red-400" />
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right whitespace-nowrap">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="bg-yellow-600/30 hover:bg-yellow-600/50 border-yellow-500/50"
+                                                    onClick={() => setPasswordTarget(user)}
+                                                    title="Change Password"
+                                                >
+                                                    <KeyRound size={16} className="text-yellow-300" />
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/50"
+                                                    onClick={() => handleEditUser(user)}
+                                                    title="Edit User Info"
+                                                >
+                                                    <Edit size={16} className="text-purple-300" />
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="bg-red-600/30 hover:bg-red-600/50 border-red-500/50"
+                                                    onClick={() => handleDeleteUser(user.id, user.name)}
+                                                    title="Delete User"
+                                                >
+                                                    <Trash2 size={16} className="text-red-300" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </motion.tr>
+                                ))}
                             </AnimatePresence>
                             {users.length === 0 && (
                                 <TableRow className="border-white/10 hover:bg-transparent">

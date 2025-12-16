@@ -1,5 +1,6 @@
 'use client';
 
+// ... (existing imports - no changes needed here)
 import { useState, useEffect, useCallback } from "react";
 import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { db, auth, analyticsPromise } from "@/services/firebase";
@@ -27,7 +28,6 @@ import {
 import ActivityLogsContent from "@/components/dashboard/activityLogs";
 import AttendanceContent from "@/components/dashboard/attendance";
 import IBotContent from "@/components/dashboard/ibot";
-import NotificationsContent from "@/components/dashboard/notifications";
 
 import TrashbinContent, { TrashedItem } from "@/components/dashboard/trashbin";
 
@@ -40,6 +40,7 @@ import {
 	doc,
 	updateDoc,
 	deleteDoc,
+	serverTimestamp,
 } from "firebase/firestore";
 
 // --- Third-Party Imports ---
@@ -56,9 +57,11 @@ import {
 import AdminPostModerationPage from "@/components/dashboard/pendingpost";
 import { createAnnouncement } from "@/actions/announcements";
 import OverviewContent from "@/components/dashboard/overview";
+import { addLog } from "@/actions/logs";
+import { moveUserToRecycleBin, updateUserPassword } from "@/actions/userManagement";
 
 
-// --- Types ---
+// --- Types & Helper Components (RETAINED) ---
 type SeverityLevel = "low" | "medium" | "high";
 const severityColor: Record<SeverityLevel, string> = {
 	low: "text-green-400 bg-green-400/10 border-green-400/20",
@@ -69,11 +72,6 @@ const severityColor: Record<SeverityLevel, string> = {
 type LogEntry = { id: string; category: "posts" | "users" | "system"; action: string; severity: SeverityLevel; message: string; time: string; timestamp: number; };
 type Announcement = { id?: string; title: string; description: string; image: string | null; platforms?: { websitePost: boolean; facebook: boolean; instagram: boolean; twitter: boolean; }; createdAt?: string; updatedAt?: string; };
 interface UserData { id: string; name: string; email: string; role: 'admin' | 'moderator' | 'user'; status: string; lastLogin: string; active: boolean; }
-
-
-// ----------------------------------------------------------------------------------
-// Helper Components (RETAINED)
-// ----------------------------------------------------------------------------------
 
 const MessageBar = ({ message, type }: { message: string, type: 'success' | 'error' | 'warning' }) => {
 	let variant: 'default' | 'destructive' = 'default';
@@ -115,42 +113,20 @@ const SidebarButton = ({ children, className, disabled, onPress, icon: Icon, isA
 		{children}
 	</Button>
 );
+// --- End Helper Components ---
 
-const handleRoleChange = async (id: string, newRole: 'admin' | 'moderator' | 'user') => { 
-    try {
-        const userRef = doc(db, "users", id);
-        await updateDoc(userRef, { role: newRole });
-        setMessageState({ message: `Role for ${id} updated to ${newRole}`, type: "success" });
-    } catch (error) {
-        console.error("Error updating user role:", error);
-        setMessageState({ message: "Failed to update user role", type: "error" });
-    }
-};
 
-const handleDeleteUser = async (id: string, name: string) => {
-    // In a real application, you'd likely soft-delete (move to trash) or call Admin SDK
-    try {
-        // Placeholder for deletion logic:
-        // await deleteDoc(doc(db, "users", id));
-        setMessageState({ message: `User ${name} would be deleted (requires Admin SDK).`, type: "warning" });
-        // After successful deletion, you would remove them from the 'users' state:
-        // setUsers(prev => prev.filter(u => u.id !== id));
-    } catch (error) {
-        console.error("Error deleting user:", error);
-        setMessageState({ message: "Failed to delete user", type: "error" });
-    }
-};
 // --- Dev Dashboard Component ---
 export default function DevDashboard() {
 	const [activeTab, setActiveTab] = useState("overview");
 	const [filter, setFilter] = useState("all");
 	const [sortOrder, setSortOrder] = useState("newest");
+	// State for the mobile dropdown menu
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const [messageState, setMessageState] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 
 	const [logs, setLogs] = useState<LogEntry[]>([]);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const [notifications, setNotifications] = useState<any[]>([]);
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
 	// --- User Management State ---
@@ -176,7 +152,6 @@ export default function DevDashboard() {
 
 	const allTabs = [
 		{ id: "overview", name: "Overview", icon: Activity },
-		{ id: "notifications", name: "Notifications", icon: Bell },
 		{ id: "activity", name: "Activity Logs", icon: AlertTriangle },
 		{ id: "attendance", name: "Attendance", icon: Calendar },
 		{ id: "announcement", name: "Announcement", icon: Send },
@@ -212,21 +187,20 @@ export default function DevDashboard() {
 		});
 		return () => unsub();
 	}, []);
-	useEffect(() => { fetch("/api/notifications").then(res => res.json()).then(setNotifications).catch(console.error); }, []);
 	const fetchAnnouncements = () => fetch("/api/announcements").then(r => r.json()).then(setAnnouncements).catch(console.error);
 	useEffect(() => { fetchAnnouncements(); }, []);
 	useEffect(() => { fetch("/api/community?status=pending").then(res => res.json()).then(setPendingPosts).catch(console.error); }, []);
 
 	// --- Announcement ---
 	const handlePostAnnouncement = async () => {
-        if (!announcement.title || !announcement.description) {
-            setMessageState({ message: "Title and Content are required.", type: 'warning' });
-            return;
-        }
+		if (!announcement.title || !announcement.description) {
+			setMessageState({ message: "Title and Content are required.", type: 'warning' });
+			return;
+		}
 
 		try {
 			setMessageState({ message: "Posting announcement...", type: 'warning' });
-			
+
 			// Prepare data for server action
 			const dataToPost = {
 				title: announcement.title,
@@ -235,22 +209,22 @@ export default function DevDashboard() {
 				image: announcement.image || "",
 				updatedAt: new Date().toISOString(),
 			};
-			
+
 			await createAnnouncement(dataToPost);
 
-            // Reset form and display success
-            setAnnouncement({
-                title: "", description: "", image: "",
-                platforms: { websitePost: false, facebook: false, instagram: false, twitter: false },
-            });
-            fetchAnnouncements(); // Refresh the list of announcements
-            setMessageState({ message: "Announcement posted successfully!", type: 'success' });
-            
-        } catch (error) {
-            console.error("Error posting announcement:", error);
-            setMessageState({ message: "Failed to post announcement.", type: 'error' });
-        }
-    };
+			// Reset form and display success
+			setAnnouncement({
+				title: "", description: "", image: "",
+				platforms: { websitePost: false, facebook: false, instagram: false, twitter: false },
+			});
+			fetchAnnouncements(); // Refresh the list of announcements
+			setMessageState({ message: "Announcement posted successfully!", type: 'success' });
+
+		} catch (error) {
+			console.error("Error posting announcement:", error);
+			setMessageState({ message: "Failed to post announcement.", type: 'error' });
+		}
+	};
 
 	// --- Trash Bin Handlers ---
 	const handleRestore = async (id: string, type: string) => {
@@ -264,51 +238,74 @@ export default function DevDashboard() {
 
 
 	const handleEditUser = (user: UserData) => setEditingUser(user);
-const handleSaveUser = async (updatedData: UserData) => {
-        if (!updatedData || !updatedData.id) {
-            setMessageState({ message: "Error: Invalid user data or missing ID.", type: "error" });
-            return;
-        }
+	const handleSaveUser = async (updatedData: UserData) => {
+		if (!updatedData || !updatedData.id) {
+			setMessageState({ message: "Error: Invalid user data or missing ID.", type: "error" });
+			return;
+		}
 
-        try {
-            // Reference the Firestore document
-            const userRef = doc(db, "users", updatedData.id);
+		try {
+			// Reference the Firestore document
+			const userRef = doc(db, "users", updatedData.id);
 
-            // Execute the update
-            await updateDoc(userRef, {
-                // IMPORTANT: Only update the fields that can be modified via the UI
-                name: updatedData.name,
-                email: updatedData.email,
-                role: updatedData.role,
-            });
+			// Execute the update
+			await updateDoc(userRef, {
+				// IMPORTANT: Only update the fields that can be modified via the UI
+				name: updatedData.name,
+				email: updatedData.email,
+				role: updatedData.role,
+			});
 
-            // If the update succeeds:
-            setMessageState({ message: `${updatedData.name}'s details updated successfully.`, type: "success" });
-            setEditingUser(null); // Close the modal upon success
+			// If the update succeeds:
+			setMessageState({ message: `${updatedData.name}'s details updated successfully.`, type: "success" });
+			setEditingUser(null); // Close the modal upon success
 
-            // Note: Since you use onSnapshot to fetch users, the table should update automatically
-            // once Firestore confirms the write.
+			// Note: Since you use onSnapshot to fetch users, the table should update automatically
+			// once Firestore confirms the write.
 
-        } catch (error) {
-            console.error("Error updating user:", error);
-            setMessageState({ message: "Failed to update user. Check console for details.", type: "error" });
-            // Do NOT close the modal on error, so the user can try again
-        }
-    };
+		} catch (error) {
+			console.error("Error updating user:", error);
+			setMessageState({ message: "Failed to update user. Check console for details.", type: "error" });
+			// Do NOT close the modal on error, so the user can try again
+		}
+	};
 
 	const handlePasswordChange = async (newPass: string, userId: string) => {
-		// Placeholder: This typically requires an API call to a backend using Firebase Admin SDK
+		updateUserPassword(userId, newPass, auth.currentUser?.uid || "system");
 		console.log("Password change requested for", userId);
 		setMessageState({ message: "Password update requires Admin API integration", type: "warning" });
 	};
 
-	const handleRoleChange = async (id: string, newRole: string) => { /* ... logic ... */ };
+	const handleRoleChange = async (id: string, newRole: string) => {
+		try {
+			const userRef = doc(db, "users", id);
+			await updateDoc(userRef, { role: newRole });
+			setMessageState({ message: `Role for ${id} updated to ${newRole}`, type: "success" });
+		} catch (error) {
+			console.error("Error updating user role:", error);
+			setMessageState({ message: "Failed to update user role", type: "error" });
+		}
+	};
+
+	const handleDeleteUser = async (id: string, name: string) => {
+		try {
+			moveUserToRecycleBin(id, auth.currentUser?.uid || "system");
+			setMessageState({ message: `User ${name} marked as deleted`, type: "success" });
+		} catch (error) {
+			console.error("Error deleting user:", error);
+			setMessageState({ message: "Failed to delete user", type: "error" });
+		}
+	};
 	const handleApprovePost = async (id: string) => { /* ... logic ... */ };
 	const handleRejectPost = async (id: string) => { /* ... logic ... */ };
 
 	const filteredLogs = logs.filter(log => filter === "all" || log.category === filter).sort((a, b) => sortOrder === "newest" ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
-	const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
-
+	const filteredUsers = users
+		.filter(u => u.status !== 'deleted') // exclude deleted users
+		.filter(u =>
+			u.name.toLowerCase().includes(search.toLowerCase()) ||
+			u.email.toLowerCase().includes(search.toLowerCase())
+		);
 
 	const activeTabInfo = allTabs.find(t => t.id === activeTab);
 	const activeTabName = activeTabInfo?.name || "Dashboard Content";
@@ -316,101 +313,101 @@ const handleSaveUser = async (updatedData: UserData) => {
 
 	const handleTabChange = (tabId: string) => { setActiveTab(tabId); setIsDropdownOpen(false); setMessageState(null); };
 
-	// --- Inline Modals ---
-const EditUserModal = () => {
-    const user = editingUser;
-    if (!user) return null;
+	// --- Inline Modals (RETAINED) ---
+	const EditUserModal = () => {
+		const user = editingUser;
+		if (!user) return null;
 
-    // FIX: Use a local state for the form data, initialized with the editingUser
-    const [formData, setFormData] = useState(user);
-    
-    // Reset local state if editingUser changes (e.g., if we open a different user)
-    useEffect(() => {
-        setFormData(user);
-    }, [user]);
+		// FIX: Use a local state for the form data, initialized with the editingUser
+		const [formData, setFormData] = useState(user);
 
-    // Helper function to handle input changes locally
-    const handleChange = (field: keyof UserData, value: string | 'admin' | 'moderator' | 'user') => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
+		// Reset local state if editingUser changes (e.g., if we open a different user)
+		useEffect(() => {
+			setFormData(user);
+		}, [user]);
 
-    const handleFormSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        // Call the parent save handler with the locally modified data
-        handleSaveUser(formData);
-    };
-    
-    // Ensure data integrity before rendering
-    const currentSelectedUser = formData; 
+		// Helper function to handle input changes locally
+		const handleChange = (field: keyof UserData, value: string | 'admin' | 'moderator' | 'user') => {
+			setFormData(prev => ({ ...prev, [field]: value }));
+		};
 
-    return (
-        <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-            {/* STYLING REVERTED: Using general dark glassy styles */}
-            <DialogContent className="bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-semibold text-gray-200">
-                        ✏️ Edit User — {currentSelectedUser.name}
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-400">
-                        Update the user&apos;s basic information and role.
-                    </DialogDescription>
-                </DialogHeader>
+		const handleFormSubmit = (e: React.FormEvent) => {
+			e.preventDefault();
+			// Call the parent save handler with the locally modified data
+			handleSaveUser(formData);
+		};
 
-                <form onSubmit={handleFormSubmit} className="space-y-4">
+		// Ensure data integrity before rendering
+		const currentSelectedUser = formData;
 
-                    <Label htmlFor="name" className="block text-sm text-gray-300 mb-1">Full Name</Label>
-                    <Input
-                        id="name"
-                        className="w-full bg-white/10 border border-white/20 focus-visible:ring-indigo-500 text-white placeholder-gray-400"
-                        value={currentSelectedUser.name}
-                        onChange={(e) => handleChange('name', e.target.value)}
-                    />
+		return (
+			<Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+				{/* STYLING REVERTED: Using general dark glassy styles */}
+				<DialogContent className="pt-4 bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
+					<DialogHeader>
+						<DialogTitle className="text-xl font-semibold text-gray-200">
+							✏️ Edit User — {currentSelectedUser.name}
+						</DialogTitle>
+						<DialogDescription className="text-gray-400">
+							Update the user&apos;s basic information and role.
+						</DialogDescription>
+					</DialogHeader>
 
-                    <Label htmlFor="email" className="block text-sm text-gray-300 mb-1">Email</Label>
-                    <Input
-                        id="email"
-                        className="w-full bg-white/10 border border-white/20 focus-visible:ring-indigo-500 text-white placeholder-gray-400"
-                        type="email"
-                        value={currentSelectedUser.email}
-                        onChange={(e) => handleChange('email', e.target.value)}
-                    />
+					<form onSubmit={handleFormSubmit} className="space-y-4">
 
-                    <Label htmlFor="role" className="block text-sm text-gray-300 mb-1">Role</Label>
-                    <Select
-                        value={currentSelectedUser.role || "user"}
-                        onValueChange={(value: 'admin' | 'moderator' | 'user') => handleChange('role', value)}
-                    >
-                        <SelectTrigger className="w-full bg-white/10 border border-white/20 text-white focus-visible:ring-indigo-500">
-                            <SelectValue placeholder="Select Role" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-gray-800 text-white border-gray-700">
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="moderator">Moderator</SelectItem>
-                            <SelectItem value="user">User</SelectItem>
-                        </SelectContent>
-                    </Select>
+						<Label htmlFor="name" className="block text-sm text-gray-300 mb-1">Full Name</Label>
+						<Input
+							id="name"
+							className="w-full bg-white/10 border border-white/20 focus-visible:ring-indigo-500 text-white placeholder-gray-400"
+							value={currentSelectedUser.name}
+							onChange={(e) => handleChange('name', e.target.value)}
+						/>
 
-                    <DialogFooter className="mt-6 flex justify-end gap-3">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setEditingUser(null)}
-                            className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
-                            type="button"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                            type="submit"
-                        >
-                            Save Changes
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-};
+						<Label htmlFor="email" className="block text-sm text-gray-300 mb-1">Email</Label>
+						<Input
+							id="email"
+							className="w-full bg-white/10 border border-white/20 focus-visible:ring-indigo-500 text-white placeholder-gray-400"
+							type="email"
+							value={currentSelectedUser.email}
+							onChange={(e) => handleChange('email', e.target.value)}
+						/>
+
+						<Label htmlFor="role" className="block text-sm text-gray-300 mb-1">Role</Label>
+						<Select
+							value={currentSelectedUser.role || "user"}
+							onValueChange={(value: 'admin' | 'moderator' | 'user') => handleChange('role', value)}
+						>
+							<SelectTrigger className="w-full bg-white/10 border border-white/20 text-white focus-visible:ring-indigo-500">
+								<SelectValue placeholder="Select Role" />
+							</SelectTrigger>
+							<SelectContent className="bg-gray-800 text-white border-gray-700">
+								<SelectItem value="admin">Admin</SelectItem>
+								<SelectItem value="moderator">Moderator</SelectItem>
+								<SelectItem value="user">User</SelectItem>
+							</SelectContent>
+						</Select>
+
+						<DialogFooter className="mt-6 flex justify-end gap-3">
+							<Button
+								variant="secondary"
+								onClick={() => setEditingUser(null)}
+								className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
+								type="button"
+							>
+								Cancel
+							</Button>
+							<Button
+								className="bg-indigo-600 hover:bg-indigo-700 text-white"
+								type="submit"
+							>
+								Save Changes
+							</Button>
+						</DialogFooter>
+					</form>
+				</DialogContent>
+			</Dialog>
+		);
+	};
 
 	const PasswordModal = () => {
 		const [newPass, setNewPass] = useState('');
@@ -433,7 +430,7 @@ const EditUserModal = () => {
 
 		return (
 			<Dialog open={!!passwordTarget} onOpenChange={() => setPasswordTarget(null)}>
-				<DialogContent className="bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
+				<DialogContent className="pt-4 bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
 					<DialogHeader>
 						<DialogTitle className="text-xl font-semibold text-yellow-400">
 							🔑 Change Password — {passwordTarget?.name}
@@ -487,8 +484,9 @@ const EditUserModal = () => {
 	return (
 		<div className="w-full min-h-screen text-white bg-transparent font-sans p-6 md:p-10">
 			<motion.div animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8" initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.4 }}>
-				{/* Sidebar */}
-				<div className="hidden md:block md:w-64 bg-white/5 backdrop-blur-xl border border-white/10 p-4 rounded-2xl h-fit shadow-lg shadow-black/20">
+
+				{/* 1. Sidebar (Desktop Only) */}
+				<div className="pt-4 hidden md:block md:w-64 bg-white/5 backdrop-blur-xl border border-white/10 p-4 rounded-2xl h-fit shadow-lg shadow-black/20">
 					<h2 className="text-2xl font-semibold mb-5 text-gray-200">Dev Control</h2>
 					<div className="flex flex-col gap-2">{allTabs.map(tab => (
 						<SidebarButton
@@ -503,153 +501,181 @@ const EditUserModal = () => {
 					))}</div>
 				</div>
 
-				{/* Main Content Area */}
+				{/* 2. Main Content Area */}
 				<div className="flex-grow">
 					<div className="mb-6 pb-2 border-b border-white/10 flex flex-col sm:flex-row sm:justify-between sm:items-center relative">
 						<h1 className="text-4xl font-bold tracking-tight text-gray-100">{activeTabName}</h1>
-						{/* Mobile Tab Dropdown (omitted for brevity) */}
+
+						{/* Mobile Tab Dropdown FIX: Visible on small screens, hidden on md and up */}
+						<div className="pt-4 block md:hidden mt-4 sm:mt-0">
+							<Button
+								variant="secondary"
+								onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+								className="w-full justify-between bg-white/10 text-gray-100 border-white/20 hover:bg-white/15"
+							>
+								<ActiveTabIcon size={20} className="mr-2" />
+								{activeTabName}
+								{isDropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+							</Button>
+
+							{/* Mobile Dropdown Menu */}
+							<AnimatePresence>
+								{isDropdownOpen && (
+									<motion.div
+										initial={{ opacity: 0, height: 0 }}
+										animate={{ opacity: 1, height: "auto" }}
+										exit={{ opacity: 0, height: 0 }}
+										transition={{ duration: 0.3 }}
+										className=" pt-4 absolute z-10 w-full mt-2 bg-black/80 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden"
+									>
+										<div className="flex flex-col p-2 space-y-1">
+											{allTabs.map(tab => (
+												<SidebarButton
+													key={`mobile-${tab.id}`}
+													isActive={activeTab === tab.id}
+													onPress={() => handleTabChange(tab.id)}
+													icon={tab.icon}
+													className="capitalize font-medium tracking-wide !w-full"
+												>
+													{tab.name}
+												</SidebarButton>
+											))}
+										</div>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
+						{/* END Mobile Tab Dropdown */}
+
 					</div>
 
 					{/* Global Message (Toast) */}
 					<AnimatePresence>{messageState && <div className="mb-6"><MessageBar message={messageState.message} type={messageState.type} /></div>}</AnimatePresence>
 
-					{/* Active Tab Content */}
+					{/* Active Tab Content (RETAINED) */}
 					<AnimatePresence mode="wait">
 
-						{/* 1. Overview (RETAINED INLINE) */}
+						{/* 1. Overview */}
 						{activeTab === "overview" && (
 							<OverviewContent />
 						)}
 
-						{/* 2. Activity Logs (USES EXTERNAL COMPONENT) */}
+						{/* 2. Activity Logs */}
 						{activeTab === "activity" && (
 							<motion.div key="activity" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<ActivityLogsContent logs={filteredLogs} filter={filter} setFilter={setFilter} sortOrder={sortOrder} setSortOrder={setSortOrder} />
+								<ActivityLogsContent />
 							</motion.div>
 						)}
 
-						{/* 3. Attendance (USES EXTERNAL COMPONENT) */}
+						{/* 3. Attendance */}
 						{activeTab === "attendance" && (
 							<motion.div key="attendance" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
 								<AttendanceContent />
 							</motion.div>
 						)}
 
-						{/* 4. Announcement (RETAINED INLINE) */}
+						{/* 4. Announcement */}
 						{activeTab === "announcement" && (
-                <motion.div key="announcement" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <Card className="bg-black/10 backdrop-blur-xl border border-white/10 shadow-lg">
-                        <CardHeader>
-                            <CardTitle className="text-white">Create New Announcement</CardTitle>
-                            <CardDescription className="text-gray-300">
-                                Post to the website and selected social media platforms simultaneously.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
+							<motion.div key="announcement" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+								<Card className="pt-4 bg-black/10 backdrop-blur-xl border border-white/10 shadow-lg">
+									<CardHeader>
+										<CardTitle className="text-white">Create New Announcement</CardTitle>
+										<CardDescription className="text-gray-300">
+											Post to the website and selected social media platforms simultaneously.
+										</CardDescription>
+									</CardHeader>
+									<CardContent className="space-y-6">
 
-                            <Label htmlFor="title" className="text-white font-semibold">Title</Label>
-                            {/* Title Input (unchanged) */}
-                            <Input
-                                id="title" type="text" placeholder="E.g., System Update Next Week" value={announcement.title}
-                                onChange={e => setAnnouncement({ ...announcement, title: e.target.value })}
-                                className="bg-white/5 text-white border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
-                            />
+										<Label htmlFor="title" className="text-white font-semibold">Title</Label>
+										<Input
+											id="title" type="text" placeholder="E.g., System Update Next Week" value={announcement.title}
+											onChange={e => setAnnouncement({ ...announcement, title: e.target.value })}
+											className="bg-white/5 text-white border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+										/>
 
-                            <Label htmlFor="description" className="text-white font-semibold">Content</Label>
-                            {/* Content Textarea (unchanged) */}
-                            <Textarea
-                                id="description" placeholder="Details about the announcement..." value={announcement.description}
-                                onChange={e => setAnnouncement({ ...announcement, description: e.target.value })}
-                                className="bg-white/5 text-white border-white/20 h-32 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
-                            />
+										<Label htmlFor="description" className="text-white font-semibold">Content</Label>
+										<Textarea
+											id="description" placeholder="Details about the announcement..." value={announcement.description}
+											onChange={e => setAnnouncement({ ...announcement, description: e.target.value })}
+											className="bg-white/5 text-white border-white/20 h-32 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+										/>
 
-                            <div className="flex flex-col gap-2">
-                                {/* IMAGE INPUT CHANGED FROM type="file" TO type="text" for URL */}
-                                <Label className="text-white font-semibold" htmlFor="imageUrl">Image URL (Optional)</Label> 
-                                <Input
-                                    id="imageUrl"
-                                    type="text" 
-                                    placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
-                                    value={announcement.image || ''}
-                                    onChange={e => setAnnouncement({ ...announcement, image: e.target.value })}
-                                    className="bg-white/5 text-gray-300 border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
-                                />
-                            </div>
+										<div className="flex flex-col gap-2">
+											<Label className="text-white font-semibold" htmlFor="imageUrl">Image URL (Optional)</Label>
+											<Input
+												id="imageUrl"
+												type="text"
+												placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+												value={announcement.image || ''}
+												onChange={e => setAnnouncement({ ...announcement, image: e.target.value })}
+												className="bg-white/5 text-gray-300 border-white/20 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+											/>
+										</div>
 
-                            <div className="space-y-3">
-                                {/* ... Platform Checkboxes (unchanged) ... */}
-                                <Label className="text-white font-semibold flex items-center gap-2">
-                                    <Send size={18} className="text-indigo-400" /> Publish to:
-                                </Label>
-                                <div className="flex gap-6 flex-wrap">
-                                    {Object.keys(announcement.platforms || {}).map(platform => (
-                                        <div key={platform} className="flex items-center space-x-2">
-                                            <Checkbox
-                                                id={platform} checked={announcement.platforms ? announcement.platforms[platform as keyof typeof announcement.platforms] : false}
-                                                onCheckedChange={checked => setAnnouncement({ ...announcement, platforms: { ...announcement.platforms!, [platform as keyof NonNullable<Announcement['platforms']>]: checked as boolean } })}
-                                                className="border-white/50 data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 text-white"
-                                            />
-                                            <Label htmlFor={platform} className="text-gray-300 capitalize flex items-center gap-1 text-sm cursor-pointer">
-                                                {platform === 'facebook' && <Facebook size={16} className="text-blue-400" />}
-                                                {platform === 'instagram' && <Instagram size={16} className="text-pink-400" />}
-                                                {platform === 'twitter' && <Twitter size={16} className="text-blue-300" />}
-                                                {platform === 'websitePost' && <Send size={16} className="text-indigo-400" />}
-                                                {platform.replace(/Post/g, '').replace(/website/g, 'Website')}
-                                            </Label>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+										<div className="space-y-3">
+											<Label className="pt-4 text-white font-semibold flex items-center gap-2">
+												<Send size={18} className="text-indigo-400" /> Publish to:
+											</Label>
+											<div className="flex gap-6 flex-wrap">
+												{Object.keys(announcement.platforms || {}).map(platform => (
+													<div key={platform} className="flex items-center space-x-2">
+														<Checkbox
+															id={platform} checked={announcement.platforms ? announcement.platforms[platform as keyof typeof announcement.platforms] : false}
+															onCheckedChange={checked => setAnnouncement({ ...announcement, platforms: { ...announcement.platforms!, [platform as keyof NonNullable<Announcement['platforms']>]: checked as boolean } })}
+															className="border-white/50 data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500 text-white"
+														/>
+														<Label htmlFor={platform} className="text-gray-300 capitalize flex items-center gap-1 text-sm cursor-pointer">
+															{platform === 'facebook' && <Facebook size={16} className="text-blue-400" />}
+															{platform === 'instagram' && <Instagram size={16} className="text-pink-400" />}
+															{platform === 'twitter' && <Twitter size={16} className="text-blue-300" />}
+															{platform === 'websitePost' && <Send size={16} className="text-indigo-400" />}
+															{platform.replace(/Post/g, '').replace(/website/g, 'Website')}
+														</Label>
+													</div>
+												))}
+											</div>
+										</div>
 
-                            <Button onClick={handlePostAnnouncement} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full sm:w-auto mt-4">
-                                <Send size={18} className="mr-2" /> Post Announcement
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </motion.div>
-            )}
-
-						{/* 5. Notifications (USES EXTERNAL COMPONENT) */}
-						{activeTab === "notifications" && (
-							<motion.div key="notifications" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<NotificationsContent />
+										<Button onClick={handlePostAnnouncement} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full sm:w-auto mt-4">
+											<Send size={18} className="mr-2" /> Post Announcement
+										</Button>
+									</CardContent>
+								</Card>
 							</motion.div>
 						)}
 
-						{/* 6. Users (INLINE IMPLEMENTATION of User Management) */}
-					{activeTab === "usersManagement" && ( // Note: Use "usersManagement" as defined in allTabs
-    <motion.div key="users" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-        <UserManagementContent 
-            users={filteredUsers} // Filtered by the search input
-            search={search}
-            setSearch={setSearch}
-            handleEditUser={handleEditUser}
-            setPasswordTarget={setPasswordTarget}
-            handleRoleChange={handleRoleChange}
-            handleDeleteUser={handleDeleteUser} 
-        />
-    </motion.div>
-)}
 
-						{/* 7. Trash Bin (USES EXTERNAL COMPONENT) */}
-						{activeTab === "trash" && (
-							<motion.div key="trash" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<TrashbinContent
-									trashItems={trashItems}
-									onRestore={handleRestore}
-									onPermanentDelete={handlePermanentDelete}
+
+						{/* 6. Users */}
+						{activeTab === "usersManagement" && (
+							<motion.div key="users" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+								<UserManagementContent
+									users={filteredUsers}
+									search={search}
+									setSearch={setSearch}
+									handleEditUser={handleEditUser}
+									setPasswordTarget={setPasswordTarget}
+									handleRoleChange={handleRoleChange}
+									handleDeleteUser={handleDeleteUser}
 								/>
 							</motion.div>
 						)}
 
-						{/* 8. Pending Posts (USES EXTERNAL COMPONENT) */}
-						{activeTab === "pendings" && (
-							<motion.div key="pendings" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<AdminPostModerationPage/>
+						{/* 7. Trash Bin */}
+						{activeTab === "trash" && (
+							<motion.div key="trash" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+								<TrashbinContent />
 							</motion.div>
 						)}
 
-						{/* 9. iBot (USES EXTERNAL COMPONENT) */}
+						{/* 8. Pending Posts */}
+						{activeTab === "pendings" && (
+							<motion.div key="pendings" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+								<AdminPostModerationPage />
+							</motion.div>
+						)}
+
+						{/* 9. iBot */}
 						{activeTab === "ibot" && (
 							<motion.div key="ibot" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
 								<IBotContent />
@@ -660,13 +686,9 @@ const EditUserModal = () => {
 				</div>
 			</motion.div>
 
-			{/* --- Modals --- */}
+			{/* --- Modals (RETAINED) --- */}
 			<EditUserModal />
 			<PasswordModal />
 		</div>
 	);
-}
-
-function setMessageState(arg0: { message: string; type: string; }) {
-	throw new Error("Function not implemented.");
 }

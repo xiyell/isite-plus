@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { cn } from "@/lib/utils"; 
+import { cn } from "@/lib/utils";
 
 
 
@@ -13,7 +13,7 @@ type AttendanceRecord = {
     name: string;
     yearLevel: string;
     section: string;
-    timestamp: string; 
+    timestamp: string;
 };
 
 type SortKeys = 'name' | 'idNumber' | 'timestamp';
@@ -23,7 +23,7 @@ type SortOrder = 'asc' | 'desc';
 const GLASSY_CARD_CLASS =
     "p-6 sm:p-8 rounded-2xl border border-slate-700 bg-black/10 shadow-2xl backdrop-blur-xl w-full max-w-sm md:max-w-7xl";
 
-// Input component (Dark Theme)
+// Input component (Updated ring and placeholder color)
 const Input = React.forwardRef<
     HTMLInputElement,
     React.InputHTMLAttributes<HTMLInputElement>
@@ -32,7 +32,8 @@ const Input = React.forwardRef<
         ref={ref}
         className={cn(
             "flex h-11 w-full rounded-lg border border-input bg-transparent px-4 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-base file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            "border-slate-700 bg-black/30 text-white focus-visible:ring-emerald-500 transition-colors",
+            // *** COLOR ADJUSTMENTS HERE ***
+            "border-slate-700 bg-black/30 text-slate-100 focus-visible:ring-cyan-500 placeholder:text-slate-400 transition-colors",
             className,
         )}
         {...props}
@@ -74,10 +75,10 @@ export default function AttendanceTracker() {
             }
             const data: string[] = await res.json();
             setEventList(data.reverse()); // Reverse to show latest event first
-            
+
             // Set the latest event as the default selected date
             if (data.length > 0) {
-                setSelectedDate(data[0]); 
+                setSelectedDate(data[0]);
             } else {
                 setSelectedDate('');
             }
@@ -88,7 +89,7 @@ export default function AttendanceTracker() {
             setLoadingEvents(false);
         }
     }, []);
-    
+
     // 2. Fetch attendance data for the selected event/sheet
     const fetchAttendance = useCallback(async (sheetName: string) => {
         if (!sheetName) {
@@ -98,11 +99,11 @@ export default function AttendanceTracker() {
         setLoading(true);
         setError(null);
         setAttendanceData([]);
-        
+
         try {
             // Note: The GET API expects the sheet name to be passed as 'sheetDate'
-            const res = await fetch(`/api/attendance?sheetDate=${sheetName}`); 
-            
+            const res = await fetch(`/api/attendance?sheetDate=${sheetName}`);
+
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 if (res.status === 404) {
@@ -126,7 +127,7 @@ export default function AttendanceTracker() {
     useEffect(() => {
         fetchEvents();
     }, [fetchEvents]);
-    
+
     // Trigger attendance fetch when selectedDate (sheet name) changes
     useEffect(() => {
         if (selectedDate) {
@@ -146,7 +147,7 @@ export default function AttendanceTracker() {
 
     const filteredAndSortedData = useMemo(() => {
         // ... (Same filter/sort logic as before)
-        const filtered = attendanceData.filter(record => 
+        const filtered = attendanceData.filter(record =>
             record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             record.idNumber.includes(searchTerm) ||
             record.yearLevel.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,7 +190,7 @@ export default function AttendanceTracker() {
             </span>
         );
     };
-    
+
     // --- Render Section ---
 
     return (
@@ -197,14 +198,14 @@ export default function AttendanceTracker() {
             {/* Event Selection and Summary Card */}
             <div className={cn(GLASSY_CARD_CLASS, "mb-8")}>
                 <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-                    
+
                     {/* Event Select Dropdown */}
                     <div className="flex-1 min-w-[200px]">
                         <label htmlFor="event-select" className="block text-sm font-medium text-slate-300 mb-1">
                             Select Event/Sheet
                         </label>
                         {loadingEvents ? (
-                            <div className="h-11 flex items-center justify-center text-emerald-400 border border-slate-700 rounded-lg bg-black/30">
+                            <div className="h-11 flex items-center justify-center text-cyan-400 border border-slate-700 rounded-lg bg-black/30">
                                 Loading events...
                             </div>
                         ) : (
@@ -212,7 +213,7 @@ export default function AttendanceTracker() {
                                 id="event-select"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className={ "w-full text-lg appearance-none" }
+                                className={"w-full h-11 rounded-lg border border-slate-700 bg-black/30 px-4 text-base appearance-none text-slate-100 cursor-pointer"}
                                 disabled={eventList.length === 0}
                             >
                                 {eventList.length === 0 ? (
@@ -227,9 +228,9 @@ export default function AttendanceTracker() {
                             </select>
                         )}
                     </div>
-                    
-                    {/* Summary Display */}
-                    <div className="text-center sm:text-right p-3 rounded-lg bg-emerald-700/50 min-w-[150px] shadow-lg">
+
+                    {/* Summary Display (Updated Background Color) */}
+                    <div className="text-center sm:text-right p-3 rounded-lg bg-indigo-700/50 min-w-[150px] shadow-lg">
                         <p className="text-3xl font-extrabold text-white">
                             {loadingEvents ? '-' : filteredAndSortedData.length}
                         </p>
@@ -254,16 +255,16 @@ export default function AttendanceTracker() {
                 </div>
 
                 {loading && (
-                    <p className="text-center text-emerald-400 p-8">Loading attendance...</p>
+                    <p className="text-center text-cyan-400 p-8">Loading attendance...</p>
                 )}
-                
+
                 {error && (
                     <p className="text-center text-red-400 p-8">Error: {error}</p>
                 )}
 
                 {!loading && !error && attendanceData.length === 0 && (
                     <p className="text-center text-slate-400 p-8">
-                        {selectedDate 
+                        {selectedDate
                             ? `No attendance recorded for ${formatSheetTitle(selectedDate)}.`
                             : "Select an event or check API configuration."}
                     </p>
@@ -274,17 +275,17 @@ export default function AttendanceTracker() {
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-700">
                             <thead>
-                                <tr className="text-left text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wider bg-black/20">
-                                    <th 
-                                        scope="col" 
-                                        className="px-4 py-3 cursor-pointer hover:text-emerald-300 transition-colors"
+                                <tr className="text-left text-xs sm:text-sm font-medium text-slate-300 uppercase tracking-wider bg-black/20">
+                                    <th
+                                        scope="col"
+                                        className="px-4 py-3 cursor-pointer hover:text-cyan-400 transition-colors"
                                         onClick={() => handleSort('timestamp')}
                                     >
                                         Scan Time <SortIcon currentKey="timestamp" />
                                     </th>
-                                    <th 
-                                        scope="col" 
-                                        className="px-4 py-3 cursor-pointer hover:text-emerald-300 transition-colors"
+                                    <th
+                                        scope="col"
+                                        className="px-4 py-3 cursor-pointer hover:text-cyan-400 transition-colors"
                                         onClick={() => handleSort('name')}
                                     >
                                         Name <SortIcon currentKey="name" />
@@ -309,15 +310,15 @@ export default function AttendanceTracker() {
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, x: -100 }}
                                             transition={{ duration: 0.2 }}
-                                            className="hover:bg-black/40 transition-colors text-sm sm:text-base text-slate-200"
+                                            className="hover:bg-black/40 transition-colors text-sm sm:text-base text-slate-100" // Main text color
                                         >
-                                            <td className="px-4 py-3 whitespace-nowrap font-mono text-emerald-400">
+                                            <td className="px-4 py-3 whitespace-nowrap font-mono text-cyan-400"> {/* Highlight color for time */}
                                                 {formatTime(record.timestamp)}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap font-semibold">
                                                 {record.name}
                                             </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-slate-400">
+                                            <td className="px-4 py-3 whitespace-nowrap text-slate-400"> {/* Secondary color for ID */}
                                                 {record.idNumber}
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
@@ -339,7 +340,7 @@ export default function AttendanceTracker() {
                     </div>
                 )}
             </div>
-            
+
             <p className="mt-8 text-slate-500 text-sm">
                 *Data fetched from the `/api/attendance` endpoint.
             </p>
