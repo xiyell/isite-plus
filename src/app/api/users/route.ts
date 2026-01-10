@@ -23,9 +23,9 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { uid, email, studentId, role, name, provider } = body;
+        const { uid, email, studentId, name, provider } = body;
 
-        console.log("Creating user:", { uid, email, role });
+        console.log("Creating user:", { uid, email });
 
         if (!uid || !email) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -40,14 +40,14 @@ export async function POST(req: Request) {
             uid,
             email,
             studentId: studentId || null,
-            role: role || "user", // FORCE DEFAULT TO USER if not provided
+            role: "user", // FORCE DEFAULT TO USER. Admins must be promoted manually or via secure setup.
             name: name || email.split("@")[0],
             provider: provider || "password",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         }, { merge: true });
 
-        console.log(`User ${uid} created with role ${role || "user"}`);
+        console.log(`User ${uid} created with role 'user'`);
 
         return NextResponse.json({ success: true, message: "User created successfully" });
     } catch (error) {

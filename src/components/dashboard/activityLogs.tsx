@@ -39,8 +39,8 @@ import {
 
 import { useToast } from "@/components/ui/use-toast";
 
-import { db } from "@/services/firebase";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { getLogs, LogEntry } from "@/actions/logs";
+import { Activity, Shield, User, FileText, Settings } from "lucide-react";
 
 /* ───────────────────────── CONSTANTS ───────────────────────── */
 
@@ -56,15 +56,7 @@ type SortDirection = "asc" | "desc";
 
 /* ───────────────────────── TYPES ───────────────────────── */
 
-interface LogEntry {
-  id: string;
-  category: "posts" | "users" | "system";
-  action: string;
-  severity: SeverityLevel;
-  message: string;
-  time: string;
-  timestamp: number;
-}
+
 
 /* ───────────────────────── HELPERS ───────────────────────── */
 
@@ -73,6 +65,16 @@ const severityColor: Record<SeverityLevel, string> = {
   low: "bg-green-600/30 text-white border border-green-500/50",
   medium: "bg-yellow-600/30 text-white border border-yellow-500/50",
   high: "bg-red-600/30 text-white border border-red-500/50",
+};
+
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case "posts": return <FileText size={16} className="text-blue-400" />;
+    case "users": return <User size={16} className="text-purple-400" />;
+    case "security": return <Shield size={16} className="text-red-400" />;
+    case "system": return <Settings size={16} className="text-gray-400" />;
+    default: return <Activity size={16} className="text-gray-400" />;
+  }
 };
 
 const getPageNumbers = (current: number, total: number, max = 5) => {
@@ -110,25 +112,8 @@ export default function ActivityLogsContent() {
     const fetchLogs = async () => {
       try {
         setLoading(true);
-        const q = query(
-          collection(db, "activitylogs"),
-          orderBy("timestamp", "desc")
-        );
-
-        const snap = await getDocs(q);
-
-        const data: LogEntry[] = snap.docs.map((doc) => {
-          const d: any = doc.data();
-          return {
-            id: doc.id,
-            category: d.category ?? "system",
-            action: d.action ?? "",
-            severity: d.severity ?? "low",
-            message: d.message ?? "",
-            timestamp: d.timestamp ?? Date.now(),
-            time: d.time ?? new Date(d.timestamp).toLocaleString(),
-          };
-        });
+        const data = await getLogs();
+        setLogs(data);
 
         setLogs(data);
       } catch (err) {
@@ -260,43 +245,64 @@ export default function ActivityLogsContent() {
           {loading ? (
             <div className="py-10 text-center text-white">Loading logs…</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className={GLASSY_HEADER_ROW}>
-                  {/* Table Heads - Changed text-gray-400 to text-white */}
-                  <TableHead className="text-white">Time</TableHead>
-                  <TableHead className="text-white">Category</TableHead>
-                  <TableHead className="text-white">Action</TableHead>
-                  <TableHead className="text-white">Severity</TableHead>
-                  <TableHead className="text-right text-white">Message</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedLogs.map((log) => (
-                  <TableRow key={log.id} className={GLASSY_HOVER_ROW}>
-                    {/* Table Cells - Default text-white from parent div */}
-                    <TableCell className="text-white">{log.time}</TableCell>
-                    <TableCell className="capitalize text-white">{log.category}</TableCell>
-                    <TableCell className="text-white">{log.action}</TableCell>
-                    <TableCell className="text-white">
-                      {/* Badge text color is now white via severityColor definition */}
-                      <Badge className={severityColor[log.severity]}>
-                        {log.severity}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right text-white">{log.message}</TableCell>
+            <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
+              <Table className="border-collapse w-full table-fixed">
+                <TableHeader className="bg-white/10">
+                  <TableRow className="border-b border-white/20">
+                    <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Time</TableHead>
+                    <TableHead className="w-[150px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Category</TableHead>
+                    <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Action</TableHead>
+                    <TableHead className="w-[120px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Severity</TableHead>
+                    <TableHead className="text-white font-bold uppercase tracking-wider text-xs p-4">Message</TableHead>
                   </TableRow>
-                ))}
+                </TableHeader>
+                <TableBody>
+                  {paginatedLogs.map((log) => (
+                    <TableRow key={log.id} className="hover:bg-white/5 transition-colors border-b border-white/10">
+                      <TableCell className="border-r border-white/10 text-gray-300 p-4 font-mono text-xs truncate">
+                        {log.time}
+                      </TableCell>
+                      <TableCell className="border-r border-white/10 text-white p-4">
+                        <div className="flex items-center gap-2">
+                          {getCategoryIcon(log.category)}
+                          <span className="capitalize text-sm font-medium">{log.category}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="border-r border-white/10 text-gray-300 p-4 text-sm font-medium truncate" title={log.action}>
+                        {log.action}
+                      </TableCell>
+                      <TableCell className="border-r border-white/10 p-4 text-center">
+                        <Badge className={`${severityColor[log.severity] || severityColor.low} rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0`}>
+                          {log.severity}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-gray-300 p-4 text-sm truncate" title={log.message}>
+                        {log.message}
+                      </TableCell>
+                    </TableRow>
+                  ))}
 
-                {paginatedLogs.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-white">
-                      No logs match the current filters.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  {/* Empty Rows Padding to maintain height */}
+                  {Array.from({ length: Math.max(0, POSTS_PER_PAGE - paginatedLogs.length) }).map((_, index) => (
+                    <TableRow key={`empty-${index}`} className="border-b border-white/10 pointer-events-none">
+                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                      <TableCell className="p-4">&nbsp;</TableCell>
+                    </TableRow>
+                  ))}
+
+                  {paginatedLogs.length === 0 && filteredLogs.length === 0 && (
+                    <TableRow className="absolute inset-x-0 mt-16 border-none pointer-events-none">
+                      <TableCell colSpan={5} className="text-center text-gray-500 border-none">
+                        No logs found matching your criteria.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
 
           {/* Pagination */}

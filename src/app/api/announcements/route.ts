@@ -6,7 +6,8 @@ import { requireAuth, requireAdmin } from "@/lib/auth-checks";
 // GET: Fetch announcements
 export async function GET() {
     try {
-        await requireAuth(); // Require login to view
+        // Public access allowed for viewing announcements
+        // await requireAuth();
 
         const db = getAdminDb();
         const snapshot = await db.collection("announcements").get();

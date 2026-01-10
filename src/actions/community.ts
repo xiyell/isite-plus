@@ -118,49 +118,49 @@ export async function getCommunityPosts(): Promise<Post[]> {
 // -----------------------------------------------------------------
 
 export interface NewPostData {
-    title: string;
-    description: string;
-    category: string;
-    image: string;
-    postedBy: string; // Assuming UID string
-    status: "pending" | "approved" | "rejected";
+  title: string;
+  description: string;
+  category: string;
+  image: string;
+  postedBy: string; // Assuming UID string
+  status: "pending" | "approved" | "rejected";
 }
 
 export async function createCommunityPost(data: NewPostData) {
   const { postedBy, ...rest } = data;
-  
+
   const postedByRef = doc(db, 'users', postedBy);
   const user = (await getDoc(doc(db, "users", postedBy))).data();
   await addDoc(collection(db, "community"), {
     ...rest,
-    postedBy: postedByRef, 
+    postedBy: postedByRef,
     likesCount: 0,
     dislikesCount: 0,
     createdAt: serverTimestamp(),
   });
-   await addLog({
-        category: "posts",
-        action: "CREATE_POST",
-        severity: "low",
-        actorRole: user?.role,
-        message: `User ${user?.name} created a new post: "${data.title}"`,
-      });
+  await addLog({
+    category: "posts",
+    action: "CREATE_POST",
+    severity: "low",
+    actorRole: user?.role,
+    message: `User ${user?.name} created a new post: "${data.title}"`,
+  });
 }
 
 
 export async function updatePostLikeStatus(postId: string, userId: string, action: 'like' | 'dislike') {
   const postRef = doc(db, "community", postId);
-  
+
 
   const postSnap = await getDoc(postRef);
   if (!postSnap.exists()) throw new Error("Post not found.");
-  
+
   const currentLikedBy: string[] = postSnap.data().likedBy || [];
   const isCurrentlyLiked = currentLikedBy.includes(userId);
-  
+
   let newLikesCount = postSnap.data().likesCount || 0;
   let updateData: any = {};
-  
+
   if (action === 'like' && !isCurrentlyLiked) {
     newLikesCount += 1;
     updateData = {
@@ -174,7 +174,7 @@ export async function updatePostLikeStatus(postId: string, userId: string, actio
       likedBy: arrayRemove(userId)
     };
   } else {
-  
+
     return;
   }
 
@@ -187,33 +187,35 @@ export async function updatePostLikeStatus(postId: string, userId: string, actio
 // -----------------------------------------------------------------
 
 export interface NewCommentData {
-    postId: string;
-    commentedBy: string; // Assuming UID string
-    text: string;
+  postId: string;
+  commentedBy: string; // Assuming UID string
+  text: string;
 }
 
 export async function addCommunityComment(data: NewCommentData) {
   const { postId, commentedBy, text } = data;
-  
+
   // Create a reference for the post document
   const postRef = doc(db, "community", postId);
 
   // NOTE: If you store commentedBy as a Firestore Document Reference, use:
   const commentedByRef = doc(db, 'users', commentedBy);
-   const user = (await getDoc(doc(db, "users", commentedBy))).data();
+  const user = (await getDoc(doc(db, "users", commentedBy))).data();
   // Add comment to the subcollection
   await addDoc(collection(postRef, "comments"), {
     text: text,
     commentedBy: commentedByRef, // Stored as a DocumentReference
     createdAt: serverTimestamp(),
   });
+  const postSnap = await getDoc(postRef);
+  const postTitle = postSnap.data()?.title || "Unknown Post";
   await addLog({
-        category: "posts",
-        action: "CREATE_COMMENT",
-        severity: "low",
-        actorRole: user?.role,
-        message: `User ${user?.name} commented "${data.text}" at post ID: ${postId}`,
-      });
+    category: "posts",
+    action: "CREATE_COMMENT",
+    severity: "low",
+    actorRole: user?.role,
+    message: `User ${user?.name} commented on "${postTitle}"`,
+  });
   // Optional: Update the comment count on the main post (for better queries/denormalization)
   // await updateDoc(postRef, {
   //   commentCount: increment(1)
@@ -247,11 +249,14 @@ export async function movePostToRecycleBin(postId: string, actorUid: string) {
     deletedBy: userRef,
   });
 
+  const postSnap = await getDoc(postRef);
+  const postTitle = postSnap.data()?.title || "Unknown Post";
+
   await addLog({
     category: "posts",
     action: "MOVE_TO_RECYCLE_BIN",
     severity: "medium",
     actorRole: user?.role,
-    message: `Post "${postId}" was moved to recycle bin by ${user?.name}`,
+    message: `Post "${postTitle}" was moved to recycle bin by ${user?.name}`,
   });
 }

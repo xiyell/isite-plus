@@ -10,8 +10,12 @@ interface AttendanceRecord {
   timestamp: string;
 }
 
+import { requireAdmin } from "@/lib/auth-checks";
+
 export async function POST(req: Request) {
   try {
+    await requireAdmin(); // Protect: Only admins can record attendance via this API
+
     const { name, idNumber, yearLevel, section, sheetDate } = await req.json();
 
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
@@ -86,76 +90,78 @@ export async function POST(req: Request) {
 
 
 export async function GET(req: Request) {
-    try {
-        const url = new URL(req.url);
-        const sheetDate = url.searchParams.get("sheetDate");
+  try {
+    await requireAdmin(); // Protect: Only admins can view attendance
 
-        if (!sheetDate) {
-            return NextResponse.json({ error: "Missing sheetDate query parameter" }, { status: 400 });
-        }
+    const url = new URL(req.url);
+    const sheetDate = url.searchParams.get("sheetDate");
 
-        const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-        const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-        const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-        if (!spreadsheetId || !clientEmail || !privateKey) {
-            throw new Error("Missing required Google Sheet environment variables");
-        }
-
-        // 1. Authenticate with Google Sheets
-        const auth = new google.auth.JWT({
-            email: clientEmail,
-            key: privateKey,
-            scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"], // Read-only scope is sufficient
-        });
-
-        const sheets = google.sheets({ version: "v4", auth });
-
-        // 2. Format date to match the Sheet Tab name (e.g., 2025-12-14 -> 2025_12_14)
-        const finalSheetName = sheetDate.replace(/-/g, "_");
-        
-        // Use a wide range to fetch all data, assuming attendance is recorded row-by-row
-        const range = `${finalSheetName}!A:E`; 
-
-        console.log("🔍 Reading from sheet:", finalSheetName);
-
-        // 3. Read data from the Google Sheet
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: range,
-        });
-
-        const rows = response.data.values;
-
-        if (!rows || rows.length <= 1) {
-            // No data found, or only headers exist
-            return NextResponse.json([]);
-        }
-
-        // The first row is the header, which we skip
-        // Headers: ["Name", "ID Number", "Year Level", "Section", "Timestamp"]
-        const dataRows = rows.slice(1); 
-
-        // 4. Process and Map the data to AttendanceRecord[] format
-        const attendanceData: AttendanceRecord[] = dataRows.map((row, index) => ({
-            // Use the row index + 2 (1 for header, 1 for 0-based index) as a simple unique ID
-            id: `${finalSheetName}_${index + 2}`, 
-            name: row[0] || "N/A",
-            idNumber: row[1] || "N/A",
-            yearLevel: row[2] || "N/A",
-            section: row[3] || "N/A",
-            timestamp: row[4] || "N/A", // This should be a valid date string
-        }));
-        
-        // 5. Return the JSON data
-        return NextResponse.json(attendanceData);
-
-    } catch (error: any) {
-        console.error("❌ Error reading from Google Sheets:", error);
-        // Specifically catch a 404 error if the sheet doesn't exist
-        if (error.code === 404) {
-             return NextResponse.json({ error: `Attendance sheet not found for date` }, { status: 404 });
-        }
-        return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
+    if (!sheetDate) {
+      return NextResponse.json({ error: "Missing sheetDate query parameter" }, { status: 400 });
     }
+
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+    if (!spreadsheetId || !clientEmail || !privateKey) {
+      throw new Error("Missing required Google Sheet environment variables");
+    }
+
+    // 1. Authenticate with Google Sheets
+    const auth = new google.auth.JWT({
+      email: clientEmail,
+      key: privateKey,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"], // Read-only scope is sufficient
+    });
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // 2. Format date to match the Sheet Tab name (e.g., 2025-12-14 -> 2025_12_14)
+    const finalSheetName = sheetDate.replace(/-/g, "_");
+
+    // Use a wide range to fetch all data, assuming attendance is recorded row-by-row
+    const range = `${finalSheetName}!A:E`;
+
+    console.log("🔍 Reading from sheet:", finalSheetName);
+
+    // 3. Read data from the Google Sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: range,
+    });
+
+    const rows = response.data.values;
+
+    if (!rows || rows.length <= 1) {
+      // No data found, or only headers exist
+      return NextResponse.json([]);
+    }
+
+    // The first row is the header, which we skip
+    // Headers: ["Name", "ID Number", "Year Level", "Section", "Timestamp"]
+    const dataRows = rows.slice(1);
+
+    // 4. Process and Map the data to AttendanceRecord[] format
+    const attendanceData: AttendanceRecord[] = dataRows.map((row, index) => ({
+      // Use the row index + 2 (1 for header, 1 for 0-based index) as a simple unique ID
+      id: `${finalSheetName}_${index + 2}`,
+      name: row[0] || "N/A",
+      idNumber: row[1] || "N/A",
+      yearLevel: row[2] || "N/A",
+      section: row[3] || "N/A",
+      timestamp: row[4] || "N/A", // This should be a valid date string
+    }));
+
+    // 5. Return the JSON data
+    return NextResponse.json(attendanceData);
+
+  } catch (error: any) {
+    console.error("❌ Error reading from Google Sheets:", error);
+    // Specifically catch a 404 error if the sheet doesn't exist
+    if (error.code === 404) {
+      return NextResponse.json({ error: `Attendance sheet not found for date` }, { status: 404 });
+    }
+    return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
+  }
 }

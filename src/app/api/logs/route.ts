@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
+import { requireAdmin } from "@/lib/auth-checks";
+
 export async function GET() {
-    // Mock logs for now
-    return NextResponse.json([
-        { id: "1", category: "system", action: "Build", severity: "low", message: "Build completed", time: "10:00 AM", timestamp: Date.now() }
-    ]);
+    try {
+        await requireAdmin();
+        // Mock logs for now
+        return NextResponse.json([
+            { id: "1", category: "system", action: "Build", severity: "low", message: "Build completed", time: "10:00 AM", timestamp: Date.now() }
+        ]);
+    } catch {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
 }

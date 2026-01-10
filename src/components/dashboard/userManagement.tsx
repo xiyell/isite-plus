@@ -47,6 +47,10 @@ interface UserManagementProps {
 
 // --- Component Definition ---
 
+
+// ... imports
+import { AllowedIDs } from './AllowedIDs';
+
 export const UserManagementContent: React.FC<UserManagementProps> = ({
     users,
     search,
@@ -56,12 +60,17 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
     handleRoleChange,
     handleDeleteUser,
 }) => {
+    const [viewMode, setViewMode] = useState<'users' | 'whitelist'>('users');
     const [sortKey, setSortKey] = useState<'name' | 'email' | 'role' | 'lastLogin'>('name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
+
+    if (viewMode === 'whitelist') {
+        return <AllowedIDs onBack={() => setViewMode('users')} />;
+    }
 
     const getRoleVariant = (role: string) => {
         switch (role) {
@@ -101,12 +110,23 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
     return (
         <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg">
             <CardHeader>
-                <CardTitle className="text-white flex justify-between items-center">
-                    User List ({users.length})
-                    <Button variant="outline" className="bg-indigo-600/50 hover:bg-indigo-600/70 border-indigo-500 text-white">
-                        <UserPlus size={18} className="mr-2" /> Add New User
-                    </Button>
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="text-white">
+                        User List ({users.length})
+                    </CardTitle>
+                    <div className="flex gap-2">
+                         <Button 
+                            variant="outline" 
+                            className="bg-indigo-600/50 hover:bg-indigo-600/70 border-indigo-500 text-white"
+                            onClick={() => setViewMode('whitelist')}
+                        >
+                            <KeyRound size={18} className="mr-2" /> Manage Whitelist
+                        </Button>
+                        <Button variant="outline" className="bg-fuchsia-600/50 hover:bg-fuchsia-600/70 border-fuchsia-500 text-white">
+                            <UserPlus size={18} className="mr-2" /> Add New User
+                        </Button>
+                    </div>
+                </div>
                 <CardDescription className="text-gray-400">Manage user roles, statuses, and access credentials.</CardDescription>
                 <Separator className="my-4 bg-white/10" />
             </CardHeader>

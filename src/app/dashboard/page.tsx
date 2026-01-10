@@ -107,10 +107,25 @@ const SidebarButton = ({ children, className, disabled, onPress, icon: Icon, isA
 
 
 // --- Dev Dashboard Component ---
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+
+
 export default function DevDashboard() {
+	return (
+		<Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Loading Dashboard...</div>}>
+			<DashboardContent />
+		</Suspense>
+	);
+}
+
+// Rename the original Default Export to DashboardContent for internal use, OR extract logic.
+// Simpler approach: Keep DevDashboard as the wrapper, move the logic to a new component.
+
+function DashboardContent() {
 	const searchParams = useSearchParams();
+
 	const initialTab = searchParams.get('tab') || "overview";
 	const [activeTab, setActiveTab] = useState(initialTab);
 

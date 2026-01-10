@@ -60,7 +60,8 @@ export async function createSession(uid: string, rawRole: string) {
 
     cookieStore.set("session", session, {
         httpOnly: true,
-        secure: false, // false on localhost
+        secure: isProd, // Secure in production
+
         sameSite: "lax",
         path: "/",
         expires: expiresAt,

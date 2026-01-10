@@ -11,7 +11,7 @@ const accessRules: Record<string, ("guest" | "user" | "admin" | "moderator")[]> 
   "/feedback": ["user", "admin", "moderator"],
   "/iQr": ["admin", "moderator", "user"],
   "/iReader": ["admin", "moderator"],
-  "/announcement": ["user", "admin", "moderator"],
+  "/announcement": ["user", "admin", "moderator", "guest"],
   "/admin": ["admin"], // Keep admin-only
 };
 

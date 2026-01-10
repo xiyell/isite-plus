@@ -25,16 +25,25 @@ export async function updateUserPassword(userId: string, newPassword: string, ac
     });
     const adminDb = getAdminDb();
     const actorRef = adminDb.collection("users").doc(actorUid);
-    const actorSnap = await actorRef.get();
+    const targetUserRef = adminDb.collection("users").doc(userId);
+
+    const [actorSnap, targetUserSnap] = await Promise.all([
+      actorRef.get(),
+      targetUserRef.get()
+    ]);
+
     const actor = actorSnap.data();
+    const targetUser = targetUserSnap.data();
+    const targetName = targetUser?.name || "Unknown User";
+
     await addLog({
       category: "users",
       action: "UPDATE_PASSWORD",
       severity: "high",
       actorRole: actor?.role,
-      message: `User "${userId}" password was updated by ${actor?.name}`,
+      message: `Password updated for user "${targetName}" by ${actor?.name}`,
     });
-    return { success: true, message: `Password updated for user ${userId}` };
+    return { success: true, message: `Password updated for user ${targetName}` };
   } catch (error) {
     console.error("Error updating user password:", error);
     return { success: false, message: "Failed to update password" };
@@ -47,9 +56,16 @@ export async function moveUserToRecycleBin(userId: string, actorUid: string) {
     const userRef = adminDb.collection("users").doc(userId);
     const actorRef = adminDb.collection("users").doc(actorUid);
 
-    const actorSnap = await actorRef.get();
-    const actor = actorSnap.data();
+    const [actorSnap, userSnap] = await Promise.all([
+      actorRef.get(),
+      userRef.get()
+    ]);
 
+    const actor = actorSnap.data();
+    const userData = userSnap.data();
+    const userName = userData?.name || "Unknown User";
+
+    // Perform the update
     await userRef.update({
       isDeleted: true,
       status: "deleted",
@@ -62,7 +78,7 @@ export async function moveUserToRecycleBin(userId: string, actorUid: string) {
       action: "MOVE_TO_RECYCLE_BIN",
       severity: "high",
       actorRole: actor?.role,
-      message: `User "${userId}" was moved to recycle bin by ${actor?.name}`,
+      message: `User "${userName}" was moved to recycle bin by ${actor?.name}`,
     });
   } catch (error) {
     console.error("Failed to move user to recycle bin:", error);
@@ -77,8 +93,14 @@ export async function restoreUserFromRecycleBin(userId: string, actorUid: string
     const userRef = adminDb.collection("users").doc(userId);
     const actorRef = adminDb.collection("users").doc(actorUid);
 
-    const actorSnap = await actorRef.get();
+    const [actorSnap, userSnap] = await Promise.all([
+      actorRef.get(),
+      userRef.get()
+    ]);
+
     const actor = actorSnap.data();
+    const userData = userSnap.data();
+    const userName = userData?.name || "Unknown User";
 
     await userRef.update({
       status: "active",
@@ -92,7 +114,7 @@ export async function restoreUserFromRecycleBin(userId: string, actorUid: string
       action: "RESTORE_FROM_RECYCLE_BIN",
       severity: "medium",
       actorRole: actor?.role,
-      message: `User "${userId}" was restored from recycle bin by ${actor?.name}`,
+      message: `User "${userName}" was restored from recycle bin by ${actor?.name}`,
     });
   } catch (error) {
     console.error("Failed to restore user:", error);
@@ -107,16 +129,22 @@ export async function permanentlyDeleteUser(userId: string, actorUid: string) {
   const actorRef = adminDb.collection("users").doc(actorUid);
 
   try {
-    const actorSnap = await actorRef.get();
-    const actor = actorSnap.data();
+    const userRef = adminDb.collection("users").doc(userId);
+    const [actorSnap, userSnap] = await Promise.all([
+      actorRef.get(),
+      userRef.get()
+    ]);
 
+    const actor = actorSnap.data();
+    const userData = userSnap.data();
+    const userName = userData?.name || "Unknown User";
 
     await addLog({
       category: "users",
       action: "PERMANENT_DELETE",
       severity: "high",
       actorRole: actor?.role,
-      message: `User "${userId}" would be permanently deleted by ${actor?.name} (requires Admin SDK).`,
+      message: `User "${userName}" was permanently deleted by ${actor?.name}`,
     });
 
   } catch (error) {

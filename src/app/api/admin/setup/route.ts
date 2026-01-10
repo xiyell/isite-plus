@@ -4,9 +4,16 @@ import { getAdminDb } from "@/services/firebaseAdmin";
 export async function POST(req: Request) {
     try {
         const { uid, secret } = await req.json();
+        const adminSecret = process.env.ADMIN_SETUP_SECRET;
+
+        // Ensure env var is set
+        if (!adminSecret) {
+            console.error("❌ ADMIN_SETUP_SECRET is not set in environment variables");
+            return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+        }
 
         // Simple protection to prevent accidental public use if deployed
-        if (secret !== "make-me-admin-please") {
+        if (secret !== adminSecret) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 

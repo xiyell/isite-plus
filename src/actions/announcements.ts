@@ -3,6 +3,7 @@
 import { db } from "@/services/firebase";
 import { Announcement } from "@/types/announcement";
 import { addDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
+import { addLog } from "./logs";
 
 export async function getAnnouncements(): Promise<Announcement[]> {
   const querySnapshot = await getDocs(collection(db, "announcements"));
@@ -13,6 +14,14 @@ export async function createAnnouncement(data: Omit<Announcement, "id" | "create
   await addDoc(collection(db, "announcements"), {
     ...data,
     createdAt: serverTimestamp(),
+  });
+
+  await addLog({
+    category: "posts",
+    action: "CREATE_ANNOUNCEMENT",
+    severity: "low",
+    message: `Announcement "${data.title}" was created`,
+    actorRole: "system", // In a real app, pass the actor
   });
 }
 

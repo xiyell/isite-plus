@@ -1,15 +1,7 @@
 "use server";
 
-import {
-  addDoc,
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/services/firebase";
+import { getAdminDb } from "@/services/firebaseAdmin";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 /* ---------------- TYPES ---------------- */
 
@@ -31,27 +23,37 @@ export interface LogEntry {
 /* ---------------- GET LOGS ---------------- */
 
 export async function getLogs(): Promise<LogEntry[]> {
-  const q = query(
-    collection(db, "activitylogs"),
-    orderBy("timestamp", "desc")
-  );
+  try {
+    const db = getAdminDb();
+    const snapshot = await db.collection("activitylogs").orderBy("timestamp", "desc").get();
 
-  const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      let ts = Date.now();
+      // Handle Firestore Timestamp or number or date
+      if (data.timestamp?.toMillis) {
+        ts = data.timestamp.toMillis();
+      } else if (typeof data.timestamp === 'number') {
+        ts = data.timestamp;
+      } else if (data.timestamp?.toDate) {
+        ts = data.timestamp.toDate().getTime();
+      }
 
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-
-    return {
-      id: doc.id,
-      category: data.category,
-      action: data.action,
-      severity: data.severity,
-      message: data.message,
-      time: data.time,
-      timestamp: (data.timestamp as Timestamp).toMillis(),
-      actorRole: data.actorRole,
-    };
-  });
+      return {
+        id: doc.id,
+        category: data.category ?? "system",
+        action: data.action ?? "UNKNOWN",
+        severity: data.severity ?? "low",
+        message: data.message ?? "No message",
+        time: data.time ?? new Date(ts).toLocaleString(),
+        timestamp: ts,
+        actorRole: data.actorRole ?? "unknown",
+      };
+    });
+  } catch (error) {
+    console.error("Error fetching logs (Admin SDK):", error);
+    return [];
+  }
 }
 
 /* ---------------- ADD LOG ---------------- */
@@ -61,7 +63,7 @@ export async function addLog({
   action,
   severity,
   message,
-  actorRole = "system", // Default to 'system' if not provided
+  actorRole = "system",
 }: {
   category: "posts" | "users" | "system";
   action: string;
@@ -69,13 +71,18 @@ export async function addLog({
   message: string;
   actorRole?: string;
 }) {
-  await addDoc(collection(db, "activitylogs"), {
-    category,
-    action,
-    severity,
-    message,
-    actorRole,
-    timestamp: serverTimestamp(),
-    time: new Date().toLocaleString(),
-  });
+  try {
+    const db = getAdminDb();
+    await db.collection("activitylogs").add({
+      category,
+      action,
+      severity,
+      message,
+      actorRole,
+      timestamp: FieldValue.serverTimestamp(),
+      time: new Date().toLocaleString(),
+    });
+  } catch (error) {
+    console.error("Error adding log (Admin SDK):", error);
+  }
 }
