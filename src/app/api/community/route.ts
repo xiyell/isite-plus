@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/services/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 import { requireAuth, requireAdmin } from "@/lib/auth-checks";
+import { checkSpam, checkProfanity, checkCooldown } from "@/lib/moderation";
 
 // GET: Fetch posts (can filter by status via query param)
 export async function GET(req: NextRequest) {
@@ -9,30 +10,72 @@ export async function GET(req: NextRequest) {
         await requireAuth(); // Login required
 
         const { searchParams } = new URL(req.url);
-        const status = searchParams.get("status"); // e.g., 'pending' or 'approved' (default: all if not specified)
+        const status = searchParams.get("status");
+        const category = searchParams.get("category");
+        const limitParam = searchParams.get("limit");
+        const limit = limitParam ? parseInt(limitParam, 10) : 50;
 
-        // Community collections
         const db = getAdminDb();
-        const postsRef = db.collection("community");
-        let q: FirebaseFirestore.Query = postsRef; // Note: Removed orderBy to avoid index requirement for new status filter
+        let q: FirebaseFirestore.Query = db.collection("community");
 
         if (status) {
             q = q.where("status", "==", status);
         }
+        if (category && category !== "All") {
+            q = q.where("category", "==", category);
+        }
+
+        // Order by createdAt desc to get newest first (requires index if filtered)
+        // q = q.orderBy("createdAt", "desc"); 
+
+        if (limit > 0) {
+            q = q.limit(limit);
+        }
 
         const snapshot = await q.get();
-        // Sort in memory instead
-        const posts = snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .sort((a: any, b: any) => {
-                const tA = a.createdAt?.seconds || 0; // handle Firestore Timestamp
-                const tB = b.createdAt?.seconds || 0;
-                // If dates are strings or Dates in some cases
-                const vA = tA || new Date(a.createdAt).getTime() || 0;
-                const vB = tB || new Date(b.createdAt).getTime() || 0;
-                return vB - vA;
-            });
+
+        // Resolve references and format data
+        const posts = await Promise.all(snapshot.docs.map(async (doc) => {
+            const data = doc.data();
+
+            // Resolve Author
+            let author: { id: string; name: string;[key: string]: any } = { name: "Unknown", id: "unknown" };
+            if (data.postedBy) {
+                try {
+                    // Check if it's a reference (Admin SDK)
+                    if (data.postedBy.get) {
+                        const userSnap = await data.postedBy.get();
+                        if (userSnap.exists) {
+                            const userData = userSnap.data() || {};
+                            author = { id: userSnap.id, name: userData.name || "Unknown", ...userData };
+                        }
+                    } else if (typeof data.postedBy === 'string') {
+                        // Handle legacy string ID
+                        const userSnap = await db.collection('users').doc(data.postedBy).get();
+                        if (userSnap.exists) {
+                            const userData = userSnap.data() || {};
+                            author = { id: userSnap.id, name: userData.name || "Unknown", ...userData };
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error resolving author for post " + doc.id, e);
+                }
+            }
+
+            // Safe Timestamp Conversion
+            const createdAt = data.createdAt?.toDate ? data.createdAt.toDate().toISOString() :
+                (data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toISOString() : new Date().toISOString());
+
+            return {
+                id: doc.id,
+                ...data,
+                postedBy: author, // Replace ref with object
+                createdAt, // ISO String
+            };
+        }));
+
+        // Sort by Newest (in memory to avoid composite index requirements for dynamic queries)
+        posts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
         return NextResponse.json(posts);
     } catch (error: unknown) {
@@ -40,8 +83,6 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: (error as Error).message || "Failed to fetch posts" }, { status: 500 });
     }
 }
-
-import { checkSpam, checkProfanity, checkCooldown } from "@/lib/moderation";
 
 // POST: Create a new post
 export async function POST(req: NextRequest) {

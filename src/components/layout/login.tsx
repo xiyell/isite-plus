@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react"; // Import a loading icon
 
 import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
+import { sendVerificationCode, verifyTwoFactorCode } from "@/actions/auth"; // Import actions
 
 // --- Shadcn UI Components ---
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +33,11 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    
+    // 2FA State
+    const [step, setStep] = useState<'credentials' | 'verification'>('credentials');
+    const [verificationCode, setVerificationCode] = useState("");
+    const [tempUser, setTempUser] = useState<any>(null); // Store user data temporarily between steps
 
     // Auto-hide toast after 3 seconds
     useEffect(() => {
@@ -46,7 +52,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     };
 
     const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault(); // Prevent default form submission
+        e.preventDefault();
         setToast(null);
 
         if (!email.endsWith("@iskolarngbayan.pup.edu.ph")) {
@@ -59,11 +65,8 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
 
         setIsSubmitting(true);
         try {
-            const userCredential = await signInWithEmailAndPassword(
-                auth,
-                email,
-                password,
-            );
+            // 1. Authenticate with Firebase (Just to check credentials)
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
             if (!user.emailVerified) {
@@ -73,10 +76,62 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 return;
             }
 
-            // Get the ID token from Firebase
+            // ⚠️ IMMEDIATE SIGN OUT to prevent global app login state 
+            // until 2FA is passed.
+            await auth.signOut();
+
+            // 2. Prepare for 2FA
+            // Store basic user info temporarily
+            setTempUser(user);
+
+            // 3. Send Verification Code
+            setToast("Sending verification code...");
+            const vResult = await sendVerificationCode(user.email!, user.uid);
+
+            if (!vResult.success) {
+                setToast(vResult.message || "Failed to send code.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 4. Move to Verification Step
+            setStep('verification');
+            setToast(null); 
+            setIsSubmitting(false);
+
+        } catch (err: any) {
+            let errorMessage = err.message;
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+                errorMessage = 'Invalid email or password.';
+            }
+            setToast(errorMessage);
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleVerify = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!verificationCode || !tempUser) return;
+        
+        setIsSubmitting(true);
+        setToast(null);
+
+        try {
+            // 1. Verify Code
+            const result = await verifyTwoFactorCode(tempUser.uid, verificationCode);
+            
+            if (!result.success) {
+                setToast(result.message || "Invalid code.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            // 2. Finalize Login (Re-authenticate to establish session)
+            // We reuse the 'email' and 'password' from state which are still available
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
             const token = await user.getIdToken();
 
-            // Send to server to set admin cookie if applicable
             const res = await fetch("/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -86,6 +141,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
 
             const data = await res.json();
 
+            // 3. Update Global State
             onLogin({
                 name: user.displayName || user.email?.split("@")[0],
                 email: user.email || undefined,
@@ -98,20 +154,20 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             setTimeout(() => {
                 setIsDialogOpen(false);
                 router.push("/")
+                // Reset State
+                setTimeout(() => {
+                    setStep('credentials');
+                    setEmail("");
+                    setPassword("");
+                    setVerificationCode("");
+                    setTempUser(null);
+                }, 500);
             }, 2500);
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-            let errorMessage = err.message;
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-                errorMessage = 'Invalid email or password.';
-            }
-            setToast(errorMessage);
-        } finally {
-            // Only stop loading if it wasn't a success toast (success toast handles its own closing)
-            if (!toast?.startsWith('✅')) {
-                setIsSubmitting(false);
-            }
+        } catch (error) {
+            console.error(error);
+            setToast("An error occurred during verification.");
+            setIsSubmitting(false);
         }
     };
 
@@ -142,90 +198,123 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
 
                     <CardContent className="space-y-4 pt-2">
 
-                        <form onSubmit={handleLogin} className="space-y-6">
+                        <div className="min-h-[300px]"> {/* Fixed height container to prevent jumping */}
+                            {step === 'credentials' ? (
+                                <form onSubmit={handleLogin} className="space-y-6">
 
-                            {/* Email Field */}
-                            <div className="space-y-2">
-                                <Label htmlFor="email" className="text-sm font-semibold text-fuchsia-200">
-                                    PUP Webmail
-                                </Label>
-                                <Input
-                                    id="email"
-                                    placeholder="isitemember@iskolarngbayan.pup.edu.ph"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                            </div>
+                                    {/* Email Field */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email" className="text-sm font-semibold text-fuchsia-200">
+                                            PUP Webmail
+                                        </Label>
+                                        <Input
+                                            id="email"
+                                            placeholder="isitemember@iskolarngbayan.pup.edu.ph"
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
 
-                            {/* Password Field */}
-                            <div className="space-y-2">
-                                <Label htmlFor="password" className="text-sm font-semibold text-fuchsia-200">
-                                    Password
-                                </Label>
-                                <Input
-                                    id="password"
-                                    placeholder="Enter your password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                            </div>
+                                    {/* Password Field */}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="password" className="text-sm font-semibold text-fuchsia-200">
+                                            Password
+                                        </Label>
+                                        <Input
+                                            id="password"
+                                            placeholder="Enter your password"
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
 
-                            {/* Error/Success Toast Message */}
-                            <AnimatePresence>
-                                {toast && (
-                                    <motion.div
-                                        key="toast-in-card"
-                                        animate={{ opacity: 1, y: 0 }} // 🚀 MODIFIED: Simply animate opacity and y
-                                        initial={{ opacity: 0, y: 10 }} // Start slightly below
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className={`px-4 py-2 text-sm font-medium rounded-lg text-center ${toast.startsWith("✅")
-                                            ? "bg-green-600/90 text-white"
-                                            : "bg-red-600/90 text-white"
-                                            } transition-all duration-300`}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        {toast}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                    {/* Buttons */}
+                                    <div className="flex justify-between space-x-3 pt-2">
+                                        <Button
+                                            className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all"
+                                            disabled={isSubmitting}
+                                            type="submit"
+                                        >
+                                            {isSubmitting ? (
+                                                <span className="flex items-center justify-center">
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Logging In...
+                                                </span>
+                                            ) : (
+                                                "Log in"
+                                            )}
+                                        </Button>
+                                    </div>
+                                    
+                                     {/* Forgot Password */}
+                                    <div className="text-center text-xs pt-1 pb-4">
+                                        <a href="#" className="text-fuchsia-300 hover:text-fuchsia-100 transition-colors">
+                                            Forgot Password?
+                                        </a>
+                                    </div>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleVerify} className="space-y-6 pt-4">
+                                     <div className="text-center space-y-2">
+                                        <h3 className="text-lg font-semibold text-white">Verification Required</h3>
+                                        <p className="text-xs text-fuchsia-200">
+                                            We sent a code to <span className="font-mono text-fuchsia-100">{email}</span>
+                                        </p>
+                                     </div>
 
-                            {/* Buttons */}
-                            <div className="flex justify-between space-x-3 pt-2">
-                                <Button
-                                    className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all"
-                                    disabled={isSubmitting}
-                                    type="submit"
-                                >
-                                    {isSubmitting ? (
-                                        // 🚀 ADDED: Loading spinner and text
-                                        <span className="flex items-center justify-center">
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Logging In...
-                                        </span>
-                                    ) : (
-                                        "Log in"
-                                    )}
-                                </Button>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="code" className="text-sm font-semibold text-fuchsia-200">
+                                            Enter 6-Digit Code
+                                        </Label>
+                                        <Input
+                                            id="code"
+                                            placeholder="123456"
+                                            type="text"
+                                            value={verificationCode}
+                                            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                            className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 text-center text-2xl tracking-widest"
+                                            required
+                                            disabled={isSubmitting}
+                                            autoFocus
+                                        />
+                                    </div>
 
-
-                            </div>
-
-                            {/* Optional: Add a link for registration/forgot password */}
-                            <div className="text-center text-xs pt-1 pb-4">
-                                <a href="#" className="text-fuchsia-300 hover:text-fuchsia-100 transition-colors">
-                                    Forgot Password?
-                                </a>
-                            </div>
-
-                        </form>
+                                    <div className="flex justify-between space-x-3 pt-2">
+                                        <Button
+                                            type="button"
+                                            variant="ghost" 
+                                            className="text-fuchsia-300 hover:text-white hover:bg-white/10"
+                                            onClick={() => setStep('credentials')}
+                                            disabled={isSubmitting}
+                                        >
+                                            Back
+                                        </Button>
+                                        <Button
+                                            className="flex-1 bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all"
+                                            disabled={isSubmitting}
+                                            type="submit"
+                                        >
+                                            {isSubmitting ? (
+                                                <span className="flex items-center justify-center">
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Verifying...
+                                                </span>
+                                            ) : (
+                                                "Verify Code"
+                                            )}
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             </DialogContent>

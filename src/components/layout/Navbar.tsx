@@ -47,12 +47,13 @@ const mainNavLinks: NavbarNavLink[] = [
 
     // Grouped links
 
-    { href: '/ievaluation', label: 'iEvaluation', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
+    // Grouped links
     { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
-    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
     { href: '/iQr', label: 'iQr', rolesAllowed: ['admin', 'moderator', 'user'], group: 'tools' },
     { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
-    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' }
+    { href: '/ievaluation', label: 'iEvaluation', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
 ];
 // ------------------------------------------------------------------------
 
@@ -68,20 +69,35 @@ export default function Navbar() {
 
     // Sync global auth state to local navbar state
     React.useEffect(() => {
-        if (!authLoading && authUser) {
-            // Try to recover role from public cookie
-            const getCookie = (name: string) => {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop()?.split(';').shift();
+        const fetchUserRole = async () => {
+            if (!authLoading && authUser) {
+                try {
+                     // Dynamically import needed functions to avoid top-level SSR issues if any, 
+                     // though standard import is fine. adhering to previous patterns.
+                     const { doc, getDoc } = await import("firebase/firestore"); 
+                     const { db } = await import("@/services/firebase");
+                     
+                     const userDoc = await getDoc(doc(db, "users", authUser.uid));
+                     const userData = userDoc.data();
+                     const realRole = (userData?.role as UserRole) || 'user';
+                     
+                     setUser({
+                        ...authUser as unknown as User,
+                        role: realRole
+                     });
+                } catch (e) {
+                     console.error("Error fetching navbar role", e);
+                     // Fallback
+                     setUser({
+                        ...authUser as unknown as User,
+                        role: 'user'
+                     });
+                }
+            } else if (!authLoading && !authUser) {
+                setUser(null);
             }
-            const storedRole = getCookie('ui_role') as UserRole || 'user';
-
-            setUser({
-                ...authUser as unknown as User,
-                role: storedRole
-            });
-        }
+        };
+        fetchUserRole();
     }, [authUser, authLoading]);
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

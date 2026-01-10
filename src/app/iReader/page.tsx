@@ -1,8 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { auth, db } from "@/services/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { useZxing } from "react-zxing";
 import { motion, AnimatePresence } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 type QRData = {
   name: string;
@@ -14,6 +19,37 @@ type QRData = {
 };
 
 export default function IReader() {
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
+  // Auth Check
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const userData = userDoc.data();
+          const role = userData?.role || "user";
+
+          if (role === "admin" || role === "moderator") {
+            setIsAuthorized(true);
+          } else {
+            router.push("/");
+          }
+        } catch (error) {
+          console.error("Error checking role:", error);
+          router.push("/");
+        }
+      } else {
+        router.push("/");
+      }
+      setCheckingAuth(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
   const [decodedData, setDecodedData] = useState<QRData | null>(null);
   const [isCameraAllowed, setIsCameraAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +63,9 @@ export default function IReader() {
     new Date().toISOString().split("T")[0]
   );
 
-        // --------------------------------------------------------
-        // Uses ZXing module to handle QR code scanning from the video stream
-        // --------------------------------------------------------
+  // --------------------------------------------------------
+  // Uses ZXing module to handle QR code scanning from the video stream
+  // --------------------------------------------------------
   const { ref: zxingRef } = useZxing({
     onDecodeResult(result) {
       if (isProcessing) return;
@@ -197,6 +233,18 @@ export default function IReader() {
     setIsSetupDone(true);
     await requestCameraAccess();
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black/90">
+        <Loader2 className="h-10 w-10 animate-spin text-green-500" />
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-transparent text-white px-4">

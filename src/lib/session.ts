@@ -24,7 +24,7 @@ export async function encrypt(payload: SessionPayload) {
     return new SignJWT(payload)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("7d")
+        .setExpirationTime("10m")
         .sign(key);
 }
 
@@ -52,7 +52,7 @@ export async function createSession(uid: string, rawRole: string) {
     if (rawRole?.toLowerCase() === "admin") role = "admin";
     if (rawRole?.toLowerCase() === "moderator") role = "moderator";
 
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     const session = await encrypt({ uid, role, expiresAt });
 
     const cookieStore = await cookies(); // 

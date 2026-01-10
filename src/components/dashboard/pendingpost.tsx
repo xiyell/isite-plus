@@ -1,12 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/Card";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/Button";
 import {
@@ -23,33 +17,20 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
   CheckCircle,
   XCircle,
-  Clock,
   Loader2,
-  MessageSquare,
   AlertTriangle,
   User,
   ShieldAlert
 } from "lucide-react";
 
-import { db } from "@/services/firebase";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
 import { useAuth } from "@/services/auth";
+import { updatePostStatus, movePostToRecycleBin } from "@/actions/community"; // Server Actions
 
 /* ───────────────────────────────────────────── */
 /* TYPES                                        */
@@ -92,75 +73,69 @@ export default function AdminPostModerationPage() {
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
 
-  /* ─────────── ADMIN CHECK ─────────── */
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  async function assertAdmin(uid: string) {
-    const snap = await getDoc(doc(db, "users", uid));
-    if (!snap.exists() || snap.data().role !== "admin") {
-      toast({
-        title: "Access Denied",
-        description: "You must be an administrator to view this page.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      setPosts([]);
-      throw new Error("Not authorized");
-    }
-  }
+  const CATEGORIES = ["All", "General", "News", "Events", "Questions", "Feedback"];
 
   /* ─────────── FETCH POSTS ─────────── */
 
   async function loadPendingPosts() {
-    if (!user?.uid) {
-      setLoading(false);
+    if (!user) {
+      if (user === null) setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      await assertAdmin(user.uid);
 
-      const q = query(
-        collection(db, "community"),
-        where("status", "==", "pending")
-      );
+      const queryParams = new URLSearchParams({
+        status: statusFilter,
+        limit: "100" // Safety limit
+      });
+      if (categoryFilter !== "All") queryParams.append("category", categoryFilter);
 
-      const snap = await getDocs(q);
+      const res = await fetch(`/api/community?${queryParams.toString()}`);
+      if (!res.ok) {
+        if (res.status === 403) throw new Error("Unauthorized");
+        throw new Error("Failed to fetch");
+      }
+
+      const data = await res.json();
       const results: PendingPost[] = [];
 
-      for (const d of snap.docs) {
-        const data = d.data();
-        const postedByRef = data.postedBy?.path;
-        const userId = postedByRef ? postedByRef.split("/").pop() : "unknownId";
-
-        let authorName = "Unknown User";
-        if (userId && userId !== "unknownId") {
-          const userSnap = await getDoc(doc(db, "users", userId));
-          if (userSnap.exists()) authorName = userSnap.data().name;
-        }
-
-        const spamScore = calculateSpamScore(data.title || "", data.description || "");
-
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data.forEach((d: any) => {
+        const spamScore = calculateSpamScore(d.title || "", d.description || "");
         results.push({
           id: d.id,
-          authorId: userId,
-          authorUsername: authorName,
-          title: data.title,
-          contentSnippet: data.description || "No description provided.",
-          timestamp: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : "Recently",
-          category: data.category,
-          status: data.status,
+          authorId: d.postedBy?.id || "unknown",
+          authorUsername: d.postedBy?.name || "Unknown User",
+          title: d.title,
+          contentSnippet: d.description || "No description provided.",
+          timestamp: d.createdAt ? new Date(d.createdAt).toLocaleString() : "Recently",
+          category: d.category,
+          status: d.status,
           spamScore,
         });
-      }
+      });
 
       // Sort by newest first
       results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       setPosts(results);
+      setCurrentPage(1); // Reset page on new fetch
     } catch (error) {
-      console.error("Error loading pending posts:", error);
+      console.error("Error loading posts:", error);
+      toast({
+        title: "Error",
+        description: "Available only to Admins/Moderators.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -178,11 +153,12 @@ export default function AdminPostModerationPage() {
       // Optimistic Update
       setPosts(prev => prev.filter(p => p.id !== postId));
 
-      const updateData = status === 'rejected'
-        ? { status: 'deleted', isDeleted: true, deletedAt: new Date(), deletedBy: doc(db, 'users', user.uid) }
-        : { status: 'approved', approvedAt: new Date(), approvedBy: doc(db, 'users', user.uid) };
-
-      await updateDoc(doc(db, "community", postId), updateData);
+      if (status === 'approved') {
+        await updatePostStatus(postId, 'approved');
+      } else {
+        // Reject -> Recycle Bin
+        await movePostToRecycleBin(postId, user.uid);
+      }
 
       toast({
         title: `${status === "approved" ? "Approved" : "Rejected"} Post`,
@@ -199,13 +175,20 @@ export default function AdminPostModerationPage() {
     }
   }
 
+  /* ─────────── DERIVED STATE ─────────── */
+
+  const filteredPosts = posts.filter(p => {
+    const q = searchQuery.toLowerCase();
+    return !q || p.title.toLowerCase().includes(q) || p.authorUsername.toLowerCase().includes(q);
+  });
+
+  const paginatedPosts = filteredPosts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
   /* ─────────── BATCH MODERATION ─────────── */
-  const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      const visiblePosts = posts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-      setSelectedPosts(visiblePosts.map(p => p.id));
+      setSelectedPosts(paginatedPosts.map(p => p.id));
     } else {
       setSelectedPosts([]);
     }
@@ -222,25 +205,24 @@ export default function AdminPostModerationPage() {
   const handleBatchAction = async (action: "approve" | "reject") => {
     if (selectedPosts.length === 0) return;
     if (!confirm(`Are you sure you want to ${action} ${selectedPosts.length} posts?`)) return;
+    if (!user) return;
 
     try {
       // Optimistic UI update
-      const toDeleteIds = [...selectedPosts];
-      setPosts(prev => prev.filter(p => !toDeleteIds.includes(p.id)));
+      const toProcessIds = [...selectedPosts];
+      setPosts(prev => prev.filter(p => !toProcessIds.includes(p.id)));
       setSelectedPosts([]);
 
-      const res = await fetch("/api/community/batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postIds: toDeleteIds, action, userId: user?.uid }),
+      const promises = toProcessIds.map(id => {
+        if (action === 'approve') return updatePostStatus(id, 'approved');
+        return movePostToRecycleBin(id, user.uid);
       });
 
-      if (!res.ok) throw new Error("Batch action failed");
-      const data = await res.json();
+      await Promise.all(promises);
 
       toast({
         title: "Batch Action Successful",
-        description: data.message,
+        description: `Processed ${toProcessIds.length} posts.`,
         variant: action === "approve" ? "success" : "default",
       });
 
@@ -261,20 +243,17 @@ export default function AdminPostModerationPage() {
     if (user !== undefined) {
       loadPendingPosts();
     }
-  }, [user]);
-
-  // PAGINATION
-  const paginatedPosts = posts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  }, [user, statusFilter, categoryFilter]); // Trigger load on filter change
 
   /* ───────────────────────────────────────────── */
   /* UI                                           */
   /* ───────────────────────────────────────────── */
 
-  if (loading && user === undefined) {
+  if (loading && user === undefined) { // Wait for auth init
     return (
       <div className="flex items-center justify-center h-40 text-white">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        Loading moderation queue...
+        Checking permission...
       </div>
     );
   }
@@ -282,29 +261,66 @@ export default function AdminPostModerationPage() {
   return (
     <div className="space-y-6 text-white w-full"> {/* Removed min-h-screen to fit in dashboard better */}
 
-      {/* Header Actions */}
-      <div className="flex justify-between items-center">
-        <div>
-          {selectedPosts.length > 0 ? (
-            <div className="flex gap-2 animate-in fade-in slide-in-from-left-2 transition-all">
-              <Button onClick={() => handleBatchAction("approve")} variant="default" className="bg-green-600 hover:bg-green-700 h-9 text-xs uppercase font-bold tracking-wide border border-green-500/50">
-                <CheckCircle className="mr-2 h-3 w-3" /> Approve ({selectedPosts.length})
-              </Button>
-              <Button onClick={() => handleBatchAction("reject")} variant="destructive" className="bg-red-600 hover:bg-red-700 h-9 text-xs uppercase font-bold tracking-wide border border-red-500/50">
-                <XCircle className="mr-2 h-3 w-3" /> Reject ({selectedPosts.length})
-              </Button>
-            </div>
-          ) : (
-            <div className="text-gray-400 text-sm font-medium flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-indigo-400" />
-              Select items to perform mass actions
-            </div>
-          )}
+      {/* Filters & Actions */}
+      <div className="space-y-4">
+        {/* Filter Controls */}
+        <div className="flex flex-col md:flex-row gap-4 p-4 bg-white/5 rounded-lg border border-white/10">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search by title or author..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+          <div className="flex gap-4">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as any)}
+              className="bg-black/20 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              className="bg-black/20 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-xs text-gray-500 font-mono">
-            {posts.length} PENDING
-          </span>
+
+        {/* Action Bar */}
+        <div className="flex justify-between items-center">
+          <div>
+            {selectedPosts.length > 0 ? (
+              <div className="flex gap-2 animate-in fade-in slide-in-from-left-2 transition-all">
+                <Button onClick={() => handleBatchAction("approve")} variant="default" className="bg-green-600 hover:bg-green-700 h-9 text-xs uppercase font-bold tracking-wide border border-green-500/50">
+                  <CheckCircle className="mr-2 h-3 w-3" /> Approve ({selectedPosts.length})
+                </Button>
+                <Button onClick={() => handleBatchAction("reject")} variant="destructive" className="bg-red-600 hover:bg-red-700 h-9 text-xs uppercase font-bold tracking-wide border border-red-500/50">
+                  <XCircle className="mr-2 h-3 w-3" /> Reject ({selectedPosts.length})
+                </Button>
+              </div>
+            ) : (
+              <div className="text-gray-400 text-sm font-medium flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-indigo-400" />
+                Select ({selectedPosts.length}) items to perform mass actions
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-gray-500 font-mono">
+              {filteredPosts.length} POSTS
+            </span>
+            <Button variant="ghost" size="sm" onClick={loadPendingPosts} className="h-6 text-xs text-gray-400 hover:text-white">
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -383,8 +399,8 @@ export default function AdminPostModerationPage() {
                   {/* Spam Analysis */}
                   <TableCell className="border-r border-white/10 p-4 text-center align-middle">
                     <div className={`text-xs font-bold px-2 py-1 rounded inline-block ${(post.spamScore || 0) < 30 ? 'text-green-400 bg-green-900/20' :
-                        (post.spamScore || 0) < 70 ? 'text-yellow-400 bg-yellow-900/20' :
-                          'text-red-400 bg-red-900/20 border border-red-500/30'
+                      (post.spamScore || 0) < 70 ? 'text-yellow-400 bg-yellow-900/20' :
+                        'text-red-400 bg-red-900/20 border border-red-500/30'
                       }`}>
                       {(post.spamScore || 0) < 30 ? 'SAFE' : `${post.spamScore}% RISK`}
                     </div>
@@ -413,54 +429,28 @@ export default function AdminPostModerationPage() {
               ))
             ) : (
               /* Empty State */
-              Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
-                <TableRow key={i} className={`border-b border-white/10 pointer-events-none ${i === 0 ? '' : 'invisible'}`}>
-                  {i === 0 ? (
-                    <TableCell colSpan={6} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center text-gray-500">
-                        <CheckCircle className="h-10 w-10 mb-4 text-green-500/20" />
-                        <p className="text-lg font-medium text-white">All caught up!</p>
-                        <p className="text-sm">No pending posts to review.</p>
-                      </div>
-                    </TableCell>
-                  ) : (
-                    <>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                    </>
-                  )}
-                </TableRow>
-              ))
-            )}
-
-            {/* Filler Rows if not enough posts */}
-            {!loading && paginatedPosts.length > 0 && Array.from({ length: Math.max(0, ITEMS_PER_PAGE - paginatedPosts.length) }).map((_, i) => (
-              <TableRow key={`empty-${i}`} className="border-b border-white/10 pointer-events-none">
-                <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                <TableCell className="p-4">&nbsp;</TableCell>
+              <TableRow>
+                <TableCell colSpan={6} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center text-gray-500">
+                    <CheckCircle className="h-10 w-10 mb-4 text-green-500/20" />
+                    <p className="text-lg font-medium text-white">All caught up!</p>
+                    <p className="text-sm">No pending posts to review.</p>
+                  </div>
+                </TableCell>
               </TableRow>
-            ))}
-
+            )}
           </TableBody>
         </Table>
       </div>
 
       {/* Pagination */}
-      {!loading && posts.length > ITEMS_PER_PAGE && (
+      {!loading && filteredPosts.length > ITEMS_PER_PAGE && (
         <div className="flex justify-center pt-2">
           <Pagination>
             <PaginationContent>
-              <PaginationItem><PaginationPrevious onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className={`cursor-pointer ${currentPage === 1 ? 'opacity-50 pointer-events-none' : ''}`} /></PaginationItem>
+              <PaginationItem><PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1)); }} className={`cursor-pointer ${currentPage === 1 ? 'opacity-50 pointer-events-none' : ''}`} /></PaginationItem>
               <PaginationItem><span className="mx-4 text-white text-sm font-mono self-center">Page {currentPage}</span></PaginationItem>
-              <PaginationItem><PaginationNext onClick={() => setCurrentPage(p => Math.min(Math.ceil(posts.length / ITEMS_PER_PAGE), p + 1))} className={`cursor-pointer ${currentPage >= Math.ceil(posts.length / ITEMS_PER_PAGE) ? 'opacity-50 pointer-events-none' : ''}`} /></PaginationItem>
+              <PaginationItem><PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(Math.ceil(filteredPosts.length / ITEMS_PER_PAGE), p + 1)); }} className={`cursor-pointer ${currentPage >= Math.ceil(filteredPosts.length / ITEMS_PER_PAGE) ? 'opacity-50 pointer-events-none' : ''}`} /></PaginationItem>
             </PaginationContent>
           </Pagination>
         </div>

@@ -354,7 +354,7 @@ export default function AttendanceTracker() {
 
                         {/* Pagination Controls */}
                         {Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) > 1 && (
-                            <div className="py-4">
+                            <div className="py-4 flex justify-center">
                                 <Pagination>
                                     <PaginationContent>
                                         <PaginationItem>
@@ -362,11 +362,13 @@ export default function AttendanceTracker() {
                                                 href="#"
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    if (currentPage > 1) setCurrentPage(p => p - 1);
+                                                    setCurrentPage(p => Math.max(1, p - 1));
                                                 }}
-                                                className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                                                className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "cursor-pointer text-gray-300 hover:text-white"}
+                                                aria-label="Previous page"
                                             />
                                         </PaginationItem>
+                                        
                                         {Array.from({ length: Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
                                             <PaginationItem key={page}>
                                                 <PaginationLink
@@ -377,7 +379,7 @@ export default function AttendanceTracker() {
                                                     }}
                                                     isActive={page === currentPage}
                                                     className={page === currentPage
-                                                        ? "bg-indigo-600 text-white border-indigo-500"
+                                                        ? "bg-indigo-600 text-white border-indigo-500 hover:bg-indigo-700 hover:text-white"
                                                         : "text-gray-400 hover:text-white"
                                                     }
                                                 >
@@ -385,14 +387,16 @@ export default function AttendanceTracker() {
                                                 </PaginationLink>
                                             </PaginationItem>
                                         ))}
+                                        
                                         <PaginationItem>
                                             <PaginationNext
                                                 href="#"
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    if (currentPage < Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE)) setCurrentPage(p => p + 1);
+                                                    setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE), p + 1));
                                                 }}
-                                                className={currentPage === Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                                                className={currentPage >= Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "cursor-pointer text-gray-300 hover:text-white"}
+                                                aria-label="Next page"
                                             />
                                         </PaginationItem>
                                     </PaginationContent>

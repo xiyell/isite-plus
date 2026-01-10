@@ -4,78 +4,76 @@ import { useEffect, useRef, useCallback } from 'react';
 import { auth } from '@/services/firebase';
 import { useToast } from '@/components/ui/use-toast';
 
-// 5 minutes in milliseconds
-const TIMEOUT_MS = 5 * 60 * 1000;
+// 10 minutes in milliseconds
+const SESSION_DURATION = 10 * 60 * 1000;
+const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
 
 export default function SessionTimeout() {
     const { toast } = useToast();
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const absoluteTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Re-using the logout logic from Navbar for consistency
     const handleSignOut = useCallback(async () => {
         try {
-            console.log("Session timeout: Logging out due to inactivity...");
-
-            // 1. Sign out from Firebase
+            console.log("Session expired: Logging out...");
             await auth.signOut();
-
-            // 2. Clear server-side admin cookie via API
-            // Using beacon/keepalive to ensure request completes even as page unloads
             navigator.sendBeacon('/api/auth/logout');
-
-            // 3. Force redirect to home
             window.location.href = "/";
-
         } catch (error) {
             console.error("Auto-logout failed", error);
         }
     }, []);
 
-    const resetTimer = useCallback(() => {
-        if (timerRef.current) {
-            clearTimeout(timerRef.current);
-        }
-
-        // Only set timer if user is actually logged in
+    const resetInactivityTimer = useCallback(() => {
+        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+        
         if (auth.currentUser) {
-            timerRef.current = setTimeout(() => {
+            inactivityTimerRef.current = setTimeout(() => {
                 toast({
                     title: "Session Expired",
                     description: "You have been logged out due to inactivity.",
                     variant: "destructive",
                 });
                 handleSignOut();
-            }, TIMEOUT_MS);
+            }, INACTIVITY_TIMEOUT);
         }
     }, [handleSignOut, toast]);
 
     useEffect(() => {
-        // Events to listen for
-        const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+        // 1. Setup Absolute Timeout (Force login every 10 mins)
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            if (user) {
+                // When user logs in, set an absolute timer
+                if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+                absoluteTimerRef.current = setTimeout(() => {
+                    toast({
+                        title: "Session Timed Out",
+                        description: "Your 10-minute session has reached its limit. Please log in again.",
+                        variant: "destructive",
+                    });
+                    handleSignOut();
+                }, SESSION_DURATION);
 
-        // Handler wrapper
-        const handleActivity = () => {
-            resetTimer();
-        };
-
-        // Initialize timer
-        resetTimer();
-
-        // Add listeners
-        events.forEach(event => {
-            window.addEventListener(event, handleActivity);
+                resetInactivityTimer();
+            } else {
+                if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+                if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+            }
         });
 
-        // Cleanup
-        return () => {
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-            }
-            events.forEach(event => {
-                window.removeEventListener(event, handleActivity);
-            });
-        };
-    }, [resetTimer]);
+        // 2. Setup Inactivity Listeners
+        const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
+        const handleActivity = () => resetInactivityTimer();
 
-    return null; // This component renders nothing
+        events.forEach(event => window.addEventListener(event, handleActivity));
+
+        return () => {
+            unsubscribe();
+            if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+            if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+            events.forEach(event => window.removeEventListener(event, handleActivity));
+        };
+    }, [handleSignOut, resetInactivityTimer, toast]);
+
+    return null;
 }

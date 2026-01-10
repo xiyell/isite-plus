@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 import { requireAdmin } from "@/lib/auth-checks";
 
 export async function GET() {

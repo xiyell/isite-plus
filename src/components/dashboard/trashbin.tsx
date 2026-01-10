@@ -1,5 +1,4 @@
-
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { getTrash, restoreItem, permanentlyDeleteItem, TrashedItem, TrashType } from "@/actions/recyclebin";
@@ -8,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, Undo2, XCircle, Users, Send, Loader2, Bot } from "lucide-react";
+import { Trash2, Undo2, XCircle, Users, Send, Loader2, Bot, AlertTriangle, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
     Pagination,
@@ -22,9 +21,198 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
+// ---------------- ICON HELPERS ----------------
+const getIconConfig = (type: TrashedItem['type']) => {
+    switch (type) {
+        case 'post': return { Icon: Send, color: 'bg-indigo-600/30 text-indigo-300' };
+        case 'announcement': return { Icon: Send, color: 'bg-green-600/30 text-green-300' };
+        case 'user': return { Icon: Users, color: 'bg-red-600/30 text-red-300' };
+        case 'evaluation': return { Icon: Send, color: 'bg-purple-600/30 text-purple-300' };
+        case 'ibot': return { Icon: Bot, color: 'bg-blue-600/30 text-blue-300' };
+        default: return { Icon: Send, color: 'bg-gray-600/30 text-gray-300' };
+    }
+};
+
+const getPageNumbers = (current: number, total: number, max = 5) => {
+    const pages: number[] = [];
+    let start = Math.max(1, current - Math.floor(max / 2));
+    let end = Math.min(total, start + max - 1);
+    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+};
+
+// ---------------- SUB-COMPONENTS ----------------
+
+interface TrashRowProps {
+    item: TrashedItem;
+    onAction: (action: 'restore' | 'delete', item: TrashedItem) => void;
+}
+
+const TrashRow = ({ item, onAction }: TrashRowProps) => {
+    const typeConfig = getIconConfig(item.type);
+    return (
+        <TableRow className="hover:bg-white/5 transition-colors border-b border-white/10">
+            <TableCell className="border-r border-white/10 text-white p-4">
+                <Badge className={typeConfig.color + " rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0"}>
+                    {typeConfig.Icon && <typeConfig.Icon size={12} className="mr-1" />}
+                    {item.type.toUpperCase()}
+                </Badge>
+            </TableCell>
+            <TableCell className="border-r border-white/10 text-gray-300 p-4 font-medium truncate" title={item.title}>
+                {item.title}
+            </TableCell>
+            <TableCell className="border-r border-white/10 text-gray-300 p-4 truncate hidden sm:table-cell text-center align-middle">
+                {item.deletedBy}
+            </TableCell>
+            <TableCell className="border-r border-white/10 text-gray-300 p-4 whitespace-nowrap hidden md:table-cell text-center align-middle">
+                {item.deletedAt === 'Unknown' || !item.deletedAt ? (
+                    <span className="text-gray-500 text-xs">-</span>
+                ) : (
+                    <span className="font-mono text-xs text-gray-300">
+                        {new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                )}
+            </TableCell>
+            <TableCell className="text-center p-4 align-middle">
+                <div className="flex items-center justify-center gap-2">
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-400/10"
+                        onClick={() => onAction('restore', item)}
+                        title="Restore"
+                    >
+                        <Undo2 size={16} />
+                    </Button>
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                        onClick={() => onAction('delete', item)}
+                        title="Permanent Delete"
+                    >
+                        <XCircle size={16} />
+                    </Button>
+                </div>
+            </TableCell>
+        </TableRow>
+    );
+};
+
+interface TrashTableProps {
+    items: TrashedItem[];
+    onAction: (action: 'restore' | 'delete', item: TrashedItem) => void;
+    disabled?: boolean;
+}
+
+const TrashTable = ({ items, onAction, disabled }: TrashTableProps) => {
+    const [page, setPage] = useState(1);
+    const ITEMS_PER_PAGE = 5;
+
+    useEffect(() => {
+        const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
+        if (page > totalPages) setPage(totalPages);
+    }, [items.length, page]);
+
+    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+    const currentPage = Math.min(Math.max(1, page), Math.max(1, totalPages));
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    return (
+        <div className="space-y-4">
+            <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
+                <Table className="border-collapse w-full table-fixed">
+                    <TableHeader className="bg-white/10">
+                        <TableRow className="border-b border-white/20">
+                            <TableHead className="w-[100px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 align-middle">Type</TableHead>
+                            <TableHead className="border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 align-middle">Title / Identifier</TableHead>
+                            <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 hidden sm:table-cell text-center align-middle">Deleted By</TableHead>
+                            <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 hidden md:table-cell text-center align-middle">Deleted At</TableHead>
+                            <TableHead className="w-[100px] text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {items.length === 0 ? (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={5} className="text-center text-gray-500 py-10">
+                                    The trash bin is empty for this category.
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            <>
+                                {paginatedItems.map(item => (
+                                    <TrashRow key={item.id} item={item} onAction={onAction} />
+                                ))}
+                                {Array.from({ length: Math.max(0, ITEMS_PER_PAGE - paginatedItems.length) }).map((_, index) => (
+                                    <TableRow key={`empty-${index}`} className="border-b border-white/10 pointer-events-none opacity-0">
+                                        <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                                        <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                                        <TableCell className="border-r border-white/10 p-4 hidden sm:table-cell">&nbsp;</TableCell>
+                                        <TableCell className="border-r border-white/10 p-4 hidden md:table-cell">&nbsp;</TableCell>
+                                        <TableCell className="p-4">&nbsp;</TableCell>
+                                    </TableRow>
+                                ))}
+                            </>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+
+
+            {/* Pagination */}
+            {items.length > ITEMS_PER_PAGE && (
+                <div className="flex justify-center pt-4">
+                    <Pagination>
+                        <PaginationContent>
+                            <PaginationItem>
+                                <PaginationPrevious
+                                    href="#"
+                                    onClick={(e) => { e.preventDefault(); setPage(p => Math.max(1, p - 1)); }}
+                                    className={page === 1 || disabled ? 'opacity-50 pointer-events-none text-gray-400' : 'cursor-pointer text-gray-300 hover:text-white'}
+                                    aria-label="Previous page"
+                                />
+                            </PaginationItem>
+                            
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                                <PaginationItem key={p}>
+                                    <PaginationLink
+                                        href="#"
+                                        onClick={(e) => { e.preventDefault(); setPage(p); }}
+                                        isActive={p === page}
+                                        className={p === page
+                                            ? "bg-indigo-600 text-white border-indigo-500 hover:bg-indigo-700 hover:text-white"
+                                            : "text-gray-400 hover:text-white"
+                                        }
+                                    >
+                                        {p}
+                                    </PaginationLink>
+                                </PaginationItem>
+                            ))}
+
+                            <PaginationItem>
+                                <PaginationNext
+                                    href="#"
+                                    onClick={(e) => { e.preventDefault(); setPage(p => Math.min(totalPages, p + 1)); }}
+                                    className={page >= totalPages || disabled ? 'opacity-50 pointer-events-none text-gray-400' : 'cursor-pointer text-gray-300 hover:text-white'}
+                                    aria-label="Next page"
+                                />
+                            </PaginationItem>
+                        </PaginationContent>
+                    </Pagination>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ---------------- MAIN COMPONENT ----------------
+
 export default function TrashBinDashboard() {
     const [trashItems, setTrashItems] = useState<TrashedItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
 
     const [confirmState, setConfirmState] = useState<{
@@ -34,10 +222,6 @@ export default function TrashBinDashboard() {
         type: string;
         title: string;
     }>({ isOpen: false, action: null, id: '', type: '', title: '' });
-
-    // Pagination State
-    const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 5;
 
     // ---------------- FETCHING LOGIC ----------------
     const loadTrash = async () => {
@@ -63,110 +247,56 @@ export default function TrashBinDashboard() {
         loadTrash();
     }, []);
 
-    // ---------------- RESTORE ----------------
-    // ---------------- RESTORE ----------------
+    // ---------------- ACTIONS ----------------
+    const handleActionRequest = (action: 'restore' | 'delete', item: TrashedItem) => {
+        setConfirmState({
+            isOpen: true,
+            action,
+            id: item.id,
+            type: item.type,
+            title: item.title
+        });
+    };
+
     const handleRestore = async (id: string, type: string) => {
+        setIsProcessing(true);
         try {
             await restoreItem(id, type as TrashType);
-            toast({ title: "Restored", description: type + " restored successfully." });
-            loadTrash(); // refresh
+            toast({ title: "Restored", description: type + " restored successfully.", variant: "success" });
+            await loadTrash(); // refresh
         } catch (e) {
             console.error("Restore failed", e);
             toast({ variant: "destructive", title: "Restore failed", description: "Could not restore item." });
+        } finally {
+            setIsProcessing(false);
         }
     };
 
-    // ---------------- PERMANENT DELETE ----------------
     const handlePermanentDelete = async (id: string, type: string) => {
+        setIsProcessing(true);
         try {
             await permanentlyDeleteItem(id, type as TrashType);
-            toast({ title: "Deleted", description: type + " permanently deleted." });
-            loadTrash(); // refresh
+            toast({ title: "Deleted", description: type + " permanently deleted.", variant: "default" });
+            await loadTrash(); // refresh
         } catch (e) {
             console.error("Delete failed", e);
             toast({ variant: "destructive", title: "Delete failed", description: "Could not handle item." });
+        } finally {
+            setIsProcessing(false);
         }
     };
 
-    // ---------------- GROUPED ITEMS ----------------
+    // ---------------- STATE DERIVATION ----------------
     const posts = trashItems.filter(item => item.type === 'post');
     const announcements = trashItems.filter(item => item.type === 'announcement');
     const users = trashItems.filter(item => item.type === 'user');
     const evaluations = trashItems.filter(item => item.type === 'evaluation');
     const ibotItems = trashItems.filter(item => item.type === 'ibot');
 
-    // ---------------- ICON HELPERS ----------------
-    const getIconConfig = (type: TrashedItem['type']) => {
-        switch (type) {
-            case 'post': return { Icon: Send, color: 'bg-indigo-600/30 text-indigo-300' };
-            case 'announcement': return { Icon: Send, color: 'bg-green-600/30 text-green-300' };
-            case 'user': return { Icon: Users, color: 'bg-red-600/30 text-red-300' };
-            case 'evaluation': return { Icon: Send, color: 'bg-purple-600/30 text-purple-300' };
-            case 'ibot': return { Icon: Bot, color: 'bg-blue-600/30 text-blue-300' };
-            default: return { Icon: Send, color: 'bg-gray-600/30 text-gray-300' };
-        }
-    };
-
-    // ---------------- TRASH ROW ----------------
-    const TrashRow = ({ item }: { item: TrashedItem }) => {
-        const typeConfig = getIconConfig(item.type);
-        return (
-            <TableRow className="border-white/10 hover:bg-white/10 text-gray-200">
-                <TableCell className="w-[100px] sm:w-[120px] whitespace-nowrap">
-                    <Badge className={typeConfig.color}>
-                        {typeConfig.Icon && <typeConfig.Icon size={14} className="mr-1" />}
-                        {item.type.toUpperCase()}
-                    </Badge>
-                </TableCell>
-                <TableCell className="font-medium text-white max-w-xs truncate">{item.title}</TableCell>
-                <TableCell className="text-gray-400 hidden sm:table-cell">{item.deletedBy}</TableCell>
-                <TableCell className="text-gray-400 hidden md:table-cell whitespace-nowrap">{item.deletedAt}</TableCell>
-                <TableCell className="text-right w-[100px] sm:w-[180px]">
-                    <div className="flex flex-col sm:flex-row justify-end gap-1">
-                        <Button size="icon" variant="outline" className="text-green-500 border-green-500/50 hover:bg-green-500/10 w-full sm:w-8" onClick={() => setConfirmState({ isOpen: true, action: 'restore', id: item.id, type: item.type, title: item.title })} title="Restore">
-                            <Undo2 size={16} />
-                        </Button>
-                        <Button size="icon" variant="destructive" className="w-full sm:w-8" onClick={() => setConfirmState({ isOpen: true, action: 'delete', id: item.id, type: item.type, title: item.title })} title="Permanent Delete">
-                            <XCircle size={16} />
-                        </Button>
-                    </div>
-                </TableCell>
-            </TableRow>
-        );
-    };
-
-    // ---------------- TABLE ----------------
-    const TrashTable = ({ items }: { items: TrashedItem[] }) => (
-        <div className="overflow-x-auto border border-white/10 rounded-lg">
-            <Table className="min-w-[600px] md:min-w-full">
-                <TableHeader className="bg-black/20">
-                    <TableRow className="hover:bg-transparent border-white/10">
-                        <TableHead className="w-[100px] sm:w-[120px] text-gray-300 whitespace-nowrap">Type</TableHead>
-                        <TableHead className="text-gray-300 whitespace-nowrap">Title / Identifier</TableHead>
-                        <TableHead className="text-gray-300 hidden sm:table-cell whitespace-nowrap">Deleted By</TableHead>
-                        <TableHead className="text-gray-300 hidden md:table-cell whitespace-nowrap">Deleted At</TableHead>
-                        <TableHead className="text-right w-[100px] sm:w-[180px] text-gray-300 whitespace-nowrap">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {items.length === 0 ? (
-                        <TableRow className="hover:bg-transparent">
-                            <TableCell colSpan={5} className="text-center text-gray-500 py-10">
-                                The trash bin is empty for this category.
-                            </TableCell>
-                        </TableRow>
-                    ) : (
-                        items.map(item => <TrashRow key={item.id} item={item} />)
-                    )}
-                </TableBody>
-            </Table>
-        </div>
-    );
-
     return (
-        <div className="p-4 md:p-8 space-y-6 text-white">
+        <div className="p-4 md:p-8 space-y-6 text-white min-h-[500px]">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3 text-red-400">
-                <Trash2 size={28} className="md:size-32" /> Trash Bin
+                <Trash2 size={32} /> Trash Bin
             </h1>
             <CardDescription className="text-sm md:text-base text-gray-300">
                 Items listed here have been soft-deleted and can be restored. Permanent deletion is final.
@@ -191,11 +321,21 @@ export default function TrashBinDashboard() {
                             </div>
                         ) : (
                             <>
-                                <TabsContent value="posts"><TrashTable items={posts} /></TabsContent>
-                                <TabsContent value="announcements"><TrashTable items={announcements} /></TabsContent>
-                                <TabsContent value="users"><TrashTable items={users} /></TabsContent>
-                                <TabsContent value="evaluations"><TrashTable items={evaluations} /></TabsContent>
-                                <TabsContent value="ibot"><TrashTable items={ibotItems} /></TabsContent>
+                                <TabsContent value="posts">
+                                    <TrashTable items={posts} onAction={handleActionRequest} disabled={isProcessing} />
+                                </TabsContent>
+                                <TabsContent value="announcements">
+                                    <TrashTable items={announcements} onAction={handleActionRequest} disabled={isProcessing} />
+                                </TabsContent>
+                                <TabsContent value="users">
+                                    <TrashTable items={users} onAction={handleActionRequest} disabled={isProcessing} />
+                                </TabsContent>
+                                <TabsContent value="evaluations">
+                                    <TrashTable items={evaluations} onAction={handleActionRequest} disabled={isProcessing} />
+                                </TabsContent>
+                                <TabsContent value="ibot">
+                                    <TrashTable items={ibotItems} onAction={handleActionRequest} disabled={isProcessing} />
+                                </TabsContent>
                             </>
                         )}
                     </CardContent>
@@ -205,6 +345,7 @@ export default function TrashBinDashboard() {
             <ConfirmDialog
                 isOpen={confirmState.isOpen}
                 onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+                isLoading={isProcessing}
                 onConfirm={async () => {
                     if (confirmState.action === 'restore') {
                         await handleRestore(confirmState.id, confirmState.type);

@@ -44,7 +44,12 @@ export function ConfirmDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                    <Button 
+                        variant="outline" 
+                        onClick={onClose} 
+                        disabled={isLoading}
+                        className="bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white"
+                    >
                         {cancelText}
                     </Button>
                     <Button variant={variant} onClick={onConfirm} disabled={isLoading}>

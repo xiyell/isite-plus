@@ -103,6 +103,7 @@ export default function ActivityLogsContent() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] =
     useState<"all" | "posts" | "users" | "system">("all");
+  const [timeFilter, setTimeFilter] = useState<"all" | "24h" | "7d" | "30d">("all");
   const [severityFilter, setSeverityFilter] =
     useState<"all" | SeverityLevel>("all");
 
@@ -165,9 +166,18 @@ export default function ActivityLogsContent() {
       const matchesSeverity =
         severityFilter === "all" || log.severity === severityFilter;
 
-      return matchesSearch && matchesCategory && matchesSeverity;
+      let matchesTime = true;
+      if (timeFilter !== "all") {
+        const now = Date.now();
+        const diff = now - log.timestamp;
+        if (timeFilter === "24h") matchesTime = diff <= 24 * 60 * 60 * 1000;
+        else if (timeFilter === "7d") matchesTime = diff <= 7 * 24 * 60 * 60 * 1000;
+        else if (timeFilter === "30d") matchesTime = diff <= 30 * 24 * 60 * 60 * 1000;
+      }
+
+      return matchesSearch && matchesCategory && matchesSeverity && matchesTime;
     });
-  }, [sortedLogs, search, categoryFilter, severityFilter]);
+  }, [sortedLogs, search, categoryFilter, severityFilter, timeFilter]);
 
   /* ─────────────── PAGINATION ─────────────── */
 
@@ -221,7 +231,7 @@ export default function ActivityLogsContent() {
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="posts">Posts</SelectItem>
                 <SelectItem value="users">Users</SelectItem>
                 <SelectItem value="system">System</SelectItem>
@@ -233,10 +243,22 @@ export default function ActivityLogsContent() {
                 <SelectValue placeholder="Severity" />
               </SelectTrigger>
               <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">All Severities</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
                 <SelectItem value="high">High</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+              <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
+                <SelectValue placeholder="Time Range" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="24h">Last 24 Hours</SelectItem>
+                <SelectItem value="7d">Last 7 Days</SelectItem>
+                <SelectItem value="30d">Last 30 Days</SelectItem>
               </SelectContent>
             </Select>
           </div>

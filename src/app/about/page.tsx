@@ -28,16 +28,47 @@ const DeveloperAvatar = ({ name, imageSrc }: { name: string, imageSrc?: string }
 };
 
 
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/services/firebase";
+import { useEffect, useState } from "react";
+
 export default function AboutPage() {
 
-  // Enhanced Contributor data structure to include optional image source
-  const contributors = [
-    { name: "Gabriel Suarez", role: "Quality Assurance", imageSrc: "/images/contributors/gabriel.jpg" }, // Example path
+  const [contributors, setContributors] = useState([
+    { name: "Gabriel Suarez", role: "Quality Assurance", imageSrc: "/images/contributors/gabriel.jpg" },
     { name: "Ciel Angelo Mendoza", role: "Backend Developer", imageSrc: "/images/contributors/ciel.jpg" },
-    { name: "Carl Andrei Espino", role: "Backend Developer", imageSrc: "" }, // Placeholder will be used
+    { name: "Carl Andrei Espino", role: "Backend Developer", imageSrc: "" },
     { name: "Joshua Aniban", role: "Frontend Developer", imageSrc: "" },
     { name: "Levie Jeans Panese", role: "Frontend Developer", imageSrc: "/images/contributors/levie.jpg" },
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchContributorProfiles = async () => {
+      try {
+        const names = contributors.map(c => c.name);
+        // Firestore 'in' query supports up to 10 values
+        const q = query(collection(db, "users"), where("name", "in", names));
+        const querySnapshot = await getDocs(q);
+
+        const fetchedData: Record<string, string> = {};
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.name && data.photoURL) {
+            fetchedData[data.name] = data.photoURL;
+          }
+        });
+
+        setContributors(prev => prev.map(c => ({
+          ...c,
+          imageSrc: fetchedData[c.name] || c.imageSrc 
+        })));
+      } catch (error) {
+        console.error("Failed to fetch contributor profiles:", error);
+      }
+    };
+
+    fetchContributorProfiles();
+  }, []);
 
 
   return (

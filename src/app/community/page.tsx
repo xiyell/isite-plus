@@ -13,6 +13,8 @@ import {
 import { movePostToRecycleBin } from "@/actions/community";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -77,16 +79,16 @@ function formatDate(date: any) {
       "_seconds" in date &&
       typeof date._seconds === "number"
     ) {
-      return new Date(date._seconds * 1000).toLocaleString();
+      return new Date(date._seconds * 1000).toLocaleDateString();
     }
     if (
       typeof date === "object" &&
       "seconds" in date &&
       typeof date.seconds === "number"
     ) {
-      return new Date(date.seconds * 1000).toLocaleString();
+      return new Date(date.seconds * 1000).toLocaleDateString();
     }
-    return new Date(date).toLocaleString();
+    return new Date(date).toLocaleDateString();
   } catch {
     return "Unknown date";
   }
@@ -103,6 +105,13 @@ const getPageWindow = (current: number, total: number, maxButtons = 5) => {
 
   return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 };
+// ... (rest of file until DialogHeader)
+// This replacement is tricky because formatDate is far from DialogHeader. 
+// I will split this into two replacements. Can I?
+// "Do NOT make multiple parallel calls...".
+// "Use multi_replace_file_content".
+// I will use multi_replace_file_content.
+
 
 // --- Component Start ---
 export default function CommunityPage() {
@@ -125,6 +134,7 @@ export default function CommunityPage() {
   const [currentUser, setCurrentUser] = useState<{
     uid: string;
     name: string;
+    role?: string;
   } | null>(null);
 
   // Create Post Modal State
@@ -132,7 +142,6 @@ export default function CommunityPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newCategory, setNewCategory] = useState(categories[1] || "Tech");
-  const [newImageUrl, setNewImageUrl] = useState("");
   const [creating, setCreating] = useState(false);
 
   // Dynamic Tailwind classes (unchanged)
@@ -161,6 +170,11 @@ export default function CommunityPage() {
       return data;
     } catch (err) {
       console.error("Error fetching posts:", err);
+      toast({
+        title: "Error fetching posts",
+        description: "Could not load the community feed. Please try refreshing.",
+        variant: "destructive",
+      });
       return [];
     } finally {
       setIsLoading(false);
@@ -181,14 +195,34 @@ export default function CommunityPage() {
     fetchPosts();
   }, []);
 
-  // Auth State Listener (unchanged)
+  // Auth State Listener
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        setCurrentUser({
-          uid: user.uid,
-          name: user.displayName || "Anonymous",
-        });
+        // Fetch user details including role
+        try {
+           // We need to import doc and getDoc from firebase/firestore where db is defined
+           // But db is imported from services/firebase
+           // Let's assume we can use the client SDK here since we are in a client component
+           const { doc, getDoc } = await import("firebase/firestore"); 
+           const { db } = await import("@/services/firebase");
+           
+           const userDoc = await getDoc(doc(db, "users", user.uid));
+           const userData = userDoc.data();
+           
+           setCurrentUser({
+            uid: user.uid,
+            name: userData?.name || user.displayName || "Anonymous",
+            role: userData?.role || "user",
+          });
+        } catch (e) {
+          console.error("Error fetching user role", e);
+          setCurrentUser({
+            uid: user.uid,
+            name: user.displayName || "Anonymous",
+            role: "user",
+          });
+        }
       } else {
         setCurrentUser(null);
       }
@@ -196,7 +230,7 @@ export default function CommunityPage() {
     return () => unsub();
   }, []);
 
-  const isAdmin = currentUser ? ADMIN_UIDS.includes(currentUser.uid) : false;
+  const isAdmin = currentUser ? currentUser.role === 'admin' || currentUser.role === 'moderator' : false;
 
   // --- Filtering and Sorting (Client-Side) ---
   const filteredAndSortedPosts = posts
@@ -204,9 +238,9 @@ export default function CommunityPage() {
       // 🚫 Always hide deleted posts in normal community view
       if (c.status === "deleted") return false;
 
-      // 👤 Non-admins see only approved posts
+      // 👤 Non-admins see only approved posts, UNLESS it's their own pending post
       if (!isAdmin) {
-        if (c.status !== "approved") return false;
+        if (c.status !== "approved" && c.postedBy?.uid !== currentUser?.uid) return false;
       }
 
       // 👑 Admins/Users filter by category
@@ -450,7 +484,7 @@ export default function CommunityPage() {
       title: newTitle.trim(),
       description: newDescription.trim(),
       category: newCategory,
-      image: newImageUrl || "",
+      image: "", // Image uploads disabled
       postedBy: currentUser.uid,
       status: "pending",
     };
@@ -464,7 +498,7 @@ export default function CommunityPage() {
       setNewTitle("");
       setNewDescription("");
       setNewCategory(categories[1] || "Tech");
-      setNewImageUrl("");
+      // Image reset removed
 
       await fetchPosts();
 
@@ -748,15 +782,44 @@ export default function CommunityPage() {
                         <div>
                           {/* Post Header (unchanged) */}
                           <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
-                            <UserCircle className="w-8 h-8 text-primary/80 flex-shrink-0" />
-                            <div className="flex flex-col">
-                              <h3 className="text-sm font-bold text-white leading-none">
-                                {c.postedBy?.name || "Anonymous"}
-                              </h3>
-                              <span className="text-xs text-white/60">
-                                Posted on {formatDate(c.createdAt)}
-                              </span>
-                            </div>
+                            {c.postedBy?.uid ? (
+                              <Link 
+                                href={`/profile/${c.postedBy.uid}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-3 group/author"
+                              >
+                                {c.postedBy.photoURL ? (
+                                    <Avatar className="w-8 h-8 cursor-pointer border-2 border-transparent group-hover/author:border-white/50 transition-colors">
+                                        <AvatarImage src={c.postedBy.photoURL} />
+                                        <AvatarFallback className="bg-primary/20 text-primary-200 text-xs">
+                                          {c.postedBy.name?.[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                ) : (
+                                    <UserCircle className="w-8 h-8 text-primary/80 flex-shrink-0 group-hover/author:text-white transition-colors" />
+                                )}
+                                <div className="flex flex-col">
+                                  <h3 className="text-sm font-bold text-white leading-none group-hover/author:underline decoration-primary-400 underline-offset-2">
+                                    {c.postedBy?.name || "Anonymous"}
+                                  </h3>
+                                  <span className="text-xs text-white/60">
+                                    Posted on {formatDate(c.createdAt)}
+                                  </span>
+                                </div>
+                              </Link>
+                            ) : (
+                              <div className="flex items-center gap-3">
+                                <UserCircle className="w-8 h-8 text-primary/80 flex-shrink-0" />
+                                <div className="flex flex-col">
+                                  <h3 className="text-sm font-bold text-white leading-none">
+                                    {c.postedBy?.name || "Anonymous"}
+                                  </h3>
+                                  <span className="text-xs text-white/60">
+                                    Posted on {formatDate(c.createdAt)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
 
 
                             {/* Admin / Owner actions (unchanged) */}
@@ -922,15 +985,43 @@ export default function CommunityPage() {
                 >
                   <DialogHeader className="flex flex-row justify-between items-center space-y-0 pb-4 border-b border-white/20 mb-6">
                     <div className="flex items-center gap-3">
-                      <UserCircle className="w-10 h-10 text-primary-400" />
-                      <div>
-                        <DialogTitle className="font-extrabold text-xl">
-                          {openPost.postedBy?.name || "Anonymous"}
-                        </DialogTitle>
-                        <span className="text-xs text-white/70">
-                          {formatDate(openPost.createdAt)} | {openPost.category}
-                        </span>
-                      </div>
+                      {openPost.postedBy?.uid ? (
+                        <Link 
+                          href={`/profile/${openPost.postedBy.uid}`}
+                          className="flex items-center gap-3 group/author"
+                        >
+                          {openPost.postedBy.photoURL ? (
+                              <Avatar className="w-10 h-10 border-2 border-transparent group-hover/author:border-white/50 transition-colors">
+                                  <AvatarImage src={openPost.postedBy.photoURL} />
+                                  <AvatarFallback className="bg-primary/20 text-primary-200">
+                                    {openPost.postedBy.name?.[0]}
+                                  </AvatarFallback>
+                              </Avatar>
+                          ) : (
+                              <UserCircle className="w-10 h-10 text-primary-400 group-hover/author:text-white transition-colors" />
+                          )}
+                          <div>
+                            <DialogTitle className="font-extrabold text-xl group-hover/author:underline decoration-primary-400 underline-offset-2">
+                              {openPost.postedBy?.name || "Anonymous"}
+                            </DialogTitle>
+                            <span className="text-xs text-white/70">
+                              {formatDate(openPost.createdAt)} | {openPost.category}
+                            </span>
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <UserCircle className="w-10 h-10 text-primary-400" />
+                          <div>
+                            <DialogTitle className="font-extrabold text-xl">
+                              {openPost.postedBy?.name || "Anonymous"}
+                            </DialogTitle>
+                            <span className="text-xs text-white/70">
+                              {formatDate(openPost.createdAt)} | {openPost.category}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-3 items-center">
@@ -1036,10 +1127,28 @@ export default function CommunityPage() {
                                 className={`flex flex-col gap-1 rounded-xl p-4 transition-shadow shadow-md ${GLASSY_COMMENT_BG}`}
                               >
                                 <div className="flex items-center gap-2">
-                                  <UserCircle className="w-5 h-5 text-white/70" />
-                                  <span className="text-sm font-bold text-primary-200">
-                                    {c.commentedBy?.name || "Anonymous"}
-                                  </span>
+                                  {c.commentedBy?.uid ? (
+                                      <Link href={`/profile/${c.commentedBy.uid}`} className="flex items-center gap-2 group/commenter">
+                                          {c.commentedBy.photoURL ? (
+                                              <Avatar className="w-6 h-6 border border-white/10 group-hover/commenter:border-white/50 transition-colors">
+                                                  <AvatarImage src={c.commentedBy.photoURL} />
+                                                  <AvatarFallback className="text-[10px]">{c.commentedBy.name?.[0]}</AvatarFallback>
+                                              </Avatar>
+                                          ) : (
+                                              <UserCircle className="w-6 h-6 text-white/70 group-hover/commenter:text-white transition-colors" />
+                                          )}
+                                          <span className="text-sm font-bold text-primary-200 group-hover/commenter:underline underline-offset-2 decoration-primary-400">
+                                              {c.commentedBy?.name || "Anonymous"}
+                                          </span>
+                                      </Link>
+                                  ) : (
+                                      <>
+                                          <UserCircle className="w-5 h-5 text-white/70" />
+                                          <span className="text-sm font-bold text-primary-200">
+                                              {c.commentedBy?.name || "Anonymous"}
+                                          </span>
+                                      </>
+                                  )}
                                   <span className="text-xs text-white/50 ml-auto">
                                     {formatDate(c.createdAt)}
                                   </span>
@@ -1119,12 +1228,19 @@ export default function CommunityPage() {
             </DialogHeader>
 
             <div className="space-y-4">
-              <Input
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Title"
-                className={`w-full ${GLASSY_INPUT_CLASSES.replace('flex-1', '')}`}
-              />
+              <div className="space-y-1">
+                <Input
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="Title"
+                  maxLength={70}
+                  className={`w-full ${GLASSY_INPUT_CLASSES.replace('flex-1', '')}`}
+                />
+                <div className="text-right text-xs text-gray-400 px-1">
+                  {newTitle.length}/70
+                </div>
+              </div>
+              
               <textarea
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
@@ -1149,12 +1265,7 @@ export default function CommunityPage() {
                       </option>
                     ))}
                 </select>
-                <Input
-                  value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
-                  className={GLASSY_INPUT_CLASSES}
-                  placeholder="Image URL (optional)"
-                />
+                {/* Image input removed as requested */}
               </div>
 
               <div className="flex justify-end gap-3 mt-4">

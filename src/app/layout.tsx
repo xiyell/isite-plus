@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import IChat from "@/components/layout/ichat";
+import SessionTimeout from "@/components/layout/SessionTimeout";
 import { Toaster } from "@/components/ui/toaster";
 
 
@@ -61,6 +62,7 @@ export default function RootLayout({
 
           <Footer />
         </div>
+        <SessionTimeout />
         <Toaster />
       </body>
     </html>

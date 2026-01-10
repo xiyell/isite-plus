@@ -42,11 +42,11 @@ export async function getTrash(): Promise<TrashedItem[]> {
         if (d.deletedAt) {
           // Handle Firestore Timestamp or Date
           if (typeof d.deletedAt.toDate === 'function') {
-            deletedAt = d.deletedAt.toDate().toLocaleString();
+            deletedAt = d.deletedAt.toDate().toISOString();
           } else if (d.deletedAt instanceof Date) {
-            deletedAt = d.deletedAt.toLocaleString();
+            deletedAt = d.deletedAt.toISOString();
           } else if (typeof d.deletedAt === 'string' || typeof d.deletedAt === 'number') {
-            deletedAt = new Date(d.deletedAt).toLocaleString();
+            deletedAt = new Date(d.deletedAt).toISOString();
           }
         }
 
@@ -86,6 +86,35 @@ export async function getTrash(): Promise<TrashedItem[]> {
       fetchDeleted('evaluation', COLLECTION_MAP.evaluation),
       fetchDeleted('ibot', COLLECTION_MAP.ibot),
     ]);
+
+    // --- RESOLVE NAMES ---
+    // Collect unique UIDs from deletedBy fields
+    const uids = Array.from(new Set(result.map(item => item.deletedBy).filter(id => id && id !== "Unknown")));
+    
+    if (uids.length > 0) {
+      const userMap: Record<string, string> = {};
+      
+      // Batch fetch users if there are many, but for now we can do them in parallel or chunks
+      // Firestore 'in' query limit is 30.
+      const chunks = [];
+      for (let i = 0; i < uids.length; i += 30) {
+        chunks.push(uids.slice(i, i + 30));
+      }
+
+      await Promise.all(chunks.map(async (chunk) => {
+        const userSnaps = await db.collection("users").where("__name__", "in", chunk).get();
+        userSnaps.forEach(doc => {
+          userMap[doc.id] = doc.data().name || doc.data().email || doc.id;
+        });
+      }));
+
+      // Map UIDs to names in the result
+      result.forEach(item => {
+        if (userMap[item.deletedBy]) {
+          item.deletedBy = userMap[item.deletedBy];
+        }
+      });
+    }
 
     return result;
   } catch (error) {

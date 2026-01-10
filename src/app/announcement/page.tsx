@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { motion, Variants } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { CalendarIcon, MessageSquareIcon, Loader2 } from "lucide-react";
 
@@ -191,7 +192,8 @@ const FeaturedAnnouncement: React.FC<{
 };
 
 // --- Main Page ---
-export default function AnnouncementPage() {
+function AnnouncementContent() {
+    const searchParams = useSearchParams();
     const [allAnnouncements, setAllAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<Announcement | null>(null);
@@ -199,6 +201,17 @@ export default function AnnouncementPage() {
     const [page, setPage] = useState(1);
     const [visibleCount, setVisibleCount] = useState(ANNOUNCEMENTS_PER_PAGE);
     const [loadMoreLoading, setLoadMoreLoading] = useState(false);
+
+    // Auto-open announcement from URL ID
+    useEffect(() => {
+        const id = searchParams.get("id");
+        if (id && allAnnouncements.length > 0) {
+            const found = allAnnouncements.find((a) => a.id === id);
+            if (found) {
+                setSelected(found);
+            }
+        }
+    }, [searchParams, allAnnouncements]);
 
     const fallbackImage = useMemo(() => "/placeholder.png", []);
 
@@ -352,5 +365,17 @@ export default function AnnouncementPage() {
 
             <AnnouncementModal fallbackImage={fallbackImage} selected={selected} onClose={() => setSelected(null)} />
         </div>
+    );
+}
+
+export default function AnnouncementPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-black">
+                <Loader2 className="w-8 h-8 animate-spin text-fuchsia-500" />
+            </div>
+        }>
+            <AnnouncementContent />
+        </Suspense>
     );
 }

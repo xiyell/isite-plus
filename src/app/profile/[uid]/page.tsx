@@ -3,28 +3,18 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/services/firebase";
+import { useParams } from "next/navigation";
 import {
     doc,
     onSnapshot,
-    collection,
-    collectionGroup,
-    query,
-    where,
-    orderBy,
-    limit,
-    getDocs,
     Timestamp
 } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardTitle } from "@/components/ui/Card";
-import { Separator } from "@/components/ui/separator";
-import { Edit2, Loader2, Calendar, MapPin, GraduationCap, Trophy, MessageSquare, FileText, UserCircle } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { Edit2, Loader2, Calendar, GraduationCap, Trophy, MessageSquare, FileText, UserCircle } from "lucide-react";
 import { EditProfileModal, ProfileData, ThemeColor } from "@/components/profile/EditProfileModal";
-import { motion } from "framer-motion";
 
 // --- Types ---
 interface PostData {
@@ -50,7 +40,10 @@ const THEME_STYLES: Record<ThemeColor, { gradient: string, text: string, border:
 };
 
 export default function ProfilePage() {
-    const [user, setUser] = useState<User | null>(null);
+    const params = useParams();
+    const targetUid = params?.uid as string; // Get UID from URL
+
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -59,80 +52,56 @@ export default function ProfilePage() {
     const [stats, setStats] = useState({ posts: 0, comments: 0, karma: 0 });
     const [recentPosts, setRecentPosts] = useState<PostData[]>([]);
     const [recentComments, setRecentComments] = useState<CommentData[]>([]);
-    const { toast } = useToast();
+
+    const isOwner = currentUser?.uid === targetUid;
 
     useEffect(() => {
-        const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-            if (!currentUser) {
-                setLoading(false);
-            }
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
         });
         return () => unsubscribeAuth();
     }, []);
 
-    // Fetch Profile Realtime
+    // Fetch Target Profile Realtime
     useEffect(() => {
-        if (!user) return;
+        if (!targetUid) return;
 
-        const unsubscribeSnapshot = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+        const unsubscribeSnapshot = onSnapshot(doc(db, "users", targetUid), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setProfile({
-                    uid: user.uid,
-                    name: data.name || user.displayName || "Anonymous",
+                    uid: targetUid,
+                    name: data.name || "Anonymous",
                     bio: data.bio || "No bio yet.",
                     // Defaults if missing
                     yearLevel: data.yearLevel || "N/A",
                     section: data.section || "N/A",
                     theme: data.theme || "cyan",
-                    photoURL: data.photoURL || user.photoURL || "",
+                    photoURL: data.photoURL || "",
                     showOnlineStatus: data.showOnlineStatus ?? true,
                     studentId: data.studentId || "N/A"
                 });
                 
-                // Also update stats that are stored on the user doc if you have them there (e.g. Karma)
-                // For now, karma is passed via profile but we kept it separate in state for clarity
                 setStats(prev => ({ ...prev, karma: data.karma || 0 }));
             } else {
-                // profile doc doesn't exist? Create a fallback or handle it
-                setProfile({
-                    uid: user.uid,
-                    name: user.displayName || "New User",
-                    bio: "Ready to start my journey!",
-                    yearLevel: "1st Year",
-                    section: "None",
-                    theme: "cyan",
-                    photoURL: user.photoURL || "",
-                    showOnlineStatus: true,
-                    studentId: "N/A" 
-                });
+                setProfile(null); // User not found
             }
             setLoading(false);
         });
 
         return () => unsubscribeSnapshot();
-    }, [user]);
+    }, [targetUid]);
 
     // Fetch Activity using Server Action (More robust for Reference handling)
     useEffect(() => {
-        if (!user) return;
+        if (!targetUid) return;
 
         const fetchActivity = async () => {
             try {
                 // Dynamically import to ensure server action is called correctly
                 const { getUserActivity } = await import("@/actions/community");
                 
-                const { posts: fetchedPosts, comments: fetchedComments, indexError } = await getUserActivity(user.uid);
-
-                if (indexError) {
-                    toast({
-                        title: "System Alert: Missing Database Index",
-                        description: "Comments cannot be loaded. Check your server console for the Firebase Index creation link.",
-                        variant: "destructive",
-                        duration: 10000,
-                    });
-                }
+                const { posts: fetchedPosts, comments: fetchedComments } = await getUserActivity(targetUid);
 
                 // Helper to mimic Firestore Timestamp for UI consistency
                 const toTimestamp = (iso?: string | null) => {
@@ -163,16 +132,11 @@ export default function ProfilePage() {
 
             } catch (err) {
                 console.error("Critical failure in fetchActivity:", err);
-                toast({
-                    title: "Error loading activity",
-                    description: "Could not fetch your recent posts and comments. Please try again later.",
-                    variant: "destructive",
-                });
             }
         };
 
         fetchActivity();
-    }, [user]);
+    }, [targetUid]);
 
     if (loading) {
         return (
@@ -185,13 +149,13 @@ export default function ProfilePage() {
         );
     }
 
-    if (!user || !profile) {
+    if (!profile) {
         return (
             <div className="min-h-screen flex items-center justify-center text-white">
                 <div className="text-center space-y-4">
                     <UserCircle className="w-16 h-16 mx-auto text-gray-600" />
-                    <h2 className="text-xl font-bold">Please Sign In</h2>
-                    <p className="text-gray-400">You need to be logged in to view your profile.</p>
+                    <h2 className="text-xl font-bold">User Not Found</h2>
+                    <p className="text-gray-400">The profile you are looking for does not exist.</p>
                 </div>
             </div>
         );
@@ -254,15 +218,17 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        {/* Edit Button */}
-                        <Button 
-                            onClick={() => setIsEditOpen(true)}
-                            variant="secondary" 
-                            className="bg-white/10 hover:bg-white/20 text-white border border-white/10 shrink-0"
-                        >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Customize
-                        </Button>
+                        {/* Edit Button - ONLY FOR OWNER */}
+                        {isOwner && (
+                            <Button 
+                                onClick={() => setIsEditOpen(true)}
+                                variant="secondary" 
+                                className="bg-white/10 hover:bg-white/20 text-white border border-white/10 shrink-0"
+                            >
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                Customize
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -272,7 +238,7 @@ export default function ProfilePage() {
                         { label: "Karma Points", value: stats.karma, icon: Trophy, color: "text-amber-400" },
                         { label: "Total Posts", value: stats.posts, icon: FileText, color: "text-blue-400" },
                         { label: "Comments", value: stats.comments, icon: MessageSquare, color: "text-emerald-400" },
-{ label: "Joined", value: user?.metadata.creationTime ? new Date(user.metadata.creationTime).getFullYear() : "N/A", icon: Calendar, color: "text-fuchsia-400" },
+                        { label: "Joined", value: "2024", icon: Calendar, color: "text-fuchsia-400" }, // Static for now or fetch createdAt
                     ].map((stat, i) => (
                         <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.07] transition-colors flex flex-col items-center justify-center text-center gap-2">
                              <stat.icon className={`w-6 h-6 ${stat.color} mb-1 opacity-80`} />
