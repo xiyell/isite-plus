@@ -25,6 +25,14 @@ export async function requireAdmin() {
     return session;
 }
 
+export async function requireModerator() {
+    const session = await requireAuth();
+    if (session.role !== "admin" && session.role !== "moderator") {
+        throw new Error("Forbidden: Moderator or Admin access required");
+    }
+    return session;
+}
+
 export function handleAuthError(error: unknown) {
     console.error("Auth Error:", error);
     if (error instanceof Error) {

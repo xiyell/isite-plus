@@ -407,9 +407,7 @@ export default function AttendanceTracker() {
                 )}
             </div>
 
-            <p className="mt-8 text-slate-500 text-sm">
-                *Data fetched from the `/api/attendance` endpoint.
-            </p>
+    
         </div>
     );
 }

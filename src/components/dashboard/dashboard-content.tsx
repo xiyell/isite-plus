@@ -84,7 +84,7 @@ export default function DashboardContent() {
 	const [messageState, setMessageState] = useState<{ message: string, type: 'success' | 'error' | 'warning' } | null>(null);
 	const { toast } = useToast();
 
-	// 🌉 Bridge: Convert legacy messageState to Toast
+	//  Bridge: Convert legacy messageState to Toast
 	useEffect(() => {
 		if (messageState) {
 			toast({
@@ -742,8 +742,8 @@ export default function DashboardContent() {
 						{/* 5. Users Management */}
 						{activeTab === "usersManagement" && (
 							<motion.div key="users" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<Card className="bg-black/10 backdrop-blur-xl border-white/10">
-									<CardHeader><CardTitle>User Management</CardTitle><CardDescription>Manage user roles and permissions.</CardDescription></CardHeader>
+								<Card className="bg-white/10 backdrop-blur-xl border-white/10">
+									<CardHeader><CardTitle className="text-white">User Management</CardTitle><CardDescription>Manage user roles and permissions.</CardDescription></CardHeader>
 									<CardContent>
 										<div className="flex items-center mb-4"><Input placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-white/5 border-white/10" /></div>
 										<Table>

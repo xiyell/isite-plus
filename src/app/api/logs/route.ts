@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 export const dynamic = 'force-dynamic';
 
-import { requireAdmin } from "@/lib/auth-checks";
+import { requireModerator } from "@/lib/auth-checks";
 
 export async function GET() {
     try {
-        await requireAdmin();
+        await requireModerator();
         // Mock logs for now
         return NextResponse.json([
             { id: "1", category: "system", action: "Build", severity: "low", message: "Build completed", time: "10:00 AM", timestamp: Date.now() }

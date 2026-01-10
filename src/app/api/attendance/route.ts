@@ -10,11 +10,11 @@ interface AttendanceRecord {
   timestamp: string;
 }
 
-import { requireAdmin } from "@/lib/auth-checks";
+import { requireAdmin, requireModerator } from "@/lib/auth-checks";
 
 export async function POST(req: Request) {
   try {
-    await requireAdmin(); // Protect: Only admins can record attendance via this API
+    await requireModerator(); // Protect: Only admins/mods can record attendance via this API
 
     const { name, idNumber, yearLevel, section, sheetDate } = await req.json();
 
@@ -91,7 +91,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    await requireAdmin(); // Protect: Only admins can view attendance
+    await requireModerator(); // Protect: Only admins/mods can view attendance
 
     const url = new URL(req.url);
     const sheetDate = url.searchParams.get("sheetDate");
