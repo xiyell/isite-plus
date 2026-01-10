@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/services/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
+import { requireAuth, requireAdmin } from "@/lib/auth-checks";
 
 // GET: Fetch posts (can filter by status via query param)
 export async function GET(req: NextRequest) {
     try {
+        await requireAuth(); // Login required
+
         const { searchParams } = new URL(req.url);
         const status = searchParams.get("status"); // e.g., 'pending' or 'approved' (default: all if not specified)
 
-        // Community collections
         // Community collections
         const db = getAdminDb();
         const postsRef = db.collection("community");
@@ -39,14 +41,39 @@ export async function GET(req: NextRequest) {
     }
 }
 
+import { checkSpam, checkProfanity, checkCooldown } from "@/lib/moderation";
+
 // POST: Create a new post
 export async function POST(req: NextRequest) {
     try {
+        const session = await requireAuth(); // Login required
+        const userId = session.uid;
+
         const body = await req.json();
         const { title, description, category, image, postedBy, createdAt, status } = body;
 
         if (!title || !description || !postedBy) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+
+        // 1. Content Moderation Checks
+        const contentText = `${title} ${description}`;
+
+        if (checkSpam(contentText)) {
+            return NextResponse.json({ error: "Your post looks like spam. Please revise." }, { status: 400 });
+        }
+
+        if (checkProfanity(contentText)) {
+            return NextResponse.json({ error: "Your post contains inappropriate language." }, { status: 400 });
+        }
+
+        // 2. Cooldown Check (5 minutes)
+        // Only check cooldown for non-admins if desired, or for everyone. Usually admins bypass.
+        if (session.role !== 'admin') {
+            const canPost = await checkCooldown(userId, "community");
+            if (!canPost) {
+                return NextResponse.json({ error: "You are posting too frequently. Please wait 5 minutes." }, { status: 429 });
+            }
         }
 
         const db = getAdminDb();
@@ -73,6 +100,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ id: res.id, message: "Post created successfully" }, { status: 201 });
     } catch (error: unknown) {
         console.error("Error creating post:", error);
+        if (error instanceof Error && (error.message.includes("Unauthorized") || error.message.includes("Forbidden"))) {
+            return NextResponse.json({ error: error.message }, { status: 403 });
+        }
         return NextResponse.json({ error: (error as Error).message || "Failed to create post" }, { status: 500 });
     }
 }
@@ -80,6 +110,8 @@ export async function POST(req: NextRequest) {
 // PATCH: Update post (Approve/Reject OR Like/Dislike)
 export async function PATCH(req: NextRequest) {
     try {
+        const session = await requireAuth();
+
         const body = await req.json();
         const { postId, action, type, userId } = body;
         const db = getAdminDb();
@@ -90,13 +122,18 @@ export async function PATCH(req: NextRequest) {
         }
 
         // 1. Admin Actions
-        if (action === "approve") {
-            await postRef.update({ status: "approved" });
-            return NextResponse.json({ message: "Post approved" });
-        }
-        if (action === "reject") {
-            await postRef.update({ status: "rejected" });
-            return NextResponse.json({ message: "Post rejected" });
+        if (action === "approve" || action === "reject") {
+            if (session.role !== 'admin') {
+                return NextResponse.json({ error: "Forbidden: Admin only" }, { status: 403 });
+            }
+            if (action === "approve") {
+                await postRef.update({ status: "approved" });
+                return NextResponse.json({ message: "Post approved" });
+            }
+            if (action === "reject") {
+                await postRef.update({ status: "rejected" });
+                return NextResponse.json({ message: "Post rejected" });
+            }
         }
 
         // 2. Like/Dislike Actions
@@ -112,6 +149,9 @@ export async function PATCH(req: NextRequest) {
 
     } catch (error: unknown) {
         console.error("Error updating post:", error);
+        if (error instanceof Error && (error.message.includes("Unauthorized") || error.message.includes("Forbidden"))) {
+            return NextResponse.json({ error: error.message }, { status: 403 });
+        }
         return NextResponse.json({ error: (error as Error).message || "Failed to update post" }, { status: 500 });
     }
 }

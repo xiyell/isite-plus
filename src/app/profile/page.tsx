@@ -428,19 +428,50 @@ export default function StudentProfilePage() {
             const userRef = doc(db, "users", uid);
 
             // --- Fetch Profile ---
-            const profileSnap = await getDoc(userRef);
-            if (!profileSnap.exists()) {
-                // If profile doesn't exist, create a basic one (optional, but robust)
-                // Skip for this implementation to keep it clean, but handle error.
-                throw new Error("Profile document not found.");
+            let profile: FirestoreProfile;
+            let profileSnap;
+
+            try {
+                profileSnap = await getDoc(userRef);
+                if (profileSnap.exists()) {
+                    profile = { id: profileSnap.id, ...profileSnap.data() } as unknown as FirestoreProfile;
+                } else {
+                    // Fallback if doc doesn't exist but we have auth
+                    throw new Error("Profile not found");
+                }
+            } catch (profileError) {
+                console.warn("Profile fetch failed (likely permissions), using fallback:", profileError);
+                // Fallback object to prevent crash
+                profile = {
+                    uid: uid,
+                    email: auth.currentUser?.email || "",
+                    name: auth.currentUser?.displayName || "User",
+                    role: "user",
+                    studentId: "N/A",
+                    yearLevel: "N/A",
+                    section: "N/A",
+                    theme: "cyan",
+                    showOnlineStatus: true,
+                    karma: 0
+                } as FirestoreProfile;
             }
-            const profile = { id: profileSnap.id, ...profileSnap.data() } as unknown as FirestoreProfile;
+
             setProfileData(profile);
 
             // --- Fetch Activity ---
-            const userDocRef: DocumentReference = userRef;
-            const q = query(collection(db, "community"), where("postedBy", "==", userDocRef), where("status", "==", "approved"));
-            const activitySnapshot = await getDocs(q);
+            // Helper to safe-fetch activity
+            const fetchActivity = async () => {
+                try {
+                    const userDocRef: DocumentReference = userRef;
+                    const q = query(collection(db, "community"), where("postedBy", "==", userDocRef), where("status", "==", "approved"));
+                    return await getDocs(q);
+                } catch (e) {
+                    console.warn("Activity fetch failed:", e);
+                    return { docs: [] }; // Return empty if failed
+                }
+            };
+
+            const activitySnapshot = await fetchActivity();
 
             let fetchedPosts: PostData[] = [];
             let fetchedComments: CommentData[] = [];

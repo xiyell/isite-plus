@@ -81,7 +81,12 @@ export default function IBot() {
         // Listen real-time for all responses (Logic omitted for brevity)
         const unsub = onSnapshot(collection(db, "ibot_responses"), (snap) => {
             const list: BotResponse[] = [];
-            snap.forEach((d) => list.push({ id: d.id, ...d.data() } as BotResponse));
+            snap.forEach((d) => {
+                const data = d.data();
+                if (!data.isDeleted && data.status !== 'deleted') {
+                    list.push({ id: d.id, ...data } as BotResponse);
+                }
+            });
             setResponses(list);
         });
 
@@ -123,12 +128,17 @@ export default function IBot() {
     };
 
     // ──────────────────────────────────────────────────────────
-    // DELETE REPLY
+    // DELETE REPLY (Soft Delete)
     // ──────────────────────────────────────────────────────────
     const handleDelete = async (id: string) => {
         try {
-            await deleteDoc(doc(db, "ibot_responses", id));
-            toast({ title: "Deleted", description: "Reply removed", variant: "default" });
+            const ref = doc(db, "ibot_responses", id);
+            await updateDoc(ref, {
+                isDeleted: true,
+                status: 'deleted',
+                deletedAt: Date.now(),
+            });
+            toast({ title: "Deleted", description: "Reply moved to trash", variant: "default" });
         } catch (error) {
             console.error("Error deleting reply:", error);
             toast({ title: "Error", description: "Delete failed", variant: "destructive" });

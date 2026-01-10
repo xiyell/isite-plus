@@ -11,7 +11,8 @@ import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
 
 // --- Shadcn UI Components ---
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
@@ -206,6 +207,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             <DialogContent
                 className="sm:max-w-[380px] w-[95%] max-h-[90vh] overflow-y-auto p-0 bg-transparent border-none"
             >
+                <VisuallyHidden><DialogTitle>Register Modal</DialogTitle></VisuallyHidden>
 
                 {/* CARD CONTAINER */}
                 <Card className="border border-fuchsia-500/30 bg-fuchsia-950/70 backdrop-blur-xl shadow-2xl relative">

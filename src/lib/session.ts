@@ -6,10 +6,11 @@ const secretKey = process.env.SESSION_SECRET;
 
 export type SessionPayload = {
     uid: string;
-    role: "admin" | "user";
+    role: "admin" | "user" | "moderator";
     expiresAt: Date;
 };
 
+/* -------------------- JWT HELPERS -------------------- */
 /* -------------------- JWT HELPERS -------------------- */
 
 export async function encrypt(payload: SessionPayload) {
@@ -47,8 +48,9 @@ export async function decrypt(session?: string) {
 
 export async function createSession(uid: string, rawRole: string) {
     // Normalize role
-    const role: "admin" | "user" =
-        rawRole?.toLowerCase() === "admin" ? "admin" : "user";
+    let role: "admin" | "user" | "moderator" = "user";
+    if (rawRole?.toLowerCase() === "admin") role = "admin";
+    if (rawRole?.toLowerCase() === "moderator") role = "moderator";
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const session = await encrypt({ uid, role, expiresAt });

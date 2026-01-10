@@ -4,61 +4,53 @@ import { decrypt } from "@/lib/session";
 import { cookies } from "next/headers";
 
 // MAP ROUTE → ALLOWED ACCESS LEVELS
-const accessRules: Record<string, ("guest" | "user" | "admin")[]> = {
-  "/dashboard": ["admin"],
-  "/profile": ["user", "admin"],
-  "/community": ["user", "admin"],
-  "/feedback": ["user", "admin"],
-  "/iQr": ["user", "admin"],
-  "/iReader": ["user", "admin"],
-  "/announcement": ["user", "admin"],
-  "/admin": ["admin"],
+const accessRules: Record<string, ("guest" | "user" | "admin" | "moderator")[]> = {
+  "/dashboard": ["admin", "moderator"],
+  "/profile": ["user", "admin", "moderator"],
+  "/community": ["user", "admin", "moderator"],
+  "/feedback": ["user", "admin", "moderator"],
+  "/iQr": ["admin", "moderator", "user"],
+  "/iReader": ["admin", "moderator"],
+  "/announcement": ["user", "admin", "moderator"],
+  "/admin": ["admin"], // Keep admin-only
 };
 
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  console.log(`[Middleware] Processing: ${pathname}`);
+
+  // 1. Check for Session Cookie
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  console.log(`[Middleware] Session cookie found: ${!!session}`);
+
+  const payload = await decrypt(session);
+  let normalizedRole: "guest" | "user" | "admin" | "moderator" = "guest";
+
+  if (payload?.role) {
+    normalizedRole = payload.role;
+  }
+  console.log(`[Middleware] Role determined: ${normalizedRole}`);
+
+  // 2. Check Access Rules
+  for (const route in accessRules) {
+    // Exact match OR sub-path match (e.g. /dashboard/settings)
+    if (pathname === route || pathname.startsWith(`${route}/`)) {
+      const allowed = accessRules[route];
+      console.log(`[Middleware] Route ${pathname} matches rule for ${route}. Allowed roles: ${allowed.join(", ")}`);
+
+      if (!allowed.includes(normalizedRole)) {
+        console.log(`[Middleware] ⛔ Access Denied: ${pathname} for ${normalizedRole}`);
+        const url = req.nextUrl.clone();
+        url.pathname = "/"; // Redirect home or login
+        return NextResponse.redirect(url);
+      } else {
+        console.log(`[Middleware] ✅ Access Granted for ${pathname}`);
+      }
+    }
+  }
+
   return NextResponse.next();
-
-  // const { pathname } = req.nextUrl;
-  // console.log("🔒 Middleware Active:", pathname);
-
-  // // 1. Check for Session Cookie
-  // const cookieStore = await cookies();
-  // const session = cookieStore.get("session")?.value;
-  // console.log(`🔒 Middleware Probe: Session Cookie Present? ${!!session}`);
-  // if (session) {
-  //   console.log(`🔒 Middleware Probe: Session Cookie Length: ${session.length}`);
-  // }
-
-  // const payload = await decrypt(session);
-
-  // let normalizedRole: "guest" | "user" | "admin" = "guest";
-
-  // if (payload?.role) {
-  //   normalizedRole = payload.role;
-  //   console.log(`🔒 Middleware Probe: Decrypted Role: ${normalizedRole}`);
-  // } else {
-  //   console.log("🔒 Middleware Probe: Decryption resulted in no role/payload");
-  // }
-
-  // // Debug log for role
-  // console.log(`🔒 Middleware Check: ${pathname} | Role: ${normalizedRole}`);
-
-  // // 2. Check Access Rules
-  // for (const route in accessRules) {
-  //   // Exact match OR sub-path match (e.g. /dashboard/settings)
-  //   if (pathname === route || pathname.startsWith(`${route}/`)) {
-  //     const allowed = accessRules[route];
-
-  //     if (!allowed.includes(normalizedRole)) {
-  //       console.log(`⛔ Access Denied: ${pathname} for ${normalizedRole}`);
-  //       const url = req.nextUrl.clone();
-  //       url.pathname = "/"; // Redirect home
-  //       return NextResponse.redirect(url);
-  //     }
-  //   }
-  // }
-
-  // return NextResponse.next();
 }
 
 export const config = {

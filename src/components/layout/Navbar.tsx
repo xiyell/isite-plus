@@ -41,18 +41,18 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
 // UPDATED mainNavLinks ARRAY - Structured as requested
 // ------------------------------------------------------------------------
 const mainNavLinks: NavbarNavLink[] = [
-    { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin'] },
-    { href: '/announcement', label: 'Announcement', rolesAllowed: ['user', 'admin', 'guest'] },
-    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin',] },
+    { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
+    { href: '/announcement', label: 'Announcement', rolesAllowed: ['user', 'admin', 'guest', 'moderator'] },
+    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'moderator'] },
 
     // Grouped links
 
-    { href: '/feedback', label: 'Feedback', rolesAllowed: ['user', 'admin'], group: 'tools' },
-    { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin'], group: 'tools' },
-    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin'], group: 'tools' },
-    { href: '/iQr', label: 'iQr', rolesAllowed: ['admin', 'user', 'guest'], group: 'tools' },
-    { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'user', 'guest'], group: 'tools' },
-    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'user', 'guest'], group: 'tools' }
+    { href: '/ievaluation', label: 'iEvaluation', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/iQr', label: 'iQr', rolesAllowed: ['admin', 'moderator', 'user'], group: 'tools' },
+    { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
+    { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' }
 ];
 // ------------------------------------------------------------------------
 

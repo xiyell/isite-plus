@@ -29,9 +29,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     try {
         const { id } = await params;
         const db = getAdminDb();
-        await db.collection("users").doc(id).delete();
-        return NextResponse.json({ message: "User deleted" });
+        const { FieldValue } = require('firebase-admin/firestore');
+
+        // Soft Delete
+        await db.collection("users").doc(id).update({
+            isDeleted: true,
+            status: 'deleted',
+            deletedAt: FieldValue.serverTimestamp()
+        });
+
+        return NextResponse.json({ message: "User moved to trash" });
     } catch (error) {
+        console.error("Soft delete user failed", error);
         return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
     }
 }

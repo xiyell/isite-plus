@@ -13,6 +13,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
+
 // --- Types (Re-defined for clarity) ---
 interface UserData {
     id: string;
@@ -50,6 +59,10 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
     const [sortKey, setSortKey] = useState<'name' | 'email' | 'role' | 'lastLogin'>('name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
     const getRoleVariant = (role: string) => {
         switch (role) {
             case 'admin': return 'bg-purple-600 hover:bg-purple-700';
@@ -75,6 +88,10 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
         if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
         return 0;
     });
+
+    // Pagination Logic
+    const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
+    const paginatedUsers = sortedUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const SortIcon = ({ keyName }: { keyName: typeof sortKey }) => {
         if (sortKey !== keyName) return null;
@@ -136,7 +153,7 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         </TableHeader>
                         <TableBody>
                             <AnimatePresence initial={false}>
-                                {sortedUsers.map((user) => (
+                                {paginatedUsers.map((user) => (
                                     <motion.tr
                                         key={user.id}
                                         initial={{ opacity: 0 }}
@@ -209,6 +226,54 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         </TableBody>
                     </Table>
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="mt-4">
+                        <Pagination>
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (currentPage > 1) setCurrentPage(p => p - 1);
+                                        }}
+                                        className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
+                                    />
+                                </PaginationItem>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <PaginationItem key={page}>
+                                        <PaginationLink
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setCurrentPage(page);
+                                            }}
+                                            isActive={page === currentPage}
+                                            className={page === currentPage
+                                                ? "bg-indigo-600 text-white border-indigo-500"
+                                                : "text-gray-400 hover:text-white hover:bg-white/10"
+                                            }
+                                        >
+                                            {page}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+                                <PaginationItem>
+                                    <PaginationNext
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (currentPage < totalPages) setCurrentPage(p => p + 1);
+                                        }}
+                                        className={currentPage === totalPages ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );

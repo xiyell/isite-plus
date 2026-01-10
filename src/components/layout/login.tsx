@@ -10,7 +10,8 @@ import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
 
 // --- Shadcn UI Components ---
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Button } from "@/components/ui/Button"; // Use the standard button alias for the trigger
 // Using shadcn's Card structure for a cleaner container
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -130,6 +131,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             <DialogContent
                 className="sm:max-w-[420px] w-[90%] p-0 bg-transparent border-none" // 🚀 MODIFIED: Added w-[90%] for better mobile sizing
             >
+                <VisuallyHidden><DialogTitle>Login Modal</DialogTitle></VisuallyHidden>
 
                 <Card className="border border-fuchsia-500/30 bg-fuchsia-950/70 backdrop-blur-xl shadow-2xl relative">
                     <CardHeader className="text-center pt-8 pb-4">

@@ -20,6 +20,14 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -57,7 +65,7 @@ import { User } from "@/types/user";
 // --- Configuration Constants ---
 const categories = ["All", "Tech", "Gaming", "Art", "Science", "Fun", "Other"];
 const ADMIN_UIDS: string[] = []; // Replace with actual admin UIDs
-const postsPerPage = 10;
+const postsPerPage = 5;
 const commentsPerPage = 5;
 
 // --- Helper Functions ---
@@ -828,53 +836,60 @@ export default function CommunityPage() {
               </AnimatePresence>
             </motion.section>
 
-            {/* Posts Pagination (Glassy) (unchanged) */}
+            {/* Posts Pagination (Glassy) */}
             {totalPostPages > 1 && (
               <motion.div
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-7xl flex justify-center mt-12"
                 initial={{ opacity: 0, y: 10 }}
               >
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 p-2 shadow-inner">
-                  <Button
-                    aria-label="Previous page"
-                    variant="ghost"
-                    size="sm"
-                    className={GLASSY_BUTTON_GHOST}
-                    disabled={postPage === 1}
-                    onClick={() =>
-                      handlePostPageChange(Math.max(1, postPage - 1))
-                    }
-                  >
-                    Prev
-                  </Button>
-                  {getPageWindow(postPage, totalPostPages, 5).map((p) => (
-                    <Button
-                      key={p}
-                      size="sm"
-                      className={`rounded-full h-8 w-8 text-sm transition-all ${postPage === p
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : GLASSY_BUTTON_GHOST
-                        }`}
-                      onClick={() => handlePostPageChange(p)}
-                    >
-                      {p}
-                    </Button>
-                  ))}
-                  <Button
-                    aria-label="Next page"
-                    variant="ghost"
-                    size="sm"
-                    className={GLASSY_BUTTON_GHOST}
-                    disabled={postPage === totalPostPages}
-                    onClick={() =>
-                      handlePostPageChange(
-                        Math.min(totalPostPages, postPage + 1)
-                      )
-                    }
-                  >
-                    Next
-                  </Button>
+                <div className="rounded-xl border border-white/30 bg-white/10 p-2 shadow-inner backdrop-blur-md">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePostPageChange(Math.max(1, postPage - 1));
+                          }}
+                          className={postPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-white hover:bg-white/10 hover:text-white"}
+                        />
+                      </PaginationItem>
+                      {/* Use getPageWindow helper/logic if total pages is large, otherwise map all */}
+                      {(totalPostPages <= 5
+                        ? Array.from({ length: totalPostPages }, (_, i) => i + 1)
+                        : getPageWindow(postPage, totalPostPages, 5)
+                      ).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handlePostPageChange(page);
+                            }}
+                            isActive={page === postPage}
+                            className={page === postPage
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full"
+                              : "text-white hover:bg-white/10 hover:text-white rounded-full"
+                            }
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handlePostPageChange(Math.min(totalPostPages, postPage + 1));
+                          }}
+                          className={postPage === totalPostPages ? "pointer-events-none opacity-50 text-gray-400" : "text-white hover:bg-white/10 hover:text-white"}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
                 </div>
               </motion.div>
             )}

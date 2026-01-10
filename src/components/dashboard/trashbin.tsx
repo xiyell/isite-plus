@@ -1,103 +1,99 @@
+
 'use client';
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where, doc, deleteDoc, updateDoc } from "firebase/firestore";
-import { db } from "@/services/firebase";
+import { getTrash, restoreItem, permanentlyDeleteItem, TrashedItem, TrashType } from "@/actions/recyclebin";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trash2, Undo2, XCircle, Users, Send, Loader2 } from "lucide-react";
+import { Trash2, Undo2, XCircle, Users, Send, Loader2, Bot } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
-// ---------------- TYPES ----------------
-export interface TrashedItem {
-    id: string;
-    type: 'post' | 'announcement' | 'user';
-    title: string;
-    deletedBy: string;
-    deletedAt: string;
-}
+import { useToast } from "@/components/ui/use-toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function TrashBinDashboard() {
     const [trashItems, setTrashItems] = useState<TrashedItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
 
-    // ---------------- FETCH SOFT-DELETED ITEMS ----------------
-    const fetchTrash = async () => {
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        action: 'restore' | 'delete' | null;
+        id: string;
+        type: string;
+        title: string;
+    }>({ isOpen: false, action: null, id: '', type: '', title: '' });
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 5;
+
+    // ---------------- FETCHING LOGIC ----------------
+    const loadTrash = async () => {
         setLoading(true);
-        const items: TrashedItem[] = [];
-
-        // 1️⃣ Community Posts
-        const postsSnap = await getDocs(
-            query(collection(db, "community"), where("status", "==", "deleted"))
-        );
-        postsSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            items.push({
-                id: docSnap.id,
-                type: "post",
-                title: data.title || "Untitled Post",
-                deletedBy: data.deletedBy?.path || "Unknown",
-                deletedAt: data.deletedAt?.toDate().toLocaleString() || "Unknown",
+        try {
+            console.log("Trashbin: Fetching deleted items via Server Action...");
+            const items = await getTrash();
+            console.log("Trashbin: Fetched items:", items);
+            setTrashItems(items);
+        } catch (error) {
+            console.error("Trashbin: Error fetching trash:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to load trash bin (Server Error).",
             });
-        });
-
-        // 2️⃣ Announcements
-        const annSnap = await getDocs(
-            query(collection(db, "announcements"), where("status", "==", "deleted"))
-        );
-        annSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            items.push({
-                id: docSnap.id,
-                type: "announcement",
-                title: data.title || "Untitled Announcement",
-                deletedBy: data.deletedBy?.path || "Unknown",
-                deletedAt: data.deletedAt?.toDate().toLocaleString() || "Unknown",
-            });
-        });
-
-        // 3️⃣ Users
-        const usersSnap = await getDocs(
-            query(collection(db, "users"), where("status", "==", "deleted"))
-        );
-        usersSnap.forEach(docSnap => {
-            const data = docSnap.data();
-            items.push({
-                id: docSnap.id,
-                type: "user",
-                title: data.name || data.email || "Unknown User",
-                deletedBy: data.deletedBy?.path || "Unknown",
-                deletedAt: data.deletedAt?.toDate().toLocaleString() || "Unknown",
-            });
-        });
-
-        setTrashItems(items);
-        setLoading(false);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
-        fetchTrash();
+        loadTrash();
     }, []);
 
     // ---------------- RESTORE ----------------
+    // ---------------- RESTORE ----------------
     const handleRestore = async (id: string, type: string) => {
-        let collectionName = type === "post" ? "community" : type === "announcement" ? "announcements" : "users";
-        const docRef = doc(db, collectionName, id);
-        
-        await updateDoc(docRef, { status: "approved", deletedBy: null, deletedAt: null });
-        fetchTrash(); // refresh
+        try {
+            await restoreItem(id, type as TrashType);
+            toast({ title: "Restored", description: type + " restored successfully." });
+            loadTrash(); // refresh
+        } catch (e) {
+            console.error("Restore failed", e);
+            toast({ variant: "destructive", title: "Restore failed", description: "Could not restore item." });
+        }
     };
 
     // ---------------- PERMANENT DELETE ----------------
     const handlePermanentDelete = async (id: string, type: string) => {
-        let collectionName = type === "post" ? "community" : type === "announcement" ? "announcements" : "users";
-        const docRef = doc(db, collectionName, id);
-        await deleteDoc(docRef);
-        fetchTrash(); // refresh
+        try {
+            await permanentlyDeleteItem(id, type as TrashType);
+            toast({ title: "Deleted", description: type + " permanently deleted." });
+            loadTrash(); // refresh
+        } catch (e) {
+            console.error("Delete failed", e);
+            toast({ variant: "destructive", title: "Delete failed", description: "Could not handle item." });
+        }
     };
+
+    // ---------------- GROUPED ITEMS ----------------
+    const posts = trashItems.filter(item => item.type === 'post');
+    const announcements = trashItems.filter(item => item.type === 'announcement');
+    const users = trashItems.filter(item => item.type === 'user');
+    const evaluations = trashItems.filter(item => item.type === 'evaluation');
+    const ibotItems = trashItems.filter(item => item.type === 'ibot');
 
     // ---------------- ICON HELPERS ----------------
     const getIconConfig = (type: TrashedItem['type']) => {
@@ -105,6 +101,9 @@ export default function TrashBinDashboard() {
             case 'post': return { Icon: Send, color: 'bg-indigo-600/30 text-indigo-300' };
             case 'announcement': return { Icon: Send, color: 'bg-green-600/30 text-green-300' };
             case 'user': return { Icon: Users, color: 'bg-red-600/30 text-red-300' };
+            case 'evaluation': return { Icon: Send, color: 'bg-purple-600/30 text-purple-300' };
+            case 'ibot': return { Icon: Bot, color: 'bg-blue-600/30 text-blue-300' };
+            default: return { Icon: Send, color: 'bg-gray-600/30 text-gray-300' };
         }
     };
 
@@ -124,12 +123,10 @@ export default function TrashBinDashboard() {
                 <TableCell className="text-gray-400 hidden md:table-cell whitespace-nowrap">{item.deletedAt}</TableCell>
                 <TableCell className="text-right w-[100px] sm:w-[180px]">
                     <div className="flex flex-col sm:flex-row justify-end gap-1">
-                        <Button size="icon" variant="outline" className="text-green-500 border-green-500/50 hover:bg-green-500/10 w-full sm:w-8" onClick={() => handleRestore(item.id, item.type)} title="Restore">
+                        <Button size="icon" variant="outline" className="text-green-500 border-green-500/50 hover:bg-green-500/10 w-full sm:w-8" onClick={() => setConfirmState({ isOpen: true, action: 'restore', id: item.id, type: item.type, title: item.title })} title="Restore">
                             <Undo2 size={16} />
                         </Button>
-                        <Button size="icon" variant="destructive" className="w-full sm:w-8" onClick={() => {
-                            if (window.confirm(`PERMANENTLY delete ${item.type}: "${item.title}"?`)) handlePermanentDelete(item.id, item.type);
-                        }} title="Permanent Delete">
+                        <Button size="icon" variant="destructive" className="w-full sm:w-8" onClick={() => setConfirmState({ isOpen: true, action: 'delete', id: item.id, type: item.type, title: item.title })} title="Permanent Delete">
                             <XCircle size={16} />
                         </Button>
                     </div>
@@ -166,11 +163,6 @@ export default function TrashBinDashboard() {
         </div>
     );
 
-    // ---------------- GROUPED ITEMS ----------------
-    const posts = trashItems.filter(item => item.type === 'post');
-    const announcements = trashItems.filter(item => item.type === 'announcement');
-    const users = trashItems.filter(item => item.type === 'user');
-
     return (
         <div className="p-4 md:p-8 space-y-6 text-white">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3 text-red-400">
@@ -187,6 +179,8 @@ export default function TrashBinDashboard() {
                             <TabsTrigger value="posts" className="data-[state=active]:bg-indigo-600/30 data-[state=active]:text-white whitespace-nowrap">Posts ({posts.length})</TabsTrigger>
                             <TabsTrigger value="announcements" className="data-[state=active]:bg-green-600/30 data-[state=active]:text-white whitespace-nowrap">Announcements ({announcements.length})</TabsTrigger>
                             <TabsTrigger value="users" className="data-[state=active]:bg-red-600/30 data-[state=active]:text-white whitespace-nowrap">Users ({users.length})</TabsTrigger>
+                            <TabsTrigger value="evaluations" className="data-[state=active]:bg-purple-600/30 data-[state=active]:text-white whitespace-nowrap">Evaluations ({evaluations.length})</TabsTrigger>
+                            <TabsTrigger value="ibot" className="data-[state=active]:bg-blue-600/30 data-[state=active]:text-white whitespace-nowrap">iBot ({ibotItems.length})</TabsTrigger>
                         </TabsList>
                     </CardHeader>
                     <CardContent className="pt-6">
@@ -200,11 +194,33 @@ export default function TrashBinDashboard() {
                                 <TabsContent value="posts"><TrashTable items={posts} /></TabsContent>
                                 <TabsContent value="announcements"><TrashTable items={announcements} /></TabsContent>
                                 <TabsContent value="users"><TrashTable items={users} /></TabsContent>
+                                <TabsContent value="evaluations"><TrashTable items={evaluations} /></TabsContent>
+                                <TabsContent value="ibot"><TrashTable items={ibotItems} /></TabsContent>
                             </>
                         )}
                     </CardContent>
                 </Tabs>
             </Card>
+
+            <ConfirmDialog
+                isOpen={confirmState.isOpen}
+                onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={async () => {
+                    if (confirmState.action === 'restore') {
+                        await handleRestore(confirmState.id, confirmState.type);
+                    } else if (confirmState.action === 'delete') {
+                        await handlePermanentDelete(confirmState.id, confirmState.type);
+                    }
+                    setConfirmState(prev => ({ ...prev, isOpen: false }));
+                }}
+                title={confirmState.action === 'restore' ? "Restore Item?" : "Permanently Delete?"}
+                description={confirmState.action === 'restore'
+                    ? `Are you sure you want to restore this ${confirmState.type}: "${confirmState.title}"?`
+                    : `PERMANENTLY delete ${confirmState.type}: "${confirmState.title}"? This action CANNOT be undone.`
+                }
+                confirmText={confirmState.action === 'restore' ? "Yes, restore" : "Yes, delete permanently"}
+                variant={confirmState.action === 'restore' ? "default" : "destructive"}
+            />
         </div>
     );
 }

@@ -18,6 +18,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   CheckCircle,
   XCircle,
@@ -73,6 +82,8 @@ export default function AdminPostModerationPage() {
   const { user } = useAuth(); // must expose uid
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
 
   /* ─────────── ADMIN CHECK ─────────── */
 
@@ -156,17 +167,21 @@ export default function AdminPostModerationPage() {
     try {
       await assertAdmin(user.uid);
 
-      await updateDoc(doc(db, "community", postId), {
-        status,
-      });
+      const updateData = status === 'rejected'
+        ? { status: 'deleted', isDeleted: true, deletedAt: Date.now() }
+        : { status: 'approved' };
+
+      await updateDoc(doc(db, "community", postId), updateData);
 
       setPosts(prev => prev.filter(p => p.id !== postId));
 
       // TOAST: Action Success
       toast({
         title: `${status === "approved" ? "Approved" : "Rejected"} Post`,
-        description: `Post ID: ${postId} has been successfully ${status}.`,
-        variant: status === "approved" ? "success" : "destructive", // Use 'destructive' for rejection
+        description: status === "approved"
+          ? `Post ID: ${postId} has been successfully approved.`
+          : `Post ID: ${postId} has been moved to the Trash Bin.`,
+        variant: status === "approved" ? "success" : "default",
       });
 
     } catch (error) {
@@ -179,6 +194,62 @@ export default function AdminPostModerationPage() {
       });
     }
   }
+
+  /* ─────────── BATCH MODERATION ─────────── */
+  const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Select all visible posts on current page
+      const visiblePosts = posts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+      setSelectedPosts(visiblePosts.map(p => p.id));
+    } else {
+      setSelectedPosts([]);
+    }
+  };
+
+  const handleSelectOne = (postId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPosts(prev => [...prev, postId]);
+    } else {
+      setSelectedPosts(prev => prev.filter(id => id !== postId));
+    }
+  };
+
+  const handleBatchAction = async (action: "approve" | "reject") => {
+    if (selectedPosts.length === 0) return;
+    if (!confirm(`Are you sure you want to ${action} ${selectedPosts.length} posts?`)) return;
+
+    try {
+      const res = await fetch("/api/community/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postIds: selectedPosts, action }),
+      });
+
+      if (!res.ok) throw new Error("Batch action failed");
+
+      const data = await res.json();
+
+      // Update local state
+      setPosts(prev => prev.filter(p => !selectedPosts.includes(p.id)));
+      setSelectedPosts([]);
+
+      toast({
+        title: "Batch Action Successful",
+        description: data.message,
+        variant: action === "approve" ? "success" : "default",
+      });
+
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Batch Action Failed",
+        description: "Could not complete batch operation.",
+        variant: "destructive",
+      });
+    }
+  };
 
   /* ─────────── EFFECT ─────────── */
 
@@ -208,9 +279,29 @@ export default function AdminPostModerationPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-4xl font-extrabold text-white tracking-tight">
-          Community Post Moderation
-        </h1>
+        <div>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight">
+            Community Post Moderation
+          </h1>
+          {selectedPosts.length > 0 && (
+            <div className="mt-2 flex gap-2 animate-in fade-in slide-in-from-top-1">
+              <Button
+                size="sm"
+                onClick={() => handleBatchAction("approve")}
+                className="bg-green-600 hover:bg-green-700 text-white border-green-500"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" /> Approve Selected ({selectedPosts.length})
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleBatchAction("reject")}
+                className="bg-red-600 hover:bg-red-700 text-white border-red-500"
+              >
+                <XCircle className="mr-2 h-4 w-4" /> Reject Selected ({selectedPosts.length})
+              </Button>
+            </div>
+          )}
+        </div>
         {/* Consistent button style */}
         <Button
           variant="ghost"
@@ -252,6 +343,13 @@ export default function AdminPostModerationPage() {
           <Table>
             <TableHeader>
               <TableRow className={GLASSY_HEADER_ROW}>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedPosts.length > 0 && selectedPosts.length === Math.min(posts.length, ITEMS_PER_PAGE)}
+                    onCheckedChange={handleSelectAll}
+                    className="border-white/50 data-[state=checked]:bg-indigo-600"
+                  />
+                </TableHead>
                 <TableHead className={TEXT_SECONDARY}>
                   Author & Time
                 </TableHead>
@@ -267,102 +365,111 @@ export default function AdminPostModerationPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-10">
+                  <TableCell colSpan={4} className="text-center py-10">
                     <Loader2 className="inline h-5 w-5 animate-spin mr-2 text-primary" />
                     <span className={TEXT_SECONDARY}>Loading posts...</span>
                   </TableCell>
                 </TableRow>
               ) : (
                 <>
-                  {posts.map(post => (
-                    <TableRow
-                      key={post.id}
-                      className={GLASSY_HOVER_ROW}
-                    >
-                      {/* Column 1: Author & Time */}
-                      <TableCell className="max-w-[150px] text-white">
-                        <div className="flex items-center space-x-2">
-                          <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <p className="font-semibold text-white truncate">{post.authorUsername}</p>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {post.timestamp}
-                        </p>
-                      </TableCell>
+                  {posts
+                    .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                    .map(post => (
+                      <TableRow
+                        key={post.id}
+                        className={GLASSY_HOVER_ROW}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedPosts.includes(post.id)}
+                            onCheckedChange={(checked) => handleSelectOne(post.id, checked as boolean)}
+                            className="border-white/50 data-[state=checked]:bg-indigo-600"
+                          />
+                        </TableCell>
+                        {/* Column 1: Author & Time */}
+                        <TableCell className="max-w-[150px] text-white">
+                          <div className="flex items-center space-x-2">
+                            <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <p className="font-semibold text-white truncate">{post.authorUsername}</p>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {post.timestamp}
+                          </p>
+                        </TableCell>
 
-                      {/* Column 2: Post Details */}
-                      <TableCell className="max-w-xl text-white">
-                        <div className="flex gap-2 mb-1">
-                          <Badge
-                            // Consistent badge style for pending status
-                            className="bg-yellow-600/30 text-yellow-300 font-bold border border-yellow-500/50"
-                          >
-                            {post.category}
-                          </Badge>
-                          <Badge
-                            className="bg-gray-500/20 text-gray-300 font-medium border border-gray-400/50"
-                          >
-                            Pending
-                          </Badge>
-                        </div>
-                        <p className="text-white font-semibold mb-1">{post.title}</p>
-                        <p className="text-sm text-gray-400 truncate">
-                          {post.contentSnippet}
-                        </p>
-                      </TableCell>
+                        {/* Column 2: Post Details */}
+                        <TableCell className="max-w-xl text-white">
+                          <div className="flex gap-2 mb-1">
+                            <Badge
+                              // Consistent badge style for pending status
+                              className="bg-yellow-600/30 text-yellow-300 font-bold border border-yellow-500/50"
+                            >
+                              {post.category}
+                            </Badge>
+                            <Badge
+                              className="bg-gray-500/20 text-gray-300 font-medium border border-gray-400/50"
+                            >
+                              Pending
+                            </Badge>
+                          </div>
+                          <p className="text-white font-semibold mb-1">{post.title}</p>
+                          <p className="text-sm text-gray-400 truncate">
+                            {post.contentSnippet}
+                          </p>
+                        </TableCell>
 
-                      {/* Column 3: Actions (Aligned Together) */}
-                      <TableCell className="w-[150px]">
-                        {/* Wrapper for right alignment and tight grouping */}
-                        <div className="flex justify-end items-center space-x-1">
-                          {/* Review Button */}
-                          <Button
-                            size="icon" // Changed to icon for tighter grouping
-                            variant="ghost"
-                            className="h-8 w-8 text-indigo-400 border border-indigo-400/50 bg-indigo-900/10 hover:bg-indigo-900/20 rounded-lg transition-colors p-0"
-                            onClick={() =>
-                              toast({
-                                title: "Feature Placeholder",
-                                description: `You would open a full view modal for post ${post.id} here.`,
-                                variant: "default"
-                              })
-                            }
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
+                        {/* Column 3: Actions (Aligned Together) */}
+                        <TableCell className="w-[150px]">
+                          {/* Wrapper for right alignment and tight grouping */}
+                          <div className="flex justify-end items-center space-x-1">
+                            {/* Review Button */}
+                            <Button
+                              size="icon" // Changed to icon for tighter grouping
+                              variant="ghost"
+                              className="h-8 w-8 text-indigo-400 border border-indigo-400/50 bg-indigo-900/10 hover:bg-indigo-900/20 rounded-lg transition-colors p-0"
+                              onClick={() =>
+                                toast({
+                                  title: "Feature Placeholder",
+                                  description: `You would open a full view modal for post ${post.id} here.`,
+                                  variant: "default"
+                                })
+                              }
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
 
-                          {/* Reject Button */}
-                          <Button
-                            size="icon" // Changed to icon for tighter grouping
-                            className="h-8 w-8 bg-red-700/80 hover:bg-red-800 border border-red-500/50 p-0"
-                            onClick={() =>
-                              updateStatus(post.id, "rejected")
-                            }
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                            {/* Reject Button */}
+                            <Button
+                              size="icon" // Changed to icon for tighter grouping
+                              className="h-8 w-8 bg-red-700/80 hover:bg-red-800 border border-red-500/50 p-0"
+                              onClick={() =>
+                                updateStatus(post.id, "rejected")
+                              }
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
 
-                          {/* Approve Button */}
-                          <Button
-                            size="icon" // Changed to icon for tighter grouping
-                            className="h-8 w-8 bg-green-600/80 hover:bg-green-700 border border-green-500/50 p-0"
-                            onClick={() =>
-                              updateStatus(post.id, "approved")
-                            }
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {/* Approve Button */}
+                            <Button
+                              size="icon" // Changed to icon for tighter grouping
+                              className="h-8 w-8 bg-green-600/80 hover:bg-green-700 border border-green-500/50 p-0"
+                              onClick={() =>
+                                updateStatus(post.id, "approved")
+                              }
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                 </>
               )}
 
               {!loading && posts.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={3}
+                    colSpan={4}
                     className="text-center text-green-500 py-10 text-xl font-bold"
                   >
                     Queue is empty 🎉
@@ -371,6 +478,54 @@ export default function AdminPostModerationPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination Controls */}
+          {!loading && posts.length > ITEMS_PER_PAGE && (
+            <div className="p-4 border-t border-white/10">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) setCurrentPage(p => p - 1);
+                      }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: Math.ceil(posts.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        isActive={page === currentPage}
+                        className={page === currentPage
+                          ? "bg-indigo-600 text-white border-indigo-500"
+                          : "text-gray-400 hover:text-white"
+                        }
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < Math.ceil(posts.length / ITEMS_PER_PAGE)) setCurrentPage(p => p + 1);
+                      }}
+                      className={currentPage === Math.ceil(posts.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

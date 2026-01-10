@@ -6,16 +6,32 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Send, X, Mic, Bot } from "lucide-react";
+import { Send, X, Mic, Bot, Link as LinkIcon, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
+import Link from "next/link"; // For smart navigation
 
-import { collection, doc, onSnapshot, getDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, getDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/services/firebase";
 
 // Types remain concise
-interface Message { sender: "user" | "bot"; text: string; }
+interface Message {
+    sender: "user" | "bot";
+    text: string;
+    attachment?: {
+        type: "announcement" | "link";
+        title: string;
+        url: string;
+    };
+}
 interface BotResponse { id: string; trigger: string; reply: string; }
+
+// Minimal type for Announcement indexing
+interface AnnouncementDoc {
+    id: string;
+    title: string;
+    description: string;
+}
 
 export default function IChat() {
     const { toast } = useToast();
@@ -27,6 +43,9 @@ export default function IChat() {
     const [input, setInput] = useState("");
     const [botEnabled, setBotEnabled] = useState(true);
     const [responses, setResponses] = useState<BotResponse[]>([]);
+
+    // Smart Data: Announcements
+    const [announcements, setAnnouncements] = useState<AnnouncementDoc[]>([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,34 +75,63 @@ export default function IChat() {
         return matrix[b.length][a.length];
     };
 
-    const getBotResponse = (text: string) => {
-        if (!botEnabled) return "iBot is currently disabled 🟥";
+    //  SMART RESPONSE LOGIC
+    const getBotResponse = (text: string): { reply: string, attachment?: Message['attachment'] } => {
+        if (!botEnabled) return { reply: "iBot is currently disabled 🟥" };
 
         const normalizedInput = normalize(text);
 
-        // 1. Direct/Exact Match Check (Best Performance)
+        //  Direct/Exact Match Check (Static Responses)
         for (const r of responses) {
             const keywords = r.trigger.split(",").map((k) => normalize(k).trim()).filter(k => k.length > 0);
-            if (keywords.some((k) => normalizedInput.includes(k))) return r.reply;
+            if (keywords.some((k) => normalizedInput.includes(k))) return { reply: r.reply };
         }
 
-        // 2. Fuzzy Match Check (Handle Typos)
+        // Fuzzy Match Check (Static Responses)
         // Allow up to 2 typos for words > 4 chars, 1 typo for short words
         for (const r of responses) {
             const keywords = r.trigger.split(",").map((k) => normalize(k).trim()).filter(k => k.length > 0);
-
             for (const keyword of keywords) {
-                // Check if any word in the input vaguely resembles the keyword
                 const inputWords = normalizedInput.split(" ");
                 for (const word of inputWords) {
                     const dist = levenshtein(word, keyword);
                     const threshold = keyword.length > 4 ? 2 : 1;
-                    if (dist <= threshold) return r.reply;
+                    if (dist <= threshold) return { reply: r.reply };
                 }
             }
         }
 
-        return "Hmm 🤔 I don't know that yet, but I'm learning!";
+        // SMART CHECK: Announcements (Improved Matching)
+        // Check for keyword overlap (if any significant word from input exists in title)
+        const commonWords = new Set(["the", "is", "at", "which", "on", "what", "about", "how", "when", "where", "a", "an"]);
+        const inputKeywords = normalizedInput.split(" ").filter(w => w.length > 3 && !commonWords.has(w));
+
+        const foundAnnouncement = announcements.find(ann => {
+            // Exact substring match (high confidence)
+            const titleNorm = normalize(ann.title);
+            if (titleNorm.includes(normalizedInput) || normalizedInput.includes(titleNorm)) return true;
+
+            // Keyword match (medium confidence)
+            // If valid keywords exist, check if ANY of them appear in the description or title
+            if (inputKeywords.length > 0) {
+                return inputKeywords.some(kw => titleNorm.includes(kw));
+            }
+            return false;
+        });
+
+        if (foundAnnouncement) {
+            return {
+                reply: `I found an announcement: "${foundAnnouncement.title}". Would you like to read it?`,
+                attachment: {
+                    type: "announcement",
+                    title: foundAnnouncement.title,
+                    url: `/dashboard?tab=announcement` // Direct link to announcement tab
+                }
+            };
+        }
+
+        // Default Fallback
+        return { reply: "Hmm 🤔 I don't know that yet, but I'm learning! You can try asking about announcements or general help." };
     };
 
     const sendMessage = (customText?: string) => {
@@ -91,7 +139,10 @@ export default function IChat() {
         if (!text.trim()) return;
 
         const userMsg: Message = { sender: "user", text };
-        const botReply: Message = { sender: "bot", text: getBotResponse(text) };
+
+        // Get smart response
+        const { reply, attachment } = getBotResponse(text);
+        const botReply: Message = { sender: "bot", text: reply, attachment };
 
         setMessages((prev) => [...prev, userMsg, botReply]);
         setInput("");
@@ -102,21 +153,39 @@ export default function IChat() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // Effect 2: Load data/settings
+    // Effect 2: Load data/settings AND Announcements
     useEffect(() => {
-        const unsub = onSnapshot(collection(db, "ibot_responses"), (snap) => {
+        const unsubResponses = onSnapshot(collection(db, "ibot_responses"), (snap) => {
             const list: BotResponse[] = [];
             snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<BotResponse, 'id'>) }));
             setResponses(list);
         });
+
+        //  Fetch Announcements via API (Bypasses Firestore Rules issues and ensures consistency)
+        const loadAnnouncements = async () => {
+            try {
+                const res = await fetch("/api/announcements");
+                if (res.ok) {
+                    const data: AnnouncementDoc[] = await res.json();
+                    setAnnouncements(data);
+                } else {
+                    console.warn("SmartBot: API returned mismatch", res.status);
+                    setAnnouncements([]);
+                }
+            } catch (e) {
+                console.warn("SmartBot: Failed to fetch announcements from API", e);
+                setAnnouncements([]);
+            }
+        };
 
         const loadSettings = async () => {
             const snap = await getDoc(doc(db, "settings", "ibot_settings"));
             if (snap.exists()) setBotEnabled(snap.data().enabled);
         };
 
+        loadAnnouncements();
         loadSettings();
-        return () => unsub();
+        return () => unsubResponses();
     }, []);
 
     // Effect 3: Voice setup
@@ -204,7 +273,7 @@ export default function IChat() {
                 {isOpen && (
                     <motion.div
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        className="absolute bottom-20 right-0 w-80 md:w-[480px] z-50"
+                        className="absolute bottom-20 right-0 w-80 md:w-[480px] z-50 px-4 md:px-0"
                         exit={{ opacity: 0, y: 30, scale: 0.9 }}
                         initial={{ opacity: 0, y: 30, scale: 0.9 }}
                         transition={{ duration: 0.25, ease: "easeInOut" }}>
@@ -229,18 +298,47 @@ export default function IChat() {
                                             {messages.map((msg, i) => (
                                                 <motion.div
                                                     key={i} animate={{ opacity: 1, y: 0 }}
-                                                    className={`flex ${isUser(msg.sender) ? "justify-end" : "justify-start"}`}
+                                                    className={`flex flex-col ${isUser(msg.sender) ? "items-end" : "items-start"}`}
                                                     initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.2 }}>
+
+                                                    {/* Message Bubble */}
                                                     <div
-                                                        className={`max-w-[75%] px-4 py-2 text-base shadow-lg 
+                                                        className={`max-w-[85%] px-4 py-3 text-sm md:text-base shadow-lg 
                                                             ${isUser(msg.sender)
                                                                 // ✨ IMPROVEMENT: Larger radius, with a smaller connecting corner
                                                                 ? "bg-fuchsia-700/90 text-white rounded-3xl rounded-br-lg"
                                                                 // ✨ IMPROVEMENT: Higher opacity on white background for contrast
-                                                                : "bg-white/75 text-gray-900 border border-white/50 rounded-3xl rounded-tl-lg"
+                                                                : "bg-white/90 text-gray-900 border border-white/50 rounded-3xl rounded-tl-lg"
                                                             }`}>
                                                         {msg.text}
                                                     </div>
+
+                                                    {/* 📎 ATTACHMENT RENDERING */}
+                                                    {msg.attachment && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, y: 5 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            className="mt-2"
+                                                        >
+                                                            <Link href={msg.attachment.url} passHref>
+                                                                <div className={`
+                                                                    flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-opacity-80 transition-all shadow-md
+                                                                    ${isUser(msg.sender) ? "hidden" : "bg-white/100 border-fuchsia-200 text-fuchsia-900"} 
+                                                                `}>
+                                                                    <div className="h-10 w-10 bg-fuchsia-100 rounded-lg flex items-center justify-center shrink-0 text-fuchsia-600">
+                                                                        {msg.attachment.type === 'announcement' ? <FileText size={20} /> : <LinkIcon size={20} />}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-xs text-fuchsia-500 font-semibold uppercase tracking-wider">
+                                                                            {msg.attachment.type}
+                                                                        </p>
+                                                                        <p className="font-bold text-sm truncate">{msg.attachment.title}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </Link>
+                                                        </motion.div>
+                                                    )}
+
                                                 </motion.div>
                                             ))}
                                         </AnimatePresence>

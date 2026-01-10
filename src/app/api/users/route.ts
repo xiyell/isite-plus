@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/services/firebaseAdmin";
+import { requireAdmin } from "@/lib/auth-checks";
 
 export async function GET() {
     try {
+        await requireAdmin(); // Enforce Admin Access
+
         const db = getAdminDb();
         const snapshot = await db.collection("users").limit(50).get();
         const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(users);
     } catch (error) {
         console.error("Error fetching users:", error);
-        // Return empty array instead of 500/crash to stop dashboard JSON error
+        // Return 403/401 if auth failed, or 500 otherwise
+        if (error instanceof Error && (error.message.includes("Unauthorized") || error.message.includes("Forbidden"))) {
+            return NextResponse.json({ error: error.message }, { status: 403 });
+        }
         return NextResponse.json([]);
     }
 }

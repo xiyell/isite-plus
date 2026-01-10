@@ -24,6 +24,9 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@/components/ui/pagination";
 
 import {
@@ -41,7 +44,7 @@ import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
 /* ───────────────────────── CONSTANTS ───────────────────────── */
 
-const POSTS_PER_PAGE = 10;
+const POSTS_PER_PAGE = 5;
 
 const GLASSY_CARD = "bg-white/5 border border-white/20 backdrop-blur-md shadow-2xl";
 const GLASSY_HEADER_ROW = "bg-white/10";
@@ -298,47 +301,52 @@ export default function ActivityLogsContent() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Pagination className="py-4">
-              <PaginationContent className="gap-1">
-                <PaginationItem>
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    // Button text color is now explicitly white or indigo for active state
-                    className="px-3 py-2 rounded-lg text-white hover:bg-white/10 disabled:opacity-50"
-                  >
-                    Prev
-                  </button>
-                </PaginationItem>
-
-                {pageNumbers.map((p) => (
-                  <PaginationItem key={p}>
-                    <button
-                      onClick={() => setCurrentPage(p)}
-                      className={`px-3 py-2 rounded-lg ${p === currentPage
-                        // Ensure active page link text is white
-                        ? "bg-indigo-600 text-white"
-                        // Ensure inactive page link text is white
-                        : "text-white hover:bg-white/10"
-                        }`}
-                    >
-                      {p}
-                    </button>
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious // Replaced button with PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage > 1) setCurrentPage((p) => Math.max(1, p - 1));
+                      }}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                    />
                   </PaginationItem>
-                ))}
 
-                <PaginationItem>
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    // Button text color is now explicitly white
-                    className="px-3 py-2 rounded-lg text-white hover:bg-white/10 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+                  {pageNumbers.map((p) => (
+                    <PaginationItem key={p}>
+                      <PaginationLink // Replaced button with PaginationLink
+                        href="#"
+                        isActive={p === currentPage}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(p);
+                        }}
+                        className={p === currentPage
+                          ? "bg-indigo-600 text-white border-indigo-500"
+                          : "text-gray-400 hover:text-white"
+                        }
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+
+                  <PaginationItem>
+                    <PaginationNext // Replaced button with PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (currentPage < totalPages) setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      }}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
           )}
         </CardContent>
       </Card>

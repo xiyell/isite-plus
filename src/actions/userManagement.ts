@@ -1,7 +1,8 @@
 // src/actions/userManagement.ts
 "use server";
-import { doc, getDoc, updateDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { db } from "@/services/firebase";
+import { getAdminDb } from "@/services/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 import { addLog } from "./logs"; // Your logging function
 import { getAdminAuth } from "@/services/firebaseAdmin";
 
@@ -16,14 +17,15 @@ export interface UserData {
 /**
  * Update a user's password using Firebase Admin SDK
  */
-export async function updateUserPassword(userId: string, newPassword: string, actorUid:string) {
+export async function updateUserPassword(userId: string, newPassword: string, actorUid: string) {
   try {
     const auth = getAdminAuth();
     await auth.updateUser(userId, {
       password: newPassword,
     });
-    const actorRef = doc(db, "users", actorUid);
-    const actorSnap = await getDoc(actorRef);
+    const adminDb = getAdminDb();
+    const actorRef = adminDb.collection("users").doc(actorUid);
+    const actorSnap = await actorRef.get();
     const actor = actorSnap.data();
     await addLog({
       category: "users",
@@ -40,17 +42,19 @@ export async function updateUserPassword(userId: string, newPassword: string, ac
 }
 // ---------------- MOVE USER TO RECYCLE BIN ----------------
 export async function moveUserToRecycleBin(userId: string, actorUid: string) {
-  const userRef = doc(db, "users", userId);
-  const actorRef = doc(db, "users", actorUid);
-
   try {
-    const actorSnap = await getDoc(actorRef);
+    const adminDb = getAdminDb();
+    const userRef = adminDb.collection("users").doc(userId);
+    const actorRef = adminDb.collection("users").doc(actorUid);
+
+    const actorSnap = await actorRef.get();
     const actor = actorSnap.data();
 
-    await updateDoc(userRef, {
+    await userRef.update({
+      isDeleted: true,
       status: "deleted",
-      deletedAt: serverTimestamp(),
-      deletedBy: actorRef,
+      deletedAt: FieldValue.serverTimestamp(),
+      deletedBy: actorRef.id,
     });
 
     await addLog({
@@ -68,15 +72,17 @@ export async function moveUserToRecycleBin(userId: string, actorUid: string) {
 
 // ---------------- RESTORE USER FROM RECYCLE BIN ----------------
 export async function restoreUserFromRecycleBin(userId: string, actorUid: string) {
-  const userRef = doc(db, "users", userId);
-  const actorRef = doc(db, "users", actorUid);
-
   try {
-    const actorSnap = await getDoc(actorRef);
+    const adminDb = getAdminDb();
+    const userRef = adminDb.collection("users").doc(userId);
+    const actorRef = adminDb.collection("users").doc(actorUid);
+
+    const actorSnap = await actorRef.get();
     const actor = actorSnap.data();
 
-    await updateDoc(userRef, {
+    await userRef.update({
       status: "active",
+      isDeleted: false,
       deletedAt: null,
       deletedBy: null,
     });
@@ -97,10 +103,11 @@ export async function restoreUserFromRecycleBin(userId: string, actorUid: string
 // ---------------- PERMANENT DELETE USER ----------------
 export async function permanentlyDeleteUser(userId: string, actorUid: string) {
   // Note: This requires Admin SDK for real deletion.
-  const actorRef = doc(db, "users", actorUid);
+  const adminDb = getAdminDb();
+  const actorRef = adminDb.collection("users").doc(actorUid);
 
   try {
-    const actorSnap = await getDoc(actorRef);
+    const actorSnap = await actorRef.get();
     const actor = actorSnap.data();
 
 

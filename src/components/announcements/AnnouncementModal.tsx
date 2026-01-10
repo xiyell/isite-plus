@@ -2,22 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-interface Announcement {
-  id: string;
-  title: string;
-  description: string;
-  image?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  postedBy?: {
-    id: string;
-    name: string;
-    profilePic?: string;
-    grade?: string;
-    section?: string;
-  } | null;
-}
+import { Announcement } from "@/types/announcement";
 
 interface Props {
   selected: Announcement | null;

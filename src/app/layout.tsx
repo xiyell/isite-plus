@@ -33,6 +33,7 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning lang="en">
       <body
+        suppressHydrationWarning={true}
         className={clsx(
           "min-h-screen w-full font-sans text-foreground bg-gradient-to-b from-fuchsia-950 to-black antialiased",
           fontSans.variable,

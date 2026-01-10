@@ -4,6 +4,14 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/utils";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 
 
@@ -53,6 +61,10 @@ export default function AttendanceTracker() {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortKey, setSortKey] = useState<SortKeys>('timestamp');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 5;
 
     // Helper to format sheet name (2025_12_14) to display date (Dec 14, 2025)
     const formatSheetTitle = (title: string): string => {
@@ -303,32 +315,34 @@ export default function AttendanceTracker() {
                             </thead>
                             <AnimatePresence initial={false}>
                                 <tbody className="divide-y divide-slate-800">
-                                    {filteredAndSortedData.map((record) => (
-                                        <motion.tr
-                                            key={record.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, x: -100 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="hover:bg-black/40 transition-colors text-sm sm:text-base text-slate-100" // Main text color
-                                        >
-                                            <td className="px-4 py-3 whitespace-nowrap font-mono text-cyan-400"> {/* Highlight color for time */}
-                                                {formatTime(record.timestamp)}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap font-semibold">
-                                                {record.name}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-slate-400"> {/* Secondary color for ID */}
-                                                {record.idNumber}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                                                {record.yearLevel}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
-                                                {record.section}
-                                            </td>
-                                        </motion.tr>
-                                    ))}
+                                    {filteredAndSortedData
+                                        .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                                        .map((record) => (
+                                            <motion.tr
+                                                key={record.id}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, x: -100 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="hover:bg-black/40 transition-colors text-sm sm:text-base text-slate-100" // Main text color
+                                            >
+                                                <td className="px-4 py-3 whitespace-nowrap font-mono text-cyan-400"> {/* Highlight color for time */}
+                                                    {formatTime(record.timestamp)}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap font-semibold">
+                                                    {record.name}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-slate-400"> {/* Secondary color for ID */}
+                                                    {record.idNumber}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                                                    {record.yearLevel}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
+                                                    {record.section}
+                                                </td>
+                                            </motion.tr>
+                                        ))}
                                 </tbody>
                             </AnimatePresence>
                         </table>
@@ -336,6 +350,54 @@ export default function AttendanceTracker() {
                             <p className="text-center text-slate-500 p-4">
                                 No results found for "{searchTerm}".
                             </p>
+                        )}
+
+                        {/* Pagination Controls */}
+                        {Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) > 1 && (
+                            <div className="py-4">
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (currentPage > 1) setCurrentPage(p => p - 1);
+                                                }}
+                                                className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                                            />
+                                        </PaginationItem>
+                                        {Array.from({ length: Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
+                                            <PaginationItem key={page}>
+                                                <PaginationLink
+                                                    href="#"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        setCurrentPage(page);
+                                                    }}
+                                                    isActive={page === currentPage}
+                                                    className={page === currentPage
+                                                        ? "bg-indigo-600 text-white border-indigo-500"
+                                                        : "text-gray-400 hover:text-white"
+                                                    }
+                                                >
+                                                    {page}
+                                                </PaginationLink>
+                                            </PaginationItem>
+                                        ))}
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (currentPage < Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE)) setCurrentPage(p => p + 1);
+                                                }}
+                                                className={currentPage === Math.ceil(filteredAndSortedData.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
                         )}
                     </div>
                 )}
