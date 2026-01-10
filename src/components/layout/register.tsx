@@ -27,7 +27,8 @@ export interface RegisterModalProps {
 export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [email, setEmail] = useState("");
     const [student_id, setStudentId] = useState("");
-    const [fullName, setFullName] = useState("");
+    const [inputName, setInputName] = useState("");
+    const [whitelistedName, setWhitelistedName] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,7 +48,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
         // Reset form state on close
         setEmail("");
         setStudentId("");
-        setFullName("");
+        setInputName("");
+        setWhitelistedName("");
         setPassword("");
         setConfirmPassword("");
         setError(null);
@@ -131,6 +133,10 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             setIsSubmitting(false);
             return setError("Invalid Student ID format. Use format like 2023-00097-SM-0.");
         }
+        if (!inputName.trim()) {
+            setIsSubmitting(false);
+            return setError("Please enter your Full Name.");
+        }
 
         // Check password complexity again (redundant but safe)
         if (!validatePassword(password)) {
@@ -161,6 +167,15 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             if (!checkData.allowed) {
                 setIsSubmitting(false);
                 return setError("This Student ID is not whitelisted. Please contact your local iSITE admin.");
+            }
+
+            // --- NAME VERIFICATION ---
+            const officialName = checkData.name.toLowerCase().trim();
+            const typedName = inputName.toLowerCase().trim();
+
+            if (officialName !== typedName) {
+                setIsSubmitting(false);
+                return setError("The name provided does not match our records for this Student ID.");
             }
 
             // Always use the official whitelisted name, formatted formally
@@ -283,17 +298,17 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                                 });
                                                 const data = await res.json();
                                                 if (data.allowed) {
-                                                    setFullName(toTitleCase(data.name));
+                                                    setWhitelistedName(toTitleCase(data.name));
                                                     setError(null);
                                                 } else {
-                                                    setFullName("");
+                                                    setWhitelistedName("");
                                                     setError("Student ID not found in whitelist.");
                                                 }
                                             } catch {
                                                 console.error("Verification failed");
                                             }
                                         } else {
-                                            setFullName("");
+                                            setWhitelistedName("");
                                         }
                                     }}
                                     className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
@@ -303,21 +318,39 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                 <p className="text-xs text-fuchsia-300/80">Format: YYYY-XXXXX-SM-X</p>
                             </div>
 
-                            {/* Identified Name Display */}
+                            {/* Full Name Input Field (Added for verification) */}
+                            <div className="space-y-1">
+                                <Label htmlFor="fullName" className="text-sm font-semibold text-fuchsia-200">
+                                    Full Name
+                                </Label>
+                                <Input
+                                    id="fullName"
+                                    placeholder="Enter your full name"
+                                    type="text"
+                                    value={inputName}
+                                    onChange={(e) => setInputName(e.target.value)}
+                                    className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                    required
+                                    disabled={isSubmitting}
+                                />
+                                <p className="text-xs text-fuchsia-300/80">Format: Ciel Angelo Mendoza</p>
+                            </div>
+
+                            {/* Match Feedback (Optional but helpful) */}
                             <AnimatePresence>
-                                {fullName && (
+                                {whitelistedName && inputName.toLowerCase().trim() === whitelistedName.toLowerCase().trim() && (
                                     <motion.div 
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-lg p-2 flex items-center gap-2"
+                                        className="bg-green-500/20 border border-green-500/30 rounded-lg p-2 flex items-center gap-2"
                                     >
-                                        <div className="bg-fuchsia-500 rounded-full p-1">
+                                        <div className="bg-green-500 rounded-full p-1">
                                             <Loader2 className="h-3 w-3 text-white" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] uppercase text-fuchsia-300 font-bold tracking-tighter">Identified as</p>
-                                            <p className="text-sm text-white font-semibold">{fullName}</p>
+                                            <p className="text-[10px] uppercase text-green-300 font-bold tracking-tighter">Verified Identity</p>
+                                            <p className="text-sm text-white font-semibold">{whitelistedName}</p>
                                         </div>
                                     </motion.div>
                                 )}

@@ -5,18 +5,13 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**", // allow ALL external hosts
+        hostname: "**", 
       },
       {
         protocol: "http",
         hostname: "**",
       },
     ],
-  },
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
   },
 };
 

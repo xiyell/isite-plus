@@ -18,6 +18,10 @@ interface WhitelistEntry {
     name: string;
 }
 
+interface AllowedIDsProps {
+    onBack: () => void;
+}
+
 export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     const { toast } = useToast();
     const [entries, setEntries] = useState<WhitelistEntry[]>([]);
