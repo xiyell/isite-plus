@@ -88,7 +88,8 @@ export default function ProfilePage() {
                     theme: data.theme || "cyan",
                     photoURL: data.photoURL || user.photoURL || "",
                     showOnlineStatus: data.showOnlineStatus ?? true,
-                    studentId: data.studentId || "N/A"
+                    studentId: data.studentId || "N/A",
+                    role: data.role || "user"
                 });
                 
                 // Also update stats that are stored on the user doc if you have them there (e.g. Karma)

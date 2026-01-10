@@ -27,6 +27,7 @@ import AttendanceContent from "@/components/dashboard/attendance";
 import IBotContent from "@/components/dashboard/ibot";
 import IEvaluationContent from "@/components/dashboard/ievaluation";
 import TrashbinContent from "@/components/dashboard/trashbin";
+import { UserManagementContent } from "./userManagement";
 
 import {
 	collection, onSnapshot, doc, updateDoc, serverTimestamp,
@@ -742,32 +743,15 @@ export default function DashboardContent() {
 						{/* 5. Users Management */}
 						{activeTab === "usersManagement" && (
 							<motion.div key="users" animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-								<Card className="bg-white/10 backdrop-blur-xl border-white/10">
-									<CardHeader><CardTitle className="text-white">User Management</CardTitle><CardDescription>Manage user roles and permissions.</CardDescription></CardHeader>
-									<CardContent>
-										<div className="flex items-center mb-4"><Input placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-white/5 border-white/10" /></div>
-										<Table>
-											<TableHeader><TableRow className="border-white/10 hover:bg-white/5"><TableHead className="text-gray-400">Name</TableHead><TableHead className="text-gray-400">Email</TableHead><TableHead className="text-gray-400">Role</TableHead><TableHead className="text-gray-400">Status</TableHead><TableHead className="text-right text-gray-400">Actions</TableHead></TableRow></TableHeader>
-											<TableBody>
-												{filteredUsers.map((user) => (
-													<TableRow key={user.id} className="border-white/10 hover:bg-white/5">
-														<TableCell className="font-medium text-white">{user.name}</TableCell>
-														<TableCell className="text-gray-300">{user.email}</TableCell>
-														<TableCell><Badge variant="outline" className={`capitalize ${user.role === 'admin' ? 'border-purple-500 text-purple-400' : user.role === 'moderator' ? 'border-blue-500 text-blue-400' : 'border-gray-500 text-gray-400'}`}>{user.role}</Badge></TableCell>
-														<TableCell><Badge variant="secondary" className={user.active ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>{user.active ? 'Active' : 'Inactive'}</Badge></TableCell>
-														<TableCell className="text-right">
-															<div className="flex justify-end gap-2">
-																<Button variant="ghost" size="icon" onClick={() => handleEditUser(user)}><Edit size={16} className="text-blue-400" /></Button>
-																<Button variant="ghost" size="icon" onClick={() => setPasswordTarget(user)}><KeyRound size={16} className="text-yellow-400" /></Button>
-																<Button variant="ghost" size="icon" onClick={() => handleDeleteUser(user.id, user.name)}><Trash2 size={16} className="text-red-400" /></Button>
-															</div>
-														</TableCell>
-													</TableRow>
-												))}
-											</TableBody>
-										</Table>
-									</CardContent>
-								</Card>
+								<UserManagementContent
+									users={users}
+									search={search}
+									setSearch={setSearch}
+									handleEditUser={handleEditUser}
+									setPasswordTarget={setPasswordTarget}
+									handleRoleChange={handleRoleChange}
+									handleDeleteUser={handleDeleteUser}
+								/>
 							</motion.div>
 						)}
 

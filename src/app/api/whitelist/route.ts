@@ -4,28 +4,31 @@ import { FieldValue } from "firebase-admin/firestore";
 
 export const dynamic = 'force-dynamic';
 
-// GET: Fetch all allowed IDs
+// GET: Fetch all allowed IDs with names
 export async function GET(req: NextRequest) {
   try {
     const db = getAdminDb();
     const snapshot = await db.collection("allowed_student_ids").get();
     
-    // Return array of strings (scanner friendly)
-    const ids = snapshot.docs.map(doc => doc.id);
+    // Return array of objects { id, name }
+    const entries = snapshot.docs.map(doc => ({
+      id: doc.id,
+      name: doc.data().name || "Unknown Name"
+    }));
     
-    return NextResponse.json({ ids });
+    return NextResponse.json({ entries });
   } catch (error) {
     console.error("Error fetching whitelist:", error);
     return NextResponse.json({ error: "Failed to fetch whitelist" }, { status: 500 });
   }
 }
 
-// POST: Add IDs (Bulk)
+// POST: Add Entries (Bulk)
 export async function POST(req: NextRequest) {
   try {
-    const { studentIds } = await req.json();
+    const { entries } = await req.json(); // Expected: { entries: [{ id: string, name: string }] }
 
-    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    if (!Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
@@ -33,19 +36,19 @@ export async function POST(req: NextRequest) {
     const batch = db.batch();
     const collectionRef = db.collection("allowed_student_ids");
 
-    studentIds.forEach((id: string) => {
-      if (typeof id === 'string' && id.trim().length > 0) {
-        const docRef = collectionRef.doc(id.trim());
+    entries.forEach((entry: { id: string, name: string }) => {
+      if (entry.id && typeof entry.id === 'string' && entry.id.trim().length > 0) {
+        const docRef = collectionRef.doc(entry.id.trim());
         batch.set(docRef, { 
+            name: entry.name?.trim() || "Unknown Name",
             createdAt: FieldValue.serverTimestamp(),
-            // We can add metadata here like "addedBy" if we want later
         });
       }
     });
 
     await batch.commit();
 
-    return NextResponse.json({ message: `Successfully added ${studentIds.length} IDs` });
+    return NextResponse.json({ message: `Successfully whitelisted ${entries.length} students` });
   } catch (error) {
     console.error("Error adding to whitelist:", error);
     return NextResponse.json({ error: "Failed to update whitelist" }, { status: 500 });
@@ -76,5 +79,27 @@ export async function DELETE(req: NextRequest) {
   } catch (error) {
     console.error("Error removing from whitelist:", error);
     return NextResponse.json({ error: "Failed to remove IDs" }, { status: 500 });
+  }
+}
+
+// PATCH: Update an entry (e.g., change name)
+export async function PATCH(req: NextRequest) {
+  try {
+    const { studentId, name } = await req.json();
+
+    if (!studentId || !name) {
+      return NextResponse.json({ error: "Student ID and Name are required" }, { status: 400 });
+    }
+
+    const db = getAdminDb();
+    await db.collection("allowed_student_ids").doc(studentId).update({
+      name: name.trim(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return NextResponse.json({ message: "Successfully updated entry" });
+  } catch (error) {
+    console.error("Error updating whitelist:", error);
+    return NextResponse.json({ error: "Failed to update entry" }, { status: 500 });
   }
 }

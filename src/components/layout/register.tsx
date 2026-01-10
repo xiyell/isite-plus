@@ -27,6 +27,7 @@ export interface RegisterModalProps {
 export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [email, setEmail] = useState("");
     const [student_id, setStudentId] = useState("");
+    const [fullName, setFullName] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,6 +47,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
         // Reset form state on close
         setEmail("");
         setStudentId("");
+        setFullName("");
         setPassword("");
         setConfirmPassword("");
         setError(null);
@@ -107,6 +109,10 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
     }, [password]);
 
 
+    const toTitleCase = (str: string) => {
+        return str.toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
+    };
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -136,14 +142,30 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             setIsSubmitting(false);
             return setError("Passwords do not match!");
         }
-        if (!email || !password) {
+        if (!email || !password || !student_id) {
             setIsSubmitting(false);
-            return setError("Email and Password fields are required.");
+            return setError("All fields are required.");
         }
         // --- End Validation Checks ---
 
-
         try {
+            // 1. Final Whitelist Verification
+            const checkRes = await fetch("/api/whitelist/check", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ studentId: student_id }),
+            });
+
+            const checkData = await checkRes.json();
+
+            if (!checkData.allowed) {
+                setIsSubmitting(false);
+                return setError("This Student ID is not whitelisted. Please contact your local iSITE admin.");
+            }
+
+            // Always use the official whitelisted name, formatted formally
+            const formalName = toTitleCase(checkData.name);
+            // 2. Auth Signup
             const user = await handleSignup(email, password, student_id);
 
             // API call to save user details to your database
@@ -151,7 +173,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: email.split("@")[0],
+                    name: formalName,
                     uid: user.uid,
                     email,
                     studentId: student_id,
@@ -248,13 +270,58 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                     placeholder="2023-00097-SM-0"
                                     type="text"
                                     value={student_id}
-                                    onChange={(e) => setStudentId(e.target.value)}
+                                    onChange={async (e) => {
+                                        const val = e.target.value;
+                                        setStudentId(val);
+                                        // Auto-verify if format is correct
+                                        if (studentIdPattern.test(val)) {
+                                            try {
+                                                const res = await fetch("/api/whitelist/check", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ studentId: val }),
+                                                });
+                                                const data = await res.json();
+                                                if (data.allowed) {
+                                                    setFullName(toTitleCase(data.name));
+                                                    setError(null);
+                                                } else {
+                                                    setFullName("");
+                                                    setError("Student ID not found in whitelist.");
+                                                }
+                                            } catch {
+                                                console.error("Verification failed");
+                                            }
+                                        } else {
+                                            setFullName("");
+                                        }
+                                    }}
                                     className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
                                     required
                                     disabled={isSubmitting}
                                 />
                                 <p className="text-xs text-fuchsia-300/80">Format: YYYY-XXXXX-SM-X</p>
                             </div>
+
+                            {/* Identified Name Display */}
+                            <AnimatePresence>
+                                {fullName && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-lg p-2 flex items-center gap-2"
+                                    >
+                                        <div className="bg-fuchsia-500 rounded-full p-1">
+                                            <Loader2 className="h-3 w-3 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] uppercase text-fuchsia-300 font-bold tracking-tighter">Identified as</p>
+                                            <p className="text-sm text-white font-semibold">{fullName}</p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Password Field */}
                             <div className="space-y-1">

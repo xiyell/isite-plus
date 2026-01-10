@@ -79,7 +79,8 @@ export default function ProfilePage() {
                     theme: data.theme || "cyan",
                     photoURL: data.photoURL || "",
                     showOnlineStatus: data.showOnlineStatus ?? true,
-                    studentId: data.studentId || "N/A"
+                    studentId: data.studentId || "N/A",
+                    role: data.role || "user"
                 });
                 
                 setStats(prev => ({ ...prev, karma: data.karma || 0 }));

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Trash2, Plus, Upload, X, Save, AlertCircle, FileText } from 'lucide-react';
+import { Search, Trash2, Plus, Upload, X, Save, AlertCircle, FileText, Pencil, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/Button";
@@ -13,18 +13,24 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 
-interface AllowedIDsProps {
-    onBack: () => void;
+interface WhitelistEntry {
+    id: string;
+    name: string;
 }
 
 export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     const { toast } = useToast();
-    const [ids, setIds] = useState<string[]>([]);
+    const [entries, setEntries] = useState<WhitelistEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [bulkInput, setBulkInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Edit state
+    const [editingEntry, setEditingEntry] = useState<WhitelistEntry | null>(null);
+    const [editName, setEditName] = useState('');
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -39,14 +45,14 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
         try {
             const res = await fetch('/api/whitelist');
             const data = await res.json();
-            if (data.ids) {
-                setIds(data.ids);
+            if (data.entries) {
+                setEntries(data.entries);
             }
         } catch (error) {
             console.error("Failed to fetch whitelist", error);
             toast({
                 title: "Error",
-                description: "Failed to load whitelisted IDs.",
+                description: "Failed to load whitelisted entries.",
                 variant: "destructive",
             });
         } finally {
@@ -58,37 +64,84 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
         if (!bulkInput.trim()) return;
 
         setIsSubmitting(true);
-        // Split by newline, comma, or space and filter empty
-        const newIds = bulkInput
-            .split(/[\n,\s]+/)
-            .map(id => id.trim())
-            .filter(id => id.length > 0);
-
-        // Simple format validation could go here, but we'll trust the admin for now or rely on the backend/logic
-        // Regex for standard format: ^\d{4}-\d{5}-SM-\d$
+        // Split by newline and parse "ID, Name"
+        const lines = bulkInput.split(/\n/).filter(line => line.trim().length > 0);
+        
+        const newEntries: WhitelistEntry[] = lines.map(line => {
+            // Check for comma first
+            if (line.includes(',')) {
+                const [id, ...nameParts] = line.split(',');
+                return { 
+                    id: id.trim(), 
+                    name: nameParts.join(',').trim() || "Unknown Name" 
+                };
+            }
+            // Fallback to space if no comma
+            const parts = line.trim().split(/\s+/);
+            const id = parts[0];
+            const name = parts.slice(1).join(' ') || "Unknown Name";
+            return { id, name };
+        });
 
         try {
             const res = await fetch('/api/whitelist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentIds: newIds }),
+                body: JSON.stringify({ entries: newEntries }),
             });
 
             if (res.ok) {
                 toast({
                     title: "Success",
-                    description: `Added ${newIds.length} IDs to the whitelist.`,
+                    description: `Successfully whitelisted ${newEntries.length} entries.`,
                 });
                 setBulkInput('');
                 setIsAddDialogOpen(false);
                 fetchIds();
             } else {
-                throw new Error("Failed to add IDs");
+                throw new Error("Failed to add entries");
             }
         } catch (error) {
             toast({
                 title: "Error",
-                description: "Failed to add IDs. Please try again.",
+                description: "Failed to add entries. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleUpdateEntry = async () => {
+        if (!editingEntry || !editName.trim()) return;
+
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/whitelist', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    studentId: editingEntry.id, 
+                    name: editName.trim() 
+                }),
+            });
+
+            if (res.ok) {
+                setEntries(entries.map(e => 
+                    e.id === editingEntry.id ? { ...e, name: editName.trim() } : e
+                ));
+                toast({
+                    title: "Updated",
+                    description: `Successfully updated ${editingEntry.id}.`,
+                });
+                setIsEditDialogOpen(false);
+            } else {
+                throw new Error("Update failed");
+            }
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to update entry.",
                 variant: "destructive",
             });
         } finally {
@@ -97,9 +150,8 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     };
 
     const handleDelete = async (idToDelete: string) => {
-        // Optimistic update
-        const originalIds = [...ids];
-        setIds(ids.filter(id => id !== idToDelete));
+        const originalEntries = [...entries];
+        setEntries(entries.filter(e => e.id !== idToDelete));
 
         try {
             const res = await fetch('/api/whitelist', {
@@ -114,24 +166,27 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
 
             toast({
                 title: "Deleted",
-                description: `ID ${idToDelete} removed from whitelist.`,
+                description: `Entry ${idToDelete} removed from whitelist.`,
             });
         } catch (error) {
-            setIds(originalIds); // Revert
+            setEntries(originalEntries); 
             toast({
                 title: "Error",
-                description: "Failed to delete ID.",
+                description: "Failed to delete entry.",
                 variant: "destructive",
             });
         }
     };
 
     // Filter & Sort
-    const filteredIds = ids.filter(id => id.toLowerCase().includes(search.toLowerCase())).sort();
+    const filteredEntries = entries.filter(e => 
+        e.id.toLowerCase().includes(search.toLowerCase()) || 
+        e.name.toLowerCase().includes(search.toLowerCase())
+    ).sort((a, b) => a.name.localeCompare(b.name));
 
     // Pagination Logic
-    const totalPages = Math.ceil(filteredIds.length / itemsPerPage);
-    const paginatedIds = filteredIds.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const totalPages = Math.ceil(filteredEntries.length / itemsPerPage);
+    const paginatedEntries = filteredEntries.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
         <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-lg">
@@ -144,42 +199,43 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                             </Button>
                             Whitelist Management
                             <Badge variant="outline" className="ml-2 border-indigo-500 text-indigo-400">
-                                {ids.length} Allowed
+                                {entries.length} Students
                             </Badge>
                         </CardTitle>
                         <CardDescription className="text-gray-400 mt-1">
-                            Manage Student IDs allowed to register.
+                            Manage Student IDs and Names allowed to register.
                         </CardDescription>
                     </div>
                     <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                         <DialogTrigger asChild>
                             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                                <Plus size={18} className="mr-2" /> Add IDs
+                                <Plus size={18} className="mr-2" /> Add Students
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="bg-slate-900 border-white/10 text-white sm:max-w-md">
                             <DialogHeader>
-                                <DialogTitle>Add Allowed Student IDs</DialogTitle>
+                                <DialogTitle>Whilteliest Students</DialogTitle>
                                 <DialogDescription className="text-gray-400">
-                                    Paste a list of Student IDs here. Separated by newlines, commas, or spaces.
+                                    Format: <b>ID, Full Name</b> (one per line).<br/>
+                                    Example: 2023-00001-SM-0, John Doe
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4 py-4">
                                 <Textarea
-                                    placeholder="2023-00001-SM-0&#10;2023-00002-SM-0"
+                                    placeholder="2023-00001-SM-0, John Doe&#10;2023-00002-SM-0, Jane Smith"
                                     className="bg-black/20 border-white/10 text-white min-h-[200px] font-mono"
                                     value={bulkInput}
                                     onChange={(e) => setBulkInput(e.target.value)}
                                 />
                                 <div className="text-xs text-gray-500 flex items-center gap-2">
                                     <AlertCircle size={14} />
-                                    <span>Duplicates will be handled automatically by the database.</span>
+                                    <span>IDs will be used as the unique key. Names will be used for verification.</span>
                                 </div>
                             </div>
                             <DialogFooter>
                                 <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
                                 <Button onClick={handleAddIds} disabled={isSubmitting || !bulkInput.trim()} className="bg-indigo-600 hover:bg-indigo-700">
-                                    {isSubmitting ? "Adding..." : "Add IDs"}
+                                    {isSubmitting ? "Processing..." : "Whiltelist"}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -193,10 +249,10 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                     <Search size={20} className="text-gray-400" />
                     <Input
                         type="text"
-                        placeholder="Search Student ID..."
+                        placeholder="Search by ID or Name..."
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-                        className="w-full bg-white/5 border-white/20 text-white font-mono"
+                        className="w-full bg-white/5 border-white/20 text-white"
                     />
                 </div>
 
@@ -206,40 +262,55 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                         <TableHeader className="bg-black/20">
                             <TableRow className="border-white/10 hover:bg-transparent">
                                 <TableHead className="text-gray-400">Student ID</TableHead>
+                                <TableHead className="text-gray-400">Full Name</TableHead>
                                 <TableHead className="text-right text-gray-400">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={2} className="text-center py-8 text-gray-500">
+                                    <TableCell colSpan={3} className="text-center py-8 text-gray-500">
                                         Loading whitelist...
                                     </TableCell>
                                 </TableRow>
-                            ) : paginatedIds.length === 0 ? (
+                            ) : paginatedEntries.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={2} className="text-center py-8 text-gray-500">
-                                        {search ? "No IDs match your search." : "No allowed IDs found. Add some to get started."}
+                                    <TableCell colSpan={3} className="text-center py-8 text-gray-500">
+                                        {search ? "No matches found." : "Whitelist is empty."}
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 <AnimatePresence>
-                                    {paginatedIds.map((id) => (
+                                    {paginatedEntries.map((entry) => (
                                         <motion.tr
-                                            key={id}
+                                            key={entry.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
                                             className="border-white/10 hover:bg-white/5 group"
                                         >
-                                            <TableCell className="font-mono text-gray-300">{id}</TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="font-mono text-gray-300">{entry.id}</TableCell>
+                                            <TableCell className="text-white">{entry.name}</TableCell>
+                                            <TableCell className="text-right flex items-center justify-end gap-1">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    onClick={() => handleDelete(id)}
+                                                    onClick={() => {
+                                                        setEditingEntry(entry);
+                                                        setEditName(entry.name);
+                                                        setIsEditDialogOpen(true);
+                                                    }}
+                                                    className="h-8 w-8 text-gray-500 hover:text-indigo-400 hover:bg-indigo-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    title="Edit entry"
+                                                >
+                                                    <Pencil size={16} />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleDelete(entry.id)}
                                                     className="h-8 w-8 text-gray-500 hover:text-red-400 hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="Remove ID"
+                                                    title="Remove from whitelist"
                                                 >
                                                     <Trash2 size={16} />
                                                 </Button>
@@ -251,6 +322,35 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                         </TableBody>
                     </Table>
                 </div>
+
+                {/* Edit Dialog */}
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                    <DialogContent className="bg-slate-900 border-white/10 text-white sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Edit Whitelisted Student</DialogTitle>
+                            <DialogDescription className="text-gray-400">
+                                Updating name for Student ID: <span className="text-indigo-400 font-mono">{editingEntry?.id}</span>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300">Full Name</label>
+                                <Input
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="bg-black/20 border-white/10 text-white"
+                                    placeholder="Enter full name"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
+                            <Button onClick={handleUpdateEntry} disabled={isSubmitting || !editName.trim()} className="bg-indigo-600 hover:bg-indigo-700">
+                                {isSubmitting ? "Saving..." : "Save Changes"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Pagination */}
                 {totalPages > 1 && (

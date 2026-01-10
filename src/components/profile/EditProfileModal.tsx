@@ -34,6 +34,7 @@ export interface ProfileData {
     showOnlineStatus: boolean;
     photoURL: string;
     studentId?: string;
+    role?: string;
 }
 
 const THEMES: Record<ThemeColor, { label: string; class: string; hex: string }> = {
@@ -140,14 +141,22 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name" className="text-xs uppercase font-semibold text-gray-500/70">Display Name</Label>
+                                <Label htmlFor="name" className="text-xs uppercase font-semibold text-gray-500/70">
+                                    Display Name {formData.role === 'user' && <span className="ml-1 text-indigo-400 capitalize">(Locked)</span>}
+                                </Label>
                                 <Input
                                     id="name"
                                     value={formData.name}
                                     onChange={(e) => handleChange("name", e.target.value)}
-                                    className="bg-white/5 border-white/10 focus-visible:ring-indigo-500"
+                                    className={`bg-white/5 border-white/10 focus-visible:ring-indigo-500 ${formData.role === 'user' ? 'opacity-70 cursor-not-allowed' : ''}`}
                                     placeholder="Your Name"
+                                    disabled={formData.role === 'user'}
                                 />
+                                {formData.role === 'user' && (
+                                    <p className="text-[10px] text-gray-500 mt-1 italic">
+                                        Your name is verified via the official whitelist and cannot be changed.
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="studentId" className="text-xs uppercase font-semibold text-gray-500/70">Student ID</Label>

@@ -204,7 +204,6 @@ export default function AdminPostModerationPage() {
 
   const handleBatchAction = async (action: "approve" | "reject") => {
     if (selectedPosts.length === 0) return;
-    if (!confirm(`Are you sure you want to ${action} ${selectedPosts.length} posts?`)) return;
     if (!user) return;
 
     try {

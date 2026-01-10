@@ -122,9 +122,6 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         >
                             <KeyRound size={18} className="mr-2" /> Manage Whitelist
                         </Button>
-                        <Button variant="outline" className="bg-fuchsia-600/50 hover:bg-fuchsia-600/70 border-fuchsia-500 text-white">
-                            <UserPlus size={18} className="mr-2" /> Add New User
-                        </Button>
                     </div>
                 </div>
                 <CardDescription className="text-gray-400">Manage user roles, statuses, and access credentials.</CardDescription>

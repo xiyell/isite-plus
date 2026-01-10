@@ -2,7 +2,7 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const secretKey = process.env.SESSION_SECRET;
+const secretKey = process.env.SESSION_SECRET || "dev-secret-key-at-least-32-chars-long-123456";
 
 export type SessionPayload = {
     uid: string;
@@ -24,7 +24,7 @@ export async function encrypt(payload: SessionPayload) {
     return new SignJWT(payload)
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("10m")
+        .setExpirationTime("7d")
         .sign(key);
 }
 
@@ -52,7 +52,7 @@ export async function createSession(uid: string, rawRole: string) {
     if (rawRole?.toLowerCase() === "admin") role = "admin";
     if (rawRole?.toLowerCase() === "moderator") role = "moderator";
 
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const session = await encrypt({ uid, role, expiresAt });
 
     const cookieStore = await cookies(); // 

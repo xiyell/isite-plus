@@ -21,6 +21,9 @@ export async function middleware(req: NextRequest) {
 
   // 1. Check for Session Cookie
   const cookieStore = await cookies();
+  const allCookies = cookieStore.getAll();
+  console.log(`[Middleware] All cookies present: ${allCookies.map(c => c.name).join(", ")}`);
+  
   const session = cookieStore.get("session")?.value;
   console.log(`[Middleware] Session cookie found: ${!!session}`);
 

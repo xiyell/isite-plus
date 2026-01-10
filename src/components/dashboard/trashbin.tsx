@@ -53,8 +53,8 @@ const TrashRow = ({ item, onAction }: TrashRowProps) => {
     const typeConfig = getIconConfig(item.type);
     return (
         <TableRow className="hover:bg-white/5 transition-colors border-b border-white/10">
-            <TableCell className="border-r border-white/10 text-white p-4">
-                <Badge className={typeConfig.color + " rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0"}>
+            <TableCell className="border-r border-white/10 text-white p-4 text-center">
+                <Badge className={typeConfig.color + " rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0 inline-flex items-center"}>
                     {typeConfig.Icon && <typeConfig.Icon size={12} className="mr-1" />}
                     {item.type.toUpperCase()}
                 </Badge>
@@ -126,11 +126,11 @@ const TrashTable = ({ items, onAction, disabled }: TrashTableProps) => {
                 <Table className="border-collapse w-full table-fixed">
                     <TableHeader className="bg-white/10">
                         <TableRow className="border-b border-white/20">
-                            <TableHead className="w-[100px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 align-middle">Type</TableHead>
+                            <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Type</TableHead>
                             <TableHead className="border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 align-middle">Title / Identifier</TableHead>
                             <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 hidden sm:table-cell text-center align-middle">Deleted By</TableHead>
                             <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 hidden md:table-cell text-center align-middle">Deleted At</TableHead>
-                            <TableHead className="w-[100px] text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Actions</TableHead>
+                            <TableHead className="w-[120px] text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>

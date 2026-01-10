@@ -14,7 +14,10 @@ export async function POST(req: NextRequest) {
     const docSnap = await docRef.get();
 
     if (docSnap.exists) {
-        return NextResponse.json({ allowed: true });
+        return NextResponse.json({ 
+          allowed: true, 
+          name: docSnap.data()?.name || "Unknown Name" 
+        });
     } else {
         return NextResponse.json({ allowed: false });
     }

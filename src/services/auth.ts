@@ -39,8 +39,9 @@ export function useAuth() {
       // Normalize for middleware
       const normalized = normalizeRole(firestoreData.role);
 
-      // Save normalized role cookie
-      document.cookie = `userRole=${normalized}; path=/; secure; samesite=strict`;
+      // Save normalized role cookie (only use secure in production)
+      const isProd = window.location.protocol === 'https:';
+      document.cookie = `userRole=${normalized}; path=/; ${isProd ? 'secure;' : ''} samesite=lax`;
 
       setUser({
         ...firebaseUser,

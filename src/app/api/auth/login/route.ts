@@ -16,31 +16,27 @@ export async function POST(req: Request) {
         const userDoc = await db.collection("users").doc(uid).get();
         const role = userDoc.data()?.role || "user";
 
-        // Create JWT session
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        const session = await encrypt({ uid, role, expiresAt });
+        // Create JWT session manually
+        const { encrypt } = await import("@/lib/session");
+        const maxAge = 7 * 24 * 60 * 60; // 7 days in seconds
+        const expiresAt = new Date(Date.now() + maxAge * 1000);
+        const session = await encrypt({ uid, role: role as any, expiresAt });
 
         const isProd = process.env.NODE_ENV === "production";
+        
+        // Manual Set-Cookie headers for maximum compatibility
+        const sessionCookie = `session=${session}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
+        const uiRoleCookie = `ui_role=${role}; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
 
-        // Attach cookies to the response
-        const res = NextResponse.json({ success: true, role });
-        res.cookies.set("session", session, {
-            httpOnly: true,
-            secure: isProd,  // false on localhost
-            sameSite: "lax",
-            path: "/",
-            expires: expiresAt,
-        });
-        res.cookies.set("ui_role", role, {
-            httpOnly: false,
-            secure: isProd,
-            sameSite: "lax",
-            path: "/",
-            expires: expiresAt,
-        });
+        console.log(`✅ Login prepared | UID: ${uid} | Role: ${role}`);
 
-        console.log(`✅ Login success | UID: ${uid} | Role: ${role}`);
-        return res;
+        return new Response(JSON.stringify({ success: true, role }), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Set-Cookie": [sessionCookie, uiRoleCookie].join(", "),
+            },
+        });
     }catch (error) {
     console.error("Login error:", error);
     return NextResponse.json({ error: (error as any)?.message || "Internal server error" }, { status: 500 });

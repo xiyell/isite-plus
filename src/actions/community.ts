@@ -5,6 +5,7 @@ import Post from "@/types/post";
 import { User } from "@/types/user";
 import Comment from "@/types/comment";
 import { addLog } from "./logs";
+import { checkProfanity, checkSpam } from "@/lib/moderation";
 
 // --- Type Helpers for Firestore Data ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,7 +140,7 @@ export interface NewPostData {
   category: string;
   image: string;
   postedBy: string; // Assuming UID string
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "deleted";
 }
 
 export async function createCommunityPost(data: NewPostData) {
@@ -147,15 +148,44 @@ export async function createCommunityPost(data: NewPostData) {
   const { postedBy, ...rest } = data;
 
   const postedByRef = db.collection('users').doc(postedBy);
-  const user = (await postedByRef.get()).data();
+  const userSnap = await postedByRef.get();
+  const user = userSnap.data();
 
-  await db.collection("community").add({
+  // --- AUTOMATED MODERATION ---
+  const isProfane = checkProfanity(data.title) || checkProfanity(data.description);
+  const isSpam = checkSpam(data.title) || checkSpam(data.description);
+  
+  let finalStatus: "pending" | "approved" | "rejected" | "deleted" = data.status;
+  let moderationReason = "";
+
+  if (isProfane || isSpam) {
+    finalStatus = "deleted";
+    moderationReason = isProfane ? "Blocked: Profanity detected." : "Blocked: Spam pattern detected.";
+  }
+
+  const postDoc = {
     ...rest,
+    status: finalStatus,
+    moderationNote: moderationReason,
+    deletedAt: finalStatus === "deleted" ? FieldValue.serverTimestamp() : null,
     postedBy: postedByRef,
     likesCount: 0,
     dislikesCount: 0,
     createdAt: FieldValue.serverTimestamp(),
-  });
+  };
+
+  await db.collection("community").add(postDoc);
+
+  if (finalStatus === "deleted") {
+    await addLog({
+      category: "posts",
+      action: "AUTO_DELETE_POST",
+      severity: "medium",
+      actorRole: "system",
+      message: `System auto-deleted post from ${user?.name}: "${data.title}". Reason: ${moderationReason}`,
+    });
+    return { success: false, message: moderationReason };
+  }
 
   await addLog({
     category: "posts",
@@ -164,6 +194,8 @@ export async function createCommunityPost(data: NewPostData) {
     actorRole: user?.role,
     message: `User ${user?.name} created a new post: "${data.title}"`,
   });
+
+  return { success: true };
 }
 
 
@@ -254,6 +286,11 @@ export async function addCommunityComment(data: NewCommentData) {
 
   const commentedByRef = db.collection('users').doc(commentedBy);
   const user = (await commentedByRef.get()).data();
+
+  // --- AUTOMATED MODERATION ---
+  if (checkProfanity(text) || checkSpam(text)) {
+    throw new Error("Comment rejected: Profanity or spam detected.");
+  }
 
   // Add comment to the subcollection
   await postRef.collection("comments").add({

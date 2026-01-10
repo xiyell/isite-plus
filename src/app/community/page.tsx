@@ -445,12 +445,11 @@ export default function CommunityPage() {
         description: "Your comment has been posted.",
       });
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding comment:", err);
-      // REPLACEMENT 5/10
       toast({
         title: "Comment Failed",
-        description: "Failed to add comment — please try again.",
+        description: err.message || "Failed to add comment — please try again.",
         variant: "destructive",
       });
       fetchPosts(); // Fallback to full refresh
@@ -490,9 +489,19 @@ export default function CommunityPage() {
     };
 
     try {
+      const result = await createCommunityPost(payload);
 
-      await createCommunityPost(payload);
-
+      if (result && (result as any).success === false) {
+        toast({
+          title: "Post Flagged",
+          description: (result as any).message,
+          variant: "destructive",
+        });
+        setCreateOpen(false);
+        setNewTitle("");
+        setNewDescription("");
+        return;
+      }
 
       setCreateOpen(false);
       setNewTitle("");
@@ -502,7 +511,6 @@ export default function CommunityPage() {
 
       await fetchPosts();
 
-      // REPLACEMENT 8/10
       toast({
         title: "Post Submitted",
         description: "Your post has been submitted for admin review.",
