@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# iSITE+ (Next-Gen Student Engagement Platform)
 
-## Getting Started
+iSITE+ is a modern web application designed for students of the **Polytechnic University of the Philippines (PUP)**. It provides a centralized hub for announcements, community interactions, and administrative tools with a sleek, premium purple-themed glassmorphism design.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Key Features
+
+### 🔐 Secure Authentication & Session Management
+- **PUP-Exclusive Login**: Only `@iskolarngbayan.pup.edu.ph` email addresses are permitted.
+- **Two-Factor Authentication (2FA)**: Every login requires a 6-digit code sent via email (Gmail/Outlook supported).
+- **Auto-Logout Security**: 
+  - **10-Minute Absolute Timeout**: Forced re-login every 10 minutes for data safety.
+  - **5-Minute Inactivity Timeout**: Automatic logout if the user is idle.
+
+### 👥 Community & Social
+- **Real-Time Feed**: Share posts, images, and updates with other students.
+- **Interactions**: Like and comment on posts.
+- **Moderated Space**: Built-in recycle bin and reporting for a safe environment.
+
+### 📋 Information & Tools
+- **Announcements**: Interactive modals for official university or organization updates.
+- **Profile Management**: View post and comment history (deleted posts/comments are automatically filtered out).
+- **iReader & iQr**: Tools for event attendance and identification (restricted to Admin/Moderator).
+- **iEvaluation**: Digital feedback system for student events.
+
+---
+
+## 🛠️ Setup & Installation
+
+### 1. Prerequisites
+- Node.js (Latest LTS version)
+- Firebase Project (Firestore, Auth, and Storage enabled)
+- A Gmail or Outlook account for the 2FA system.
+
+### 2. Environment Variables
+Create a `.env.local` file in the root directory and add:
+
+```env
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+
+# Firebase Admin (Required for 2FA & Server Actions)
+FIREBASE_SERVICE_ACCOUNT_KEY='{...}'
+
+# Session Secret (Random String)
+SESSION_SECRET=your_random_secret_here
+
+# Email Configuration (2FA)
+EMAIL_SERVICE=gmail # or outlook
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-16-character-app-password
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Install & Run
+```bash
+npm install
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📖 User Tutorial
 
-## Learn More
+### Step 1: Logging In
+1. Click the **Login** button on the Navbar.
+2. Enter your **PUP Webmail** and password.
+3. Wait for the **2FA screen**. 
+4. Check your email (check **Junk/Spam** folder if not in primary).
+5. Enter the **6-digit code** to enter the site.
 
-To learn more about Next.js, take a look at the following resources:
+### Step 2: Community Interaction
+- Navigate to the **Community** tab.
+- Click **Create Post** to share updates.
+- Use the **Like** heart and **Comment** bubble on any post to engage with peers.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Step 3: Managing Your Profile
+- Click **Profile** in the Menu dropdown.
+- You can view all your active posts and comments.
+- Note: If a post you commented on is deleted, that comment will no longer show in your history.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Step 4: Admin & Moderator Tools
+- Authorized users have access to the **Dashboard**.
+- **User Management**: Whitelist users for specific roles.
+- **Recycle Bin**: Restore accidentally deleted posts or permanently remove them.
+- **Activity Logs**: Monitor all sensitive actions within the platform.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🌍 Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+iSITE+ is pre-configured for **Vercel**. 
+- Push your code to GitHub.
+- Import the project into Vercel.
+- Copy your `.env.local` variables into the **Environment Variables** section of the Vercel dashboard.
+
+---
+
+## ⚖️ Security Notice
+- The session duration is hardcoded to **10 minutes** to comply with high security standards for student data.
+- Ensure your `FIREBASE_SERVICE_ACCOUNT_KEY` and `SESSION_SECRET` are never shared publicly.
+
+---
+© 2026 iSITE+ Team | Developed for PUP Thesis/Capstone Excellence.
