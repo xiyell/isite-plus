@@ -21,6 +21,8 @@ import { logoutAction } from "@/actions/auth";
 import { useAuth } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
 
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+
 // 🚀 IMPORT MODALS (Ensure correct paths: e.g., './login' or './LoginModal')
 import LoginModal from './login';
 import RegisterModal from './register'; // Assuming the new file name is RegisterModal.tsx
@@ -102,6 +104,7 @@ export default function Navbar() {
 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
+    const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
     const isMobile = useIsMobile();
     const progress = useScrollProgress();
     const isScrolled = useIsScrolled();
@@ -141,6 +144,7 @@ export default function Navbar() {
             console.log("Server logout complete");
 
             setUser(null);
+            setIsLogoutConfirmOpen(false); // Close dialog on success
             toast({
                 title: "Logged out",
                 description: "You have been successfully logged out.",
@@ -154,6 +158,7 @@ export default function Navbar() {
                 description: (error as Error).message,
                 variant: "destructive",
             });
+            setIsLogoutConfirmOpen(false); // Close dialog on error too
         }
     }
     const toggleToolsDropdown = (e: React.MouseEvent) => {
@@ -336,28 +341,40 @@ export default function Navbar() {
                     </div>
                     {/* Right side */}
                     {!user ? <div className=" flex items-center gap-2">
-                        {/* Login Modal Integration */}
-                        <LoginModal
-                            onLogin={handleLogin}
-                        />
+                            {/* Login Modal Integration */}
+                            <LoginModal
+                                onLogin={handleLogin}
+                            />
 
-                        {/* Register Modal Integration */}
-                        <RegisterModal
-                            onRegister={handleRegistrationSuccess}
-                        />
+                            {/* Register Modal Integration */}
+                            <RegisterModal
+                                onRegister={handleRegistrationSuccess}
+                            />
 
-                    </div> :
-                        <Button
-                            className="text-sm bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-xl px-4 py-1.5 transition-colors"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                handleSignOut();
-                            }}
-                        >
-                            Sign Out
-                        </Button>
-                    }
-                </div>
+                        </div> :
+                            <>
+                                <Button
+                                    className="text-sm bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-xl px-4 py-1.5 transition-colors"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setIsLogoutConfirmOpen(true);
+                                    }}
+                                >
+                                    Sign Out
+                                </Button>
+                                <ConfirmDialog
+                                    isOpen={isLogoutConfirmOpen}
+                                    onClose={() => setIsLogoutConfirmOpen(false)}
+                                    onConfirm={handleSignOut}
+                                    title="Sign Out"
+                                    description="Are you sure you want to sign out?"
+                                    confirmText="Sign Out"
+                                    cancelText="Cancel"
+                                    variant="destructive" 
+                                />
+                            </>
+                        }
+                    </div>
                 <div
                     className="h-[3px] bg-gradient-to-r from-fuchsia-400 to-fuchsia-700"
                     style={{ width: `${progress}%` }}
