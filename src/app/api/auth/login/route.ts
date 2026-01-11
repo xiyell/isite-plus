@@ -11,6 +11,10 @@ export async function POST(req: Request) {
         const decodedToken = await getAdminAuth().verifyIdToken(token);
         const uid = decodedToken.uid;
 
+        if (!decodedToken.email_verified) {
+             return NextResponse.json({ error: "Email not verified. Please check your inbox/junk folder." }, { status: 403 });
+        }
+
         // Get role from Firestore
         const db = getAdminDb();
         const userDoc = await db.collection("users").doc(uid).get();
@@ -26,7 +30,8 @@ export async function POST(req: Request) {
         
         // Manual Set-Cookie headers for maximum compatibility
         const sessionCookie = `session=${session}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
-        const uiRoleCookie = `ui_role=${role}; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
+        const uiRoleToken = await encrypt({ role } as any);
+        const uiRoleCookie = `ui_role=${uiRoleToken}; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
 
         console.log(`✅ Login prepared | UID: ${uid} | Role: ${role}`);
 

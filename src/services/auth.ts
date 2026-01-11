@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   User as FirebaseUser
 } from "firebase/auth";
 import { auth, db } from "@/services/firebase";
@@ -9,6 +10,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 export const handleSignup = async (email: string, pass: string, studentId: string) => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+  await sendEmailVerification(userCredential.user);
   return userCredential.user;
 };
 
@@ -26,7 +28,7 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setUser(null);
-        document.cookie = "userRole=guest; path=/; max-age=0;";
+        // document.cookie = "userRole=guest; path=/; max-age=0;";
         setLoading(false);
         return;
       }
@@ -41,7 +43,7 @@ export function useAuth() {
 
       // Save normalized role cookie (only use secure in production)
       const isProd = window.location.protocol === 'https:';
-      document.cookie = `userRole=${normalized}; path=/; ${isProd ? 'secure;' : ''} samesite=lax`;
+      // document.cookie = `userRole=${normalized}; path=/; ${isProd ? 'secure;' : ''} samesite=lax`;
 
       setUser({
         ...firebaseUser,

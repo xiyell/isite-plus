@@ -3,8 +3,8 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 // Assuming @heroui/button is the Button your form uses (aliased here)
 import { motion, AnimatePresence } from "framer-motion";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { Loader2 } from "lucide-react"; // Import a loading icon
+import { signInWithEmailAndPassword, sendEmailVerification, signOut } from "firebase/auth";
+import { Loader2, MailWarning } from "lucide-react"; // Import a loading icon
 
 import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
@@ -35,7 +35,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     
     // 2FA State
-    const [step, setStep] = useState<'credentials' | 'verification'>('credentials');
+    const [step, setStep] = useState<'credentials' | 'verification' | 'unverified'>('credentials');
     const [verificationCode, setVerificationCode] = useState("");
     const [tempUser, setTempUser] = useState<any>(null); // Store user data temporarily between steps
 
@@ -49,6 +49,12 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
+         // Reset check
+        if(step === 'unverified' && tempUser) {
+            signOut(auth);
+        }
+        setStep('credentials');
+        setTempUser(null);
     };
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -70,8 +76,9 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             const user = userCredential.user;
 
             if (!user.emailVerified) {
-                setToast("Please verify your email before logging in.");
-                await auth.signOut();
+                // Don't sign out yet, let them resend email
+                setTempUser(user);
+                setStep('unverified');
                 setIsSubmitting(false);
                 return;
             }
@@ -105,6 +112,24 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 errorMessage = 'Invalid email or password.';
             }
             setToast(errorMessage);
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!tempUser) return;
+        setIsSubmitting(true);
+        try {
+            await sendEmailVerification(tempUser);
+            setToast("✅ Verification email sent! Check Inbox/Spam.");
+        } catch (error: any) {
+            console.error(error);
+            if (error.code === 'auth/too-many-requests') {
+                setToast("Too many requests. Please wait a moment.");
+            } else {
+                setToast("Failed to send email. Try again later.");
+            }
+        } finally {
             setIsSubmitting(false);
         }
     };
@@ -199,7 +224,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                     <CardContent className="space-y-4 pt-2">
 
                         <div className="min-h-[300px]"> {/* Fixed height container to prevent jumping */}
-                            {step === 'credentials' ? (
+                            {step === 'credentials' && (
                                 <form onSubmit={handleLogin} className="space-y-6">
 
                                     {/* Email Field */}
@@ -261,7 +286,46 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                                         </a>
                                     </div>
                                 </form>
-                            ) : (
+                            )}
+
+                            {step === 'unverified' && (
+                                <div className="space-y-6 pt-4 text-center pb-6">
+                                    <div className="mx-auto w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                                        <MailWarning className="h-8 w-8 text-yellow-400" />
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <h3 className="text-xl font-bold text-white">Email Not Verified</h3>
+                                        <p className="text-sm text-fuchsia-200 px-4">
+                                            You must verify your email address <strong>{email}</strong> before accessing your account.
+                                        </p>
+                                        <p className="text-xs text-yellow-200/80 italic">
+                                            (Please check your Inbox, Spam, or Junk folder)
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3 px-2">
+                                        <Button
+                                            onClick={handleResendVerification}
+                                            className="w-full bg-fuchsia-700 hover:bg-fuchsia-600 text-white"
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : null}
+                                            Resend Verification Email
+                                        </Button>
+                                        
+                                        <Button
+                                            variant="ghost"
+                                            onClick={handleCloseDialog}
+                                            className="w-full text-fuchsia-300 hover:bg-white/5"
+                                        >
+                                            Back to Login
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === 'verification' && (
                                 <form onSubmit={handleVerify} className="space-y-6 pt-4">
                                      <div className="text-center space-y-2">
                                         <h3 className="text-lg font-semibold text-white">Verification Required</h3>

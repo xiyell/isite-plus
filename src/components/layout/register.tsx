@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 // Assuming @heroui/button is the Button your form uses (aliased here)
 import { motion, AnimatePresence } from "framer-motion";
 import { signOut } from "firebase/auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 
 import { handleSignup } from "@/services/auth";
 import { auth } from "@/services/firebase";
@@ -35,6 +35,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [error, setError] = useState<string | null>(null);
     const [passwordError, setPasswordError] = useState<string | null>(null); // New state for password complexity feedback
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
 
     useEffect(() => {
         if (error) {
@@ -55,10 +56,11 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
         setError(null);
         setPasswordError(null);
         setIsSubmitting(false);
+        setIsRegistrationSuccess(false);
     };
 
     const studentIdPattern = /^\d{4}-\d{5}-SM-\d$/;
-
+    
     const [matchError, setMatchError] = useState<boolean>(false); // New state for mismatch feedback
 
     useEffect(() => {
@@ -196,7 +198,6 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                     role: "user",
                 }),
             });
-
             onRegister?.({
                 uid: user.uid,
                 email: user.email || undefined,
@@ -205,11 +206,10 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                 role: "user"
             });
             await signOut(auth);
-            setError("✅ Account created! Check your PUP Webmail to verify.");
-
-            setTimeout(() => {
-                setIsDialogOpen(false);
-            }, 2500);
+            
+            // Show Success Notification View
+            setIsRegistrationSuccess(true);
+            setIsSubmitting(false); // Stop loading spinner
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
@@ -248,214 +248,239 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
 
                 {/* CARD CONTAINER */}
                 <Card className="border border-fuchsia-500/30 bg-fuchsia-950/70 backdrop-blur-xl shadow-2xl relative">
-                    <CardHeader className="text-center pt-6 pb-2">
-                        <CardTitle className="text-2xl font-extrabold text-fuchsia-400 tracking-wider">
-                            iSITE<span className="text-white">+</span> SIGN UP
-                        </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="space-y-3 p-4"> {/* Reduced padding/spacing */}
-
-                        <form onSubmit={handleRegister} className="space-y-3"> {/* Reduced vertical spacing */}
-
-                            {/* Email Field */}
-                            <div className="space-y-1">
-                                <Label htmlFor="email" className="text-sm font-semibold text-fuchsia-200">
-                                    PUP Webmail
-                                </Label>
-                                <Input
-                                    id="email"
-                                    placeholder="isitemember@iskolarngbayan.pup.edu.ph"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                    required
-                                    disabled={isSubmitting}
-                                />
+                    {isRegistrationSuccess ? (
+                        <div className="p-8 flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in duration-300">
+                            <div className="h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center mb-2">
+                                <Users className="h-8 w-8 text-green-400" />
                             </div>
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-bold text-white">Registration Successful!</h3>
+                                <p className="text-gray-300">
+                                    We've sent a verification email to <span className="text-fuchsia-400 font-medium">{email}</span>.
+                                </p>
+                                <p className="text-sm text-yellow-200/90 bg-yellow-900/40 p-3 rounded-lg border border-yellow-700/50">
+                                    ⚠️ You <strong>must</strong> verify your email before logging in. Please check your inbox, spam, or junk folder.
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={handleCloseDialog}
+                                className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-semibold py-6"
+                            >
+                                I Understand, Close
+                            </Button>
+                        </div>
+                    ) : (
+                        <>
+                            <CardHeader className="text-center pt-6 pb-2">
+                                <CardTitle className="text-2xl font-extrabold text-fuchsia-400 tracking-wider">
+                                    iSITE<span className="text-white">+</span> SIGN UP
+                                </CardTitle>
+                            </CardHeader>
 
-                            {/* Student ID Field */}
-                            <div className="space-y-1">
-                                <Label htmlFor="studentId" className="text-sm font-semibold text-fuchsia-200">
-                                    Student ID
-                                </Label>
-                                <Input
-                                    id="studentId"
-                                    placeholder="2023-00097-SM-0"
-                                    type="text"
-                                    value={student_id}
-                                    onChange={async (e) => {
-                                        const val = e.target.value;
-                                        setStudentId(val);
-                                        // Auto-verify if format is correct
-                                        if (studentIdPattern.test(val)) {
-                                            try {
-                                                const res = await fetch("/api/whitelist/check", {
-                                                    method: "POST",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({ studentId: val }),
-                                                });
-                                                const data = await res.json();
-                                                if (data.allowed) {
-                                                    setWhitelistedName(toTitleCase(data.name));
-                                                    setError(null);
+                            <CardContent className="space-y-3 p-4"> {/* Reduced padding/spacing */}
+
+                                <form onSubmit={handleRegister} className="space-y-3"> {/* Reduced vertical spacing */}
+
+                                    {/* Email Field */}
+                                    <div className="space-y-1">
+                                        <Label htmlFor="email" className="text-sm font-semibold text-fuchsia-200">
+                                            PUP Webmail
+                                        </Label>
+                                        <Input
+                                            id="email"
+                                            placeholder="isitemember@iskolarngbayan.pup.edu.ph"
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
+
+                                    {/* Student ID Field */}
+                                    <div className="space-y-1">
+                                        <Label htmlFor="studentId" className="text-sm font-semibold text-fuchsia-200">
+                                            Student ID
+                                        </Label>
+                                        <Input
+                                            id="studentId"
+                                            placeholder="2023-00097-SM-0"
+                                            type="text"
+                                            value={student_id}
+                                            onChange={async (e) => {
+                                                const val = e.target.value;
+                                                setStudentId(val);
+                                                // Auto-verify if format is correct
+                                                if (studentIdPattern.test(val)) {
+                                                    try {
+                                                        const res = await fetch("/api/whitelist/check", {
+                                                            method: "POST",
+                                                            headers: { "Content-Type": "application/json" },
+                                                            body: JSON.stringify({ studentId: val }),
+                                                        });
+                                                        const data = await res.json();
+                                                        if (data.allowed) {
+                                                            setWhitelistedName(toTitleCase(data.name));
+                                                            setError(null);
+                                                        } else {
+                                                            setWhitelistedName("");
+                                                            setError("Student ID not found in whitelist.");
+                                                        }
+                                                    } catch {
+                                                        console.error("Verification failed");
+                                                    }
                                                 } else {
                                                     setWhitelistedName("");
-                                                    setError("Student ID not found in whitelist.");
                                                 }
-                                            } catch {
-                                                console.error("Verification failed");
-                                            }
-                                        } else {
-                                            setWhitelistedName("");
-                                        }
-                                    }}
-                                    className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                                <p className="text-xs text-fuchsia-300/80">Format: YYYY-XXXXX-SM-X</p>
-                            </div>
+                                            }}
+                                            className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                        <p className="text-xs text-fuchsia-300/80">Format: YYYY-XXXXX-SM-X</p>
+                                    </div>
 
-                            {/* Full Name Input Field (Added for verification) */}
-                            <div className="space-y-1">
-                                <Label htmlFor="fullName" className="text-sm font-semibold text-fuchsia-200">
-                                    Full Name
-                                </Label>
-                                <Input
-                                    id="fullName"
-                                    placeholder="Enter your full name"
-                                    type="text"
-                                    value={inputName}
-                                    onChange={(e) => setInputName(e.target.value)}
-                                    className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                                <p className="text-xs text-fuchsia-300/80">Format: Ciel Angelo Mendoza</p>
-                            </div>
+                                    {/* Full Name Input Field (Added for verification) */}
+                                    <div className="space-y-1">
+                                        <Label htmlFor="fullName" className="text-sm font-semibold text-fuchsia-200">
+                                            Full Name
+                                        </Label>
+                                        <Input
+                                            id="fullName"
+                                            placeholder="Enter your full name"
+                                            type="text"
+                                            value={inputName}
+                                            onChange={(e) => setInputName(e.target.value)}
+                                            className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                        <p className="text-xs text-fuchsia-300/80">Format: Ciel Angelo Mendoza</p>
+                                    </div>
 
-                            {/* Match Feedback (Optional but helpful) */}
-                            <AnimatePresence>
-                                {whitelistedName && inputName.toLowerCase().trim() === whitelistedName.toLowerCase().trim() && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="bg-green-500/20 border border-green-500/30 rounded-lg p-2 flex items-center gap-2"
-                                    >
-                                        <div className="bg-green-500 rounded-full p-1">
-                                            <Loader2 className="h-3 w-3 text-white" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] uppercase text-green-300 font-bold tracking-tighter">Verified Identity</p>
-                                            <p className="text-sm text-white font-semibold">{whitelistedName}</p>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                    {/* Match Feedback (Optional but helpful) */}
+                                    <AnimatePresence>
+                                        {whitelistedName && inputName.toLowerCase().trim() === whitelistedName.toLowerCase().trim() && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="bg-green-500/20 border border-green-500/30 rounded-lg p-2 flex items-center gap-2"
+                                            >
+                                                <div className="bg-green-500 rounded-full p-1">
+                                                    <Loader2 className="h-3 w-3 text-white" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] uppercase text-green-300 font-bold tracking-tighter">Verified Identity</p>
+                                                    <p className="text-sm text-white font-semibold">{whitelistedName}</p>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
 
-                            {/* Password Field */}
-                            <div className="space-y-1">
-                                <Label htmlFor="password" className="text-sm font-semibold text-fuchsia-200">
-                                    Password
-                                </Label>
-                                <Input
-                                    id="password"
-                                    placeholder="Enter password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                                {/* NEW: Password complexity feedback */}
-                                {passwordError && (
-                                    <p className={`text-xs ${passwordError.includes('requires') ? 'text-yellow-400' : 'text-red-400'}`}>
-                                        🚨 {passwordError}
-                                    </p>
-                                )}
-                            </div>
+                                    {/* Password Field */}
+                                    <div className="space-y-1">
+                                        <Label htmlFor="password" className="text-sm font-semibold text-fuchsia-200">
+                                            Password
+                                        </Label>
+                                        <Input
+                                            id="password"
+                                            placeholder="Enter password"
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                        {/* NEW: Password complexity feedback */}
+                                        {passwordError && (
+                                            <p className={`text-xs ${passwordError.includes('requires') ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                🚨 {passwordError}
+                                            </p>
+                                        )}
+                                    </div>
 
-                            {/* Confirm Password Field */}
-                            <div className="space-y-1">
-                                <Label htmlFor="confirmPassword" className="text-sm font-semibold text-fuchsia-200">
-                                    Confirm Password
-                                </Label>
-                                <Input
-                                    id="confirmPassword"
-                                    placeholder="Re-enter password"
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className={`h-10 bg-fuchsia-900/40 border focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 ${matchError ? 'border-red-500 ring-1 ring-red-500' : 'border-fuchsia-700/50'}`}
-                                    required
-                                    disabled={isSubmitting}
-                                />
-                                {matchError && (
-                                    <p className="text-xs text-red-400 font-semibold">
-                                        ❌ Passwords do not match
-                                    </p>
-                                )}
-                            </div>
+                                    {/* Confirm Password Field */}
+                                    <div className="space-y-1">
+                                        <Label htmlFor="confirmPassword" className="text-sm font-semibold text-fuchsia-200">
+                                            Confirm Password
+                                        </Label>
+                                        <Input
+                                            id="confirmPassword"
+                                            placeholder="Re-enter password"
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className={`h-10 bg-fuchsia-900/40 border focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 ${matchError ? 'border-red-500 ring-1 ring-red-500' : 'border-fuchsia-700/50'}`}
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                        {matchError && (
+                                            <p className="text-xs text-red-400 font-semibold">
+                                                ❌ Passwords do not match
+                                            </p>
+                                        )}
+                                    </div>
 
-                            {/* Error/Success Toast Message */}
-                            <AnimatePresence>
-                                {error && (
-                                    <motion.div
-                                        key="toast-in-card"
-                                        animate={{ opacity: 1, y: 0 }}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className={`px-4 py-2 text-sm font-medium rounded-lg text-center ${error.startsWith("✅")
-                                            ? "bg-green-600/90 text-white"
-                                            : "bg-red-600/90 text-white"
-                                            } transition-all duration-300`}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        {error}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                    {/* Error/Success Toast Message */}
+                                    <AnimatePresence>
+                                        {error && (
+                                            <motion.div
+                                                key="toast-in-card"
+                                                animate={{ opacity: 1, y: 0 }}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className={`px-4 py-2 text-sm font-medium rounded-lg text-center ${error.startsWith("✅")
+                                                    ? "bg-green-600/90 text-white"
+                                                    : "bg-red-600/90 text-white"
+                                                    } transition-all duration-300`}
+                                                transition={{ duration: 0.3 }}
+                                            >
+                                                {error}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
 
-                            {/* Buttons */}
-                            <div className="flex flex-col space-y-2 pt-2"> {/* Reduced spacing */}
-                                <Button
-                                    className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    disabled={isSubmitting || !!passwordError || matchError || !password || !confirmPassword}
-                                    type="submit"
-                                >
-                                    {isSubmitting ? (
-                                        <span className="flex items-center justify-center">
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Signing Up...
-                                        </span>
-                                    ) : (
-                                        "Sign up"
-                                    )}
-                                </Button>
+                                    {/* Buttons */}
+                                    <div className="flex flex-col space-y-2 pt-2"> {/* Reduced spacing */}
+                                        <Button
+                                            className="w-full bg-fuchsia-700 text-white font-semibold rounded-xl hover:bg-fuchsia-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={isSubmitting || !!passwordError || matchError || !password || !confirmPassword}
+                                            type="submit"
+                                        >
+                                            {isSubmitting ? (
+                                                <span className="flex items-center justify-center">
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    Signing Up...
+                                                </span>
+                                            ) : (
+                                                "Sign up"
+                                            )}
+                                        </Button>
 
-                                <Button
-                                    className="w-full text-fuchsia-200 border-fuchsia-600 hover:bg-fuchsia-800/30"
-                                    variant="outline"
-                                    onClick={handleCloseDialog}
-                                    disabled={isSubmitting}
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
+                                        <Button
+                                            className="w-full text-fuchsia-200 border-fuchsia-600 hover:bg-fuchsia-800/30"
+                                            variant="outline"
+                                            onClick={handleCloseDialog}
+                                            disabled={isSubmitting}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
 
-                            {/* Optional: Already have an account link */}
-                            <div className="text-center text-xs pt-1 pb-2">
-                                <span className="text-white/70">Already have an account? </span>
-                                <a href="#" className="text-fuchsia-300 hover:text-fuchsia-100 transition-colors font-semibold">
-                                    Log In
-                                </a>
-                            </div>
-                        </form>
-                    </CardContent>
+                                    {/* Optional: Already have an account link */}
+                                    <div className="text-center text-xs pt-1 pb-2">
+                                        <span className="text-white/70">Already have an account? </span>
+                                        <a href="#" className="text-fuchsia-300 hover:text-fuchsia-100 transition-colors font-semibold">
+                                            Log In
+                                        </a>
+                                    </div>
+                                </form>
+                            </CardContent>
+                        </>
+                    )}
                 </Card>
             </DialogContent>
         </Dialog>

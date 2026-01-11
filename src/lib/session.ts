@@ -67,10 +67,11 @@ export async function createSession(uid: string, rawRole: string) {
         expires: expiresAt,
     });
 
-    // Optional UI cookie
-    cookieStore.set("ui_role", role, {
+    // Optional UI cookie - now using JWT
+    const uiRoleSession = await encrypt({ role } as any);
+    cookieStore.set("ui_role", uiRoleSession, {
         httpOnly: false,
-        secure: false,
+        secure: isProd,
         sameSite: "lax",
         path: "/",
         expires: expiresAt,
