@@ -160,13 +160,22 @@ export default function Navbar() {
         setIsToolsDropdownOpen(prev => !prev);
     };
 
-    const currentUserRole = user?.role as UserRole || ('guest' as UserRole);
-    const visibleLinks = mainNavLinks.filter(link =>
-        link.rolesAllowed.includes(currentUserRole)
-    );
+    const handleLinkClick = (e: React.MouseEvent, link: NavbarNavLink) => {
+        if (!link.rolesAllowed.includes(currentUserRole)) {
+            e.preventDefault();
+            toast({
+                title: "Access Restricted",
+                description: `Unauthorized: You cannot access ${link.label} with your current role: "${currentUserRole}".`,
+                variant: "destructive",
+            });
+            setIsToolsDropdownOpen(false);
+            setIsMobileMenuOpen(false);
+        }
+    };
 
-    const mainLinks = visibleLinks.filter(link => !link.group);
-    const groupedLinks = visibleLinks.filter(link => link.group === 'tools');
+    const currentUserRole = user?.role as UserRole || ('guest' as UserRole);
+    const mainLinks = mainNavLinks.filter(link => !link.group);
+    const groupedLinks = mainNavLinks.filter(link => link.group === 'tools');
     const isGroupVisible = groupedLinks.length > 0;
 
     // Close the dropdown when the mobile menu is opened/closed
@@ -244,6 +253,7 @@ export default function Navbar() {
                                         <NavigationMenuItem key={index}>
                                             <Link
                                                 href={link.href}
+                                                onClick={(e) => handleLinkClick(e, link)}
                                                 className={cn(
                                                     "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase transition-colors",
                                                     link.active ? "text-fuchsia-400" : ""
@@ -289,7 +299,12 @@ export default function Navbar() {
                                                                 <li key={index}>
                                                                     <Link
                                                                         href={link.href}
-                                                                        onClick={() => setIsToolsDropdownOpen(false)}
+                                                                        onClick={(e) => {
+                                                                            handleLinkClick(e, link);
+                                                                            if (link.rolesAllowed.includes(currentUserRole)) {
+                                                                                setIsToolsDropdownOpen(false);
+                                                                            }
+                                                                        }}
                                                                         className={cn(
                                                                             "block p-2 text-sm text-fuchsia-100 rounded-lg transition-colors",
                                                                             link.active
@@ -379,11 +394,11 @@ export default function Navbar() {
                             </div>
 
                             <div className="flex flex-col items-center gap-4 w-full">
-                                {visibleLinks.map((link, index) => (
+                                {mainNavLinks.map((link, index) => (
                                     <Link
                                         key={index}
                                         href={link.href}
-                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        onClick={(e) => handleLinkClick(e, link)}
                                         className={cn(
                                             "w-full text-center py-3 backdrop-blur-2xl rounded-xl text-lg font-medium transition-all duration-200",
                                             link.active
