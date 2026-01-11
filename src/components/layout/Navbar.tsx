@@ -44,7 +44,7 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
 const mainNavLinks: NavbarNavLink[] = [
     { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
     { href: '/announcement', label: 'Announcement', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
-    { href: '/community', label: 'Community', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
+    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'moderator'] },
 
     // Grouped links (Dropdown)
     { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
@@ -165,7 +165,7 @@ export default function Navbar() {
             e.preventDefault();
             toast({
                 title: "Access Restricted",
-                description: `Unauthorized: You cannot access ${link.label} with your current role: "${currentUserRole}".`,
+                description: `You are not able to access this page. Please log in with an authorized account.`,
                 variant: "destructive",
             });
             setIsToolsDropdownOpen(false);
