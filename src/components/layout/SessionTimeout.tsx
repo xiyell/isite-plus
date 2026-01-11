@@ -5,9 +5,9 @@ import { auth } from '@/services/firebase';
 import { useToast } from '@/components/ui/use-toast';
 import { logoutAction } from '@/actions/auth';
 
-// 10 minutes in milliseconds
-const SESSION_DURATION = 10 * 60 * 1000;
-const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+// 15 minutes in milliseconds
+const SESSION_DURATION = 15 * 60 * 1000;
+const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 
 export default function SessionTimeout() {
     const { toast } = useToast();
@@ -61,7 +61,7 @@ export default function SessionTimeout() {
     }, [toast]);
 
     useEffect(() => {
-        // 1. Setup Absolute Timeout (Force login every 10 mins)
+        // 1. Setup Absolute Timeout (Force login every 15 mins)
         const unsubscribe = auth.onAuthStateChanged((user) => {
             if (user) {
                 // When user logs in, set an absolute timer
