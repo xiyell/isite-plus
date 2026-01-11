@@ -175,13 +175,9 @@ export default function Navbar() {
 
     const currentUserRole = user?.role as UserRole || ('guest' as UserRole);
 
-    // Filter links: HIDE restricted links for Guests completely,
-    // but keep them visible for other roles to support the "Access Restricted" toasts.
+    // Filter links based on role visibility
     const filteredNavLinks = mainNavLinks.filter(link => {
-        if (currentUserRole === 'guest') {
-            return link.rolesAllowed.includes('guest');
-        }
-        return true;
+        return link.rolesAllowed.includes(currentUserRole);
     });
 
     const mainLinks = filteredNavLinks.filter(link => !link.group);

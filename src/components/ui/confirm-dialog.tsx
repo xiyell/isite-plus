@@ -10,6 +10,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 interface ConfirmDialogProps {
     isOpen: boolean;

@@ -408,151 +408,161 @@ export default function DashboardContent() {
 	const handleTabChange = (tabId: string) => { setActiveTab(tabId); setIsDropdownOpen(false); setMessageState(null); };
 
 	// --- Inline Modals ---
-	const EditUserModal = () => {
-		const [formData, setFormData] = useState({ name: '', role: 'user' as 'admin'|'moderator'|'user', status: 'active' });
+		const EditUserModal = () => {
+			const [formData, setFormData] = useState({ name: '', role: 'user' as 'admin'|'moderator'|'user', status: 'active' });
 
-		useEffect(() => {
-			if (editingUser) {
-				setFormData({
-					name: editingUser.name,
-					role: editingUser.role, 
-					status: editingUser.status
+			useEffect(() => {
+				if (editingUser) {
+					setFormData({
+						name: editingUser.name,
+						role: editingUser.role, 
+						status: editingUser.status
+					});
+				}
+			}, [editingUser]);
+
+			const handleSubmit = (e: React.FormEvent) => {
+				e.preventDefault();
+				if (!editingUser) return;
+				handleSaveUser({
+					...editingUser,
+					...formData
 				});
-			}
-		}, [editingUser]);
+			};
 
-		const handleSubmit = (e: React.FormEvent) => {
-			e.preventDefault();
-			if (!editingUser) return;
-			handleSaveUser({
-				...editingUser,
-				...formData
-			});
+			return (
+				<Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+					<DialogContent className="pt-4 bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
+						<DialogHeader>
+							<DialogTitle className="text-xl font-semibold text-purple-300">Edit User</DialogTitle>
+							<DialogDescription className="text-gray-400">Update user details and permissions for {editingUser?.name}.</DialogDescription>
+						</DialogHeader>
+
+						<form onSubmit={handleSubmit} className="space-y-4 pt-4">
+							<div className="space-y-2">
+								<Label htmlFor="name" className="text-gray-300">Name</Label>
+								<Input
+									id="name"
+									value={formData.name}
+									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+									className="bg-white/10 border-white/20 text-white"
+								/>
+							</div>
+							
+							<div className="space-y-2">
+								<Label htmlFor="role" className="text-gray-300">Role</Label>
+								<Select 
+									value={formData.role} 
+									onValueChange={(val: any) => setFormData({ ...formData, role: val })}
+								>
+									<SelectTrigger className="bg-white/10 border-white/20 text-white">
+										<SelectValue placeholder="Select Role" />
+									</SelectTrigger>
+									<SelectContent className="bg-gray-800 border-gray-700 text-white z-[200]">
+										<SelectItem value="user">User</SelectItem>
+										<SelectItem value="moderator">Moderator</SelectItem>
+										<SelectItem value="admin">Admin</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="status" className="text-gray-300">Status</Label>
+								<Select 
+									value={formData.status} 
+									onValueChange={(val) => setFormData({ ...formData, status: val })}
+								>
+									<SelectTrigger className="bg-white/10 border-white/20 text-white">
+										<SelectValue placeholder="Select Status" />
+									</SelectTrigger>
+									<SelectContent className="bg-gray-800 border-gray-700 text-white z-[200]">
+										<SelectItem value="active">Active</SelectItem>
+										<SelectItem value="restricted">Restricted</SelectItem>
+										<SelectItem value="suspended">Suspended</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							<DialogFooter className="pt-4">
+								<Button type="button" variant="ghost" onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-white">
+									Cancel
+								</Button>
+								<Button className="bg-purple-600 hover:bg-purple-700 text-white" type="submit">
+									Save Changes
+								</Button>
+							</DialogFooter>
+						</form>
+					</DialogContent>
+				</Dialog>
+			);
 		};
 
-		return (
-			<Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-				<DialogContent className="pt-4 bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
-					<DialogHeader>
-						<DialogTitle className="text-xl font-semibold text-purple-300">Edit User</DialogTitle>
-						<DialogDescription className="text-gray-400">Update user details and permissions.</DialogDescription>
-					</DialogHeader>
-					<form onSubmit={handleSubmit} className="space-y-4">
-						<div className="space-y-1.5">
-							<Label>Full Name</Label>
-							<Input
-								className="bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white"
-								value={formData.name}
-								onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label>Role</Label>
-							<Select 
-								value={formData.role} 
-								onValueChange={(val: any) => setFormData({ ...formData, role: val })}
-							>
-								<SelectTrigger className="bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
-								<SelectContent>
-									<SelectItem value="user">User</SelectItem>
-									<SelectItem value="moderator">Moderator</SelectItem>
-									<SelectItem value="admin">Admin</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-						<div className="space-y-1.5">
-							<Label>Status</Label>
-							<Select 
-								value={formData.status} 
-								onValueChange={(val) => setFormData({ ...formData, status: val })}
-							>
-								<SelectTrigger className="bg-white/10 border-white/20 text-white"><SelectValue /></SelectTrigger>
-								<SelectContent>
-									<SelectItem value="active">Active</SelectItem>
-									<SelectItem value="restricted">Restricted</SelectItem>
-									<SelectItem value="suspended">Suspended</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-						<DialogFooter className="mt-6 flex justify-end gap-3">
-							<Button variant="secondary" onClick={() => setEditingUser(null)} className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200">Cancel</Button>
-							<Button className="bg-purple-600 hover:bg-purple-700 text-white" type="submit">Save Changes</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
-		);
-	};
+		const PasswordModal = () => {
+			const [newPass, setNewPass] = useState('');
+			const [confirmPass, setConfirmPass] = useState('');
 
-	const PasswordModal = () => {
-		const [newPass, setNewPass] = useState('');
-		const [confirmPass, setConfirmPass] = useState('');
+			const handleSubmit = (e: React.FormEvent) => {
+				e.preventDefault();
+				if (!newPass || !confirmPass) {
+					return setMessageState({ message: "⚠️ Fill in both fields", type: 'warning' });
+				}
+				if (newPass !== confirmPass) {
+					return setMessageState({ message: "⚠️ Passwords do not match", type: 'warning' });
+				}
+				if (passwordTarget) {
+					handlePasswordChange(newPass, passwordTarget.id);
+					setPasswordTarget(null);
+					setNewPass('');
+					setConfirmPass('');
+				}
+			};
 
-		const handleSubmit = (e: React.FormEvent) => {
-			e.preventDefault();
-			if (!newPass || !confirmPass) {
-				return setMessageState({ message: "⚠️ Fill in both fields", type: 'warning' });
-			}
-			if (newPass !== confirmPass) {
-				return setMessageState({ message: "⚠️ Passwords do not match", type: 'warning' });
-			}
-			if (passwordTarget) {
-				handlePasswordChange(newPass, passwordTarget.id);
-				setPasswordTarget(null);
-				setNewPass('');
-				setConfirmPass('');
-			}
+			return (
+				<Dialog open={!!passwordTarget} onOpenChange={() => setPasswordTarget(null)}>
+					<DialogContent className="pt-4 bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
+						<DialogHeader>
+							<DialogTitle className="text-xl font-semibold text-yellow-400">
+								🔑 Change Password — {passwordTarget?.name}
+							</DialogTitle>
+							<DialogDescription className="text-gray-400">
+								Update credentials for this account.
+							</DialogDescription>
+						</DialogHeader>
+
+						<form onSubmit={handleSubmit} className="space-y-4 pt-4">
+							<div className="space-y-2">
+								<Label className="text-gray-300">New Password</Label>
+								<Input
+									placeholder="New Password"
+									type="password"
+									value={newPass}
+									onChange={(e) => setNewPass(e.target.value)}
+									className="bg-white/10 border-white/20 text-white"
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label className="text-gray-300">Confirm Password</Label>
+								<Input
+									placeholder="Confirm Password"
+									type="password"
+									value={confirmPass}
+									onChange={(e) => setConfirmPass(e.target.value)}
+									className="bg-white/10 border-white/20 text-white"
+								/>
+							</div>
+							<DialogFooter className="pt-4">
+								<Button type="button" variant="ghost" onClick={() => setPasswordTarget(null)} className="text-gray-400 hover:text-white">
+									Cancel
+								</Button>
+								<Button className="bg-yellow-600 hover:bg-yellow-700 text-white" type="submit">
+									Change Password
+								</Button>
+							</DialogFooter>
+						</form>
+					</DialogContent>
+				</Dialog>
+			);
 		};
-
-		return (
-			<Dialog open={!!passwordTarget} onOpenChange={() => setPasswordTarget(null)}>
-				<DialogContent className="pt-4 bg-black/80 backdrop-blur-xl border border-white/20 text-white w-11/12 max-w-md p-6">
-					<DialogHeader>
-						<DialogTitle className="text-xl font-semibold text-yellow-400">
-							🔑 Change Password — {passwordTarget?.name}
-						</DialogTitle>
-						<DialogDescription className="text-gray-400">
-							Warning: This action requires Firebase Admin SDK.
-						</DialogDescription>
-					</DialogHeader>
-					<form onSubmit={handleSubmit} className="space-y-4">
-						<Input
-							className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white"
-							name="newPassword"
-							placeholder="New password"
-							type="password"
-							value={newPass}
-							onChange={(e) => setNewPass(e.target.value)}
-						/>
-						<Input
-							className="w-full bg-white/10 border border-white/20 focus-visible:ring-purple-500 text-white"
-							name="confirmPassword"
-							placeholder="Confirm password"
-							type="password"
-							value={confirmPass}
-							onChange={(e) => setConfirmPass(e.target.value)}
-						/>
-						<DialogFooter className="mt-6 flex justify-end gap-3">
-							<Button
-								variant="secondary"
-								onClick={() => setPasswordTarget(null)}
-								className="bg-gray-500/20 hover:bg-gray-500/30 text-gray-200"
-								type="button"
-							>
-								Cancel
-							</Button>
-							<Button
-								className="bg-purple-600 hover:bg-purple-700 text-white"
-								type="submit"
-							>
-								Update Password
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
-		);
-	};
 
 	return (
 		<div className="w-full min-h-screen text-white bg-transparent font-sans pt-24 px-6 pb-6 md:pt-28 md:px-10 md:pb-10">

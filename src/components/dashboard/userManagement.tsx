@@ -160,7 +160,7 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
                             <SelectValue placeholder="Filter by Role" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                        <SelectContent className="bg-gray-800 border-gray-700 text-white z-[200]">
                             <SelectItem value="all">All Roles</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="moderator">Moderator</SelectItem>
@@ -171,7 +171,7 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
                             <SelectValue placeholder="Filter by Status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                        <SelectContent className="bg-gray-800 border-gray-700 text-white z-[200]">
                             <SelectItem value="all">All Statuses</SelectItem>
                             <SelectItem value="active">Active</SelectItem>
                             <SelectItem value="restricted">Restricted</SelectItem>

@@ -26,6 +26,15 @@ interface AllowedIDsProps {
     onBack: () => void;
 }
 
+const getPageNumbers = (current: number, total: number, max = 5) => {
+    const pages: number[] = [];
+    let start = Math.max(1, current - Math.floor(max / 2));
+    let end = Math.min(total, start + max - 1);
+    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+};
+
 export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     const { toast } = useToast();
     const [entries, setEntries] = useState<WhitelistEntry[]>([]);
@@ -368,33 +377,24 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                                     />
                                 </PaginationItem>
 
-                                {(() => {
-                                    const max = 5;
-                                    const pages: number[] = [];
-                                    let start = Math.max(1, currentPage - Math.floor(max / 2));
-                                    let end = Math.min(totalPages, start + max - 1);
-                                    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
-                                    for (let i = start; i <= end; i++) if (i > 0) pages.push(i);
-
-                                    return pages.map((page) => (
-                                        <PaginationItem key={page}>
-                                            <PaginationLink
-                                                href="#"
-                                                isActive={page === currentPage}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setCurrentPage(page);
-                                                }}
-                                                className={page === currentPage
-                                                    ? "bg-indigo-600 text-white border-indigo-500"
-                                                    : "text-gray-400 hover:text-white"
-                                                }
-                                            >
-                                                {page}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    ));
-                                })()}
+                                {getPageNumbers(currentPage, totalPages).map((page) => (
+                                    <PaginationItem key={page}>
+                                        <PaginationLink
+                                            href="#"
+                                            isActive={page === currentPage}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setCurrentPage(page);
+                                            }}
+                                            className={page === currentPage
+                                                ? "bg-indigo-600 text-white border-indigo-500"
+                                                : "text-gray-400 hover:text-white"
+                                            }
+                                        >
+                                            {page}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ))}
 
                                 <PaginationItem>
                                     <PaginationNext
@@ -409,8 +409,7 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                             </PaginationContent>
                         </Pagination>
                     </div>
-                )}
-            </CardContent>
+                )}            </CardContent>
         </Card>
     );
 };
