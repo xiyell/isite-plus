@@ -691,9 +691,15 @@ export default function DashboardContent() {
 										/>
 										<Label htmlFor="description" className="text-white font-semibold">Content</Label>
 										<Textarea
-											id="description" placeholder="Details about the announcement..." value={announcement.description}
-											onChange={e => setAnnouncement({ ...announcement, description: e.target.value })}
-											className="bg-white/5 text-white border-white/20 h-32 placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2"
+											id="description" 
+                                            placeholder="Details about the announcement..." 
+                                            value={announcement.description}
+											onChange={e => {
+                                                setAnnouncement({ ...announcement, description: e.target.value });
+                                                e.target.style.height = 'auto';
+                                                e.target.style.height = `${e.target.scrollHeight}px`;
+                                            }}
+											className="bg-white/5 text-white border-white/20 min-h-[128px] overflow-hidden placeholder:text-gray-500 focus-visible:ring-indigo-500 focus-visible:ring-2 resize-none"
 										/>
 										<div className="flex flex-col gap-2">
 											<Label className="text-white font-semibold" htmlFor="imageUrl">Image URL (Optional)</Label>

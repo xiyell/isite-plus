@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { auth } from '@/services/firebase';
 import { useToast } from '@/components/ui/use-toast';
 import { logoutAction } from '@/actions/auth';
@@ -11,6 +12,7 @@ const INACTIVITY_TIMEOUT = 10 * 60 * 1000;
 
 export default function SessionTimeout() {
     const { toast } = useToast();
+    const router = useRouter();
     const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
     const absoluteTimerRef = useRef<NodeJS.Timeout | null>(null);
     const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -20,12 +22,12 @@ export default function SessionTimeout() {
             console.log("Session expired: Logging out...");
             await logoutAction();
             await auth.signOut();
-            window.location.href = "/?sessionExpired=true";
+            router.replace("/?sessionExpired=true");
         } catch (error) {
             console.error("Auto-logout failed", error);
-             window.location.href = "/?sessionExpired=true";
+            router.replace("/?sessionExpired=true");
         }
-    }, []);
+    }, [router]);
 
     const resetInactivityTimer = useCallback(() => {
         if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
@@ -41,14 +43,19 @@ export default function SessionTimeout() {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             if (params.get('sessionExpired') === 'true') {
+                 // Prevent duplicate toasts using a short timeout or ref if necessary, 
+                 // but simple check is usually enough if we clean the URL immediately.
+                
+                // Delay slightly to ensure UI is ready
                 setTimeout(() => {
                     toast({
-                        title: "Session Finished",
-                        description: "Your session has finished. Please log in again.",
+                        title: "Session Expired",
+                        description: "You have been logged out due to inactivity.",
                         variant: "destructive", 
                     });
-                }, 100);
+                }, 500);
                 
+                // Clean URL
                 const newUrl = window.location.pathname;
                 window.history.replaceState({}, '', newUrl);
             }
