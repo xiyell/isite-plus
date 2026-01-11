@@ -48,7 +48,7 @@ const mainNavLinks: NavbarNavLink[] = [
 
     // Grouped links (Dropdown)
     { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
-    { href: '/iQr', label: 'iQR', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/iQr', label: 'iQR', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
     { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
