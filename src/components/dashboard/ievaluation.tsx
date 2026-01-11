@@ -866,7 +866,7 @@ function EvaluationStats({ evaluation, onBack }: any) {
                                                 </TableCell>
                                                 <TableCell className="text-gray-400">
                                                     <span className="block text-white">{r.studentId || '-'}</span>
-                                                    <span className="text-xs text-blue-200">{r.yearLevel ? `${r.yearLevel} - ${r.section}` : (r.section || '-')}</span>
+                                                    <span className="text-xs text-blue-200">{r.yearLevel ? `${r.yearLevel} - ${['1','2','3','4'].includes(r.section) ? `Section ${r.section}` : r.section}` : (['1','2','3','4'].includes(r.section) ? `Section ${r.section}` : r.section || '-')}</span>
                                                 </TableCell>
                                                 <TableCell className="text-gray-400">
                                                     {new Date(r.submittedAt).toLocaleDateString()}

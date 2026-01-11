@@ -57,7 +57,20 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
 
     // Sync state when opening with different data
     useEffect(() => {
-        setFormData(currentData);
+        // Normalize data for the form (handle legacy formats)
+        const normalizedData = { ...currentData };
+
+        // Fix Section: "Section 1" -> "1"
+        if (normalizedData.section && normalizedData.section.startsWith("Section ")) {
+            normalizedData.section = normalizedData.section.replace("Section ", "");
+        }
+        // Fix Section: "N/A" or missing -> "None" (so it shows in Select if specific option exists, otherwise handle appropriately)
+        // Note: Our select has "None" as an option.
+        if (normalizedData.section === "N/A") {
+             normalizedData.section = "None";
+        }
+
+        setFormData(normalizedData);
     }, [currentData, isOpen]);
 
     const handleChange = (field: keyof ProfileData, value: any) => {

@@ -324,7 +324,7 @@ export default function AttendanceTracker() {
                                                     {record.yearLevel}
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
-                                                    {record.section}
+                                                    {['1','2','3','4'].includes(record.section) ? `Section ${record.section}` : record.section}
                                                 </td>
                                             </motion.tr>
                                         ))}

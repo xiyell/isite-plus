@@ -13,17 +13,16 @@ export default function SessionTimeout() {
     const { toast } = useToast();
     const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
     const absoluteTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleSignOut = useCallback(async () => {
         try {
             console.log("Session expired: Logging out...");
             await logoutAction();
             await auth.signOut();
-            // Redirect with flag to show toast after reload
             window.location.href = "/?sessionExpired=true";
         } catch (error) {
             console.error("Auto-logout failed", error);
-            // Fallback redirect even if signOut fails
              window.location.href = "/?sessionExpired=true";
         }
     }, []);
@@ -39,12 +38,9 @@ export default function SessionTimeout() {
     }, [handleSignOut]);
 
     useEffect(() => {
-        // Check for session expired flag on mount (after redirect)
-        // Using window.location directly to avoid Next.js Suspense boundary requirements for useSearchParams
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             if (params.get('sessionExpired') === 'true') {
-                // Small delay to ensure UI is ready
                 setTimeout(() => {
                     toast({
                         title: "Session Finished",
@@ -53,7 +49,6 @@ export default function SessionTimeout() {
                     });
                 }, 100);
                 
-                // Clean URL
                 const newUrl = window.location.pathname;
                 window.history.replaceState({}, '', newUrl);
             }
@@ -64,8 +59,21 @@ export default function SessionTimeout() {
         // 1. Setup Absolute Timeout (Force login every 15 mins)
         const unsubscribe = auth.onAuthStateChanged((user) => {
             if (user) {
-                // When user logs in, set an absolute timer
+                // Clear existing
                 if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+                if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+
+                // A. Warning at 14 minutes
+                warningTimerRef.current = setTimeout(() => {
+                    toast({
+                        title: "Session Expiring Soon ⏳",
+                        description: "Your session will end in 1 minute automatically. Please save your work.",
+                        variant: "destructive",
+                        duration: 60000, 
+                    });
+                }, SESSION_DURATION - 60000);
+
+                // B. Hard Logout at 15 minutes
                 absoluteTimerRef.current = setTimeout(() => {
                     handleSignOut();
                 }, SESSION_DURATION);
@@ -73,6 +81,7 @@ export default function SessionTimeout() {
                 resetInactivityTimer();
             } else {
                 if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+                if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
                 if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
             }
         });
@@ -86,10 +95,11 @@ export default function SessionTimeout() {
         return () => {
             unsubscribe();
             if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
+            if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
             if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
             events.forEach(event => window.removeEventListener(event, handleActivity));
         };
-    }, [handleSignOut, resetInactivityTimer]);
+    }, [handleSignOut, resetInactivityTimer, toast]);
 
     return null;
 }
