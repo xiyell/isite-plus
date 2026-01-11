@@ -666,7 +666,10 @@ function EvaluationResponder({ evaluation, userEmail, onSubmit, onCancel }: any)
                 <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                 <h2 className="text-2xl font-bold text-white mb-2">Thank You!</h2>
                 <p className="text-gray-400 text-center mb-6">You have already submitted your response for this evaluation.</p>
-                <Button onClick={onCancel} variant="outline" className="border-white/20 text-white hover:bg-white/10">
+                <Button 
+                    onClick={onCancel} 
+                    className="bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white hover:opacity-90 shadow-lg shadow-fuchsia-900/20 px-8 rounded-full"
+                >
                     Back to List
                 </Button>
             </div>

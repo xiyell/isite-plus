@@ -28,19 +28,31 @@ export async function sendVerificationCode(email: string, userUid: string) {
     attempts: 0
   });
 
+  /* 
+   * Simplified Email Template
+   * Avoids "Security", "Urgent", or complex layouts that trigger spam filters.
+   */
   const message = `
-    <p>Your iSITE+ verification code is: <b>${code}</b></p>
-    <p>This code will expire in 10 minutes.</p>
+    <div style="font-family: sans-serif; padding: 20px; color: #333;">
+      <h3 style="color: #444;">iSITE Verification Code</h3>
+      <p>Here is the code you requested to log in:</p>
+      
+      <div style="font-size: 28px; font-weight: bold; margin: 20px 0; letter-spacing: 3px; color: #2563eb;">
+        ${code}
+      </div>
+      
+      <p style="font-size: 14px; color: #666;">This code expires in 10 minutes.</p>
+    </div>
   `;
 
   try {
-      await sendEmail(email, "Your Verification Code", message);
+      await sendEmail(email, "Verification Code", message); // Simple subject
       return { success: true };
   } catch (error: any) {
       console.error("Failed to send email:", error);
       return { 
           success: false, 
-          message: "Failed to send email. Check your .env.local credentials and terminal logs." 
+          message: "Failed to send verification email. Please try again or contact support." 
       };
   }
 }

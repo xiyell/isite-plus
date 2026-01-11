@@ -21,32 +21,25 @@ import { Label } from "@/components/ui/label";
 // ----------------------------
 
 
+import { useToast } from "@/components/ui/use-toast";
+
 interface LoginModalProps {
     onLogin: (user: User) => void;
 }
 
 export default function LoginModal({ onLogin }: LoginModalProps) {
     const router = useRouter();
+    const { toast } = useToast();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     // Renamed 'loading' to 'isSubmitting' for clarity in the form context
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [toast, setToast] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     
     // 2FA State
     const [step, setStep] = useState<'credentials' | 'verification' | 'unverified'>('credentials');
     const [verificationCode, setVerificationCode] = useState("");
     const [tempUser, setTempUser] = useState<any>(null); // Store user data temporarily between steps
-
-    // Auto-hide toast after 3 seconds
-    // Toast is now permanent until closed/clicked
-    // useEffect(() => {
-    //     if (toast) {
-    //         const timer = setTimeout(() => setToast(null), 5000);
-    //         return () => clearTimeout(timer);
-    //     }
-    // }, [toast]);
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
@@ -60,14 +53,21 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setToast(null);
 
         if (!email.endsWith("@iskolarngbayan.pup.edu.ph")) {
-            return setToast("Only PUP Webmail accounts are allowed.");
+            return toast({
+                variant: "destructive",
+                title: "Invalid Email",
+                description: "Only PUP Webmail accounts are allowed."
+            });
         }
 
         if (!email.trim() || !password.trim()) {
-            return setToast("Please fill in all fields.");
+            return toast({
+                variant: "destructive",
+                title: "Missing Fields",
+                 description: "Please fill in all fields."
+            });
         }
 
         setIsSubmitting(true);
@@ -89,48 +89,47 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             await auth.signOut();
 
             // 2. Prepare for 2FA
-            // Store basic user info temporarily
             setTempUser(user);
 
             // 3. Send Verification Code
-            setToast("Sending verification code...");
             const vResult = await sendVerificationCode(user.email!, user.uid);
 
             if (!vResult.success) {
-                setToast(vResult.message || "Failed to send code.");
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: vResult.message || "Failed to send code."
+                });
                 setIsSubmitting(false);
                 return;
             }
 
             // 4. Move to Verification Step
             setStep('verification');
-            setToast(null); 
+            
+            // If the server returned a warning message (e.g., email failed but code logged), show it.
+            if (vResult.message) {
+                 toast({
+                    title: "Notice",
+                    description: vResult.message,
+                });
+            }
+            
             setIsSubmitting(false);
 
         } catch (err: any) {
             let errorMessage = err.message;
-            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+            if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
                 errorMessage = 'Invalid email or password.';
+            } else if (err.code === 'auth/too-many-requests') {
+                errorMessage = 'Too many failed attempts. Please try again later.';
             }
-            setToast(errorMessage);
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleResendVerification = async () => {
-        if (!tempUser) return;
-        setIsSubmitting(true);
-        try {
-            await sendEmailVerification(tempUser);
-            setToast("✅ Verification email sent! Check Inbox/Spam.");
-        } catch (error: any) {
-            console.error(error);
-            if (error.code === 'auth/too-many-requests') {
-                setToast("Too many requests. Please wait a moment.");
-            } else {
-                setToast("Failed to send email. Try again later.");
-            }
-        } finally {
+            
+            toast({
+                variant: "destructive",
+                title: "Login Failed",
+                description: errorMessage
+            });
             setIsSubmitting(false);
         }
     };
@@ -140,14 +139,17 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
         if (!verificationCode || !tempUser) return;
         
         setIsSubmitting(true);
-        setToast(null);
 
         try {
             // 1. Verify Code
             const result = await verifyTwoFactorCode(tempUser.uid, verificationCode);
             
             if (!result.success) {
-                setToast(result.message || "Invalid code.");
+                toast({
+                    variant: "destructive",
+                    title: "Verification Failed",
+                    description: result.message || "Invalid code."
+                });
                 setIsSubmitting(false);
                 return;
             }
@@ -175,7 +177,11 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 role: data.role || "user",
             });
 
-            setToast("✅ Logged in successfully!");
+            toast({
+                title: "Login Successful",
+                description: "Complete!",
+                className: "bg-green-600 border-green-700 text-white"
+            });
 
             setTimeout(() => {
                 setIsDialogOpen(false);
@@ -188,11 +194,45 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                     setVerificationCode("");
                     setTempUser(null);
                 }, 500);
-            }, 2500);
+            }, 1000);
 
         } catch (error) {
             console.error(error);
-            setToast("An error occurred during verification.");
+             toast({
+                variant: "destructive",
+                title: "System Error",
+                description: "An error occurred during verification."
+            });
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!tempUser) return;
+        setIsSubmitting(true);
+        try {
+            await sendEmailVerification(tempUser);
+            toast({
+                title: "Email Sent",
+                description: "✅ Verification email sent! Check Inbox/Spam.",
+                className: "bg-green-600 border-green-700 text-white"
+            });
+        } catch (error: any) {
+            console.error(error);
+            if (error.code === 'auth/too-many-requests') {
+                 toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Too many requests. Please wait a moment."
+                });
+            } else {
+                 toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to send email. Try again later."
+                });
+            }
+        } finally {
             setIsSubmitting(false);
         }
     };

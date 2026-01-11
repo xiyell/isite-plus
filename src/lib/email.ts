@@ -7,29 +7,50 @@ export async function sendEmail(to: string, subject: string, html: string) {
   // Choose transport based on EMAIL_SERVICE env var (default: Outlook)
   const transporter = (() => {
     const service = process.env.EMAIL_SERVICE?.toLowerCase();
+    
+    // GMAIL (Recommended for Personal Accounts)
     if (service === 'gmail') {
-      // Gmail service (uses OAuth2 or simple user/pass)
       return nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Use SSL
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
       });
     }
-    // Outlook / Office 365 fallback
+
+    // PERSONAL OUTLOOK / HOTMAIL (Explicit)
+    if (service === 'outlook' || service === 'hotmail') {
+        return nodemailer.createTransport({
+            host: "smtp-mail.outlook.com", // Specific host for personal accounts
+            port: 587,
+            secure: false,
+            requireTLS: true,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+            tls: {
+                ciphers: undefined 
+            }
+        });
+    }
+
+    // DEFAULT / OFFICE 365 (School/Work)
     return nodemailer.createTransport({
       host: "smtp.office365.com",
       port: 587,
-      secure: false,
+      secure: false, // TLS requires secure: false + starttls
+      requireTLS: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
       tls: {
-        ciphers: 'SSLv3',
-        rejectUnauthorized: false,
-      },
+          ciphers: undefined 
+      }
     });
   })();
 
@@ -38,13 +59,39 @@ export async function sendEmail(to: string, subject: string, html: string) {
       throw new Error("Email configuration missing."); 
   }
 
-  console.log(`📧 Attempting to send email to ${to} using ${process.env.EMAIL_SERVICE || 'outlook'}...`);
+  console.log(`📧 Configured Service: ${process.env.EMAIL_SERVICE || 'Outlook/Default'}`);
+  
+  // Verify connection configuration
+  try {
+    await new Promise((resolve, reject) => {
+      transporter.verify(function (error, success) {
+        if (error) {
+          console.error("❌ SMTP Connection Error:", error);
+          reject(error);
+        } else {
+          console.log("✅ SMTP Server is ready to take our messages");
+          resolve(success);
+        }
+      });
+    });
+  } catch (err) {
+    console.error("❌ ABORTING EMAIL: SMTP Check Failed.");
+    throw err;
+  }
 
+  console.log(`📧 Attempting to send email to ${to}...`);
+
+  const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2)}@${process.env.EMAIL_USER?.split('@')[1] || 'isite-plus.com'}>`;
+  
   await transporter.sendMail({
     from: process.env.EMAIL_USER,
     to,
+    replyTo: process.env.EMAIL_USER,
     subject,
+    text: html.replace(/<[^>]*>/g, ''), // Plain text fallback
     html,
+    messageId,
+     // Removed High Priority headers as they can trigger spam filters on new accounts
   });
   
   console.log(`✅ Email sent successfully to ${to}`);

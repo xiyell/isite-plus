@@ -63,6 +63,23 @@ export default function IReader() {
     new Date().toISOString().split("T")[0]
   );
 
+  // Load scanned IDs from local storage for the current date
+  useEffect(() => {
+    const saved = localStorage.getItem(`scanned_${sheetDate}`);
+    if (saved) {
+      try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setLastScanned(new Set(parsed));
+          }
+      } catch (e) {
+          console.error("Failed to parse saved scans", e);
+      }
+    } else {
+      setLastScanned(new Set());
+    }
+  }, [sheetDate]);
+
   // --------------------------------------------------------
   // Uses ZXing module to handle QR code scanning from the video stream
   // --------------------------------------------------------
@@ -105,15 +122,20 @@ export default function IReader() {
         // --------------------------------------------------------
         // Avoids duplicate scans by checking if the Student Id has already been scanned by this device
         // --------------------------------------------------------
-        const uniqueKey = `${json.idNumber}`;
-        if (lastScanned.has(uniqueKey)) {
-          showNotification("error", "⚠️ QR already scanned previously!");
+        const idToCheck = json.idNumber.trim().toUpperCase();
+        
+        if (lastScanned.has(idToCheck)) {
+          showNotification("error", `⚠️ ${json.name} already scanned!`);
           console.warn("Duplicate QR:", json);
           setIsProcessing(false);
           return;
         }
 
-        setLastScanned((prev) => new Set([...prev, uniqueKey]));
+        // Add to set and persist
+        const newSet = new Set(lastScanned).add(idToCheck);
+        setLastScanned(newSet);
+        localStorage.setItem(`scanned_${sheetDate}`, JSON.stringify(Array.from(newSet)));
+        
         setDecodedData(json);
 
         // --------------------------------------------------------
@@ -129,12 +151,19 @@ export default function IReader() {
               showNotification("success", `✅ ${json!.name} recorded successfully!`);
             } else {
               const err = await res.json().catch(() => ({}));
-              showNotification("error", `❌ Failed: ${err.error || "Unknown error"}`);
+              // If backend says duplicate, we are already covered by UI check usually, but good to have fallback
+              if (res.status === 409) {
+                 showNotification("error", `⚠️ Already recorded in database.`);
+              } else {
+                 showNotification("error", `❌ Failed: ${err.error || "Unknown error"}`);
+              }
             }
           })
           .catch((e) => {
             console.error("Network error posting attendance:", e);
             showNotification("error", "⚠️ Network error. Try again.");
+            // If network fail, maybe remove from local set? 
+            // For now, we keep it to prevent spamming.
           })
           .finally(() => {
             setTimeout(() => setIsProcessing(false), 1500);

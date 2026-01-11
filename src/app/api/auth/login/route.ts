@@ -18,7 +18,28 @@ export async function POST(req: Request) {
         // Get role from Firestore
         const db = getAdminDb();
         const userDoc = await db.collection("users").doc(uid).get();
-        const role = userDoc.data()?.role || "user";
+        
+        if (!userDoc.exists) {
+            console.warn(`User ${uid} authenticated but no Firestore doc found.`);
+            // Optional: Auto-create or Block. For now, we block to appear "deleted" if doc is missing.
+            return NextResponse.json({ error: "User account not found." }, { status: 403 });
+        }
+
+        const userData = userDoc.data();
+
+        if (userData?.isDeleted || userData?.status === 'deleted') {
+            console.warn(`User ${uid} attempted login but is soft-deleted.`);
+            return NextResponse.json({ error: "This account has been deactivated." }, { status: 403 });
+        }
+
+        const role = userData?.role || "user";
+
+        // Auto-activate user upon successful verified login if not deleted
+        await db.collection("users").doc(uid).update({
+            status: 'active',
+            active: true,
+            lastLogin: new Date().toISOString()
+        });
 
         // Create JWT session manually
         const { encrypt } = await import("@/lib/session");

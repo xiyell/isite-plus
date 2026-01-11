@@ -22,6 +22,16 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+import { AllowedIDs } from './AllowedIDs';
+
 // --- Types (Re-defined for clarity) ---
 interface UserData {
     id: string;
@@ -45,12 +55,6 @@ interface UserManagementProps {
     handleDeleteUser: (id: string, name: string) => void;
 }
 
-// --- Component Definition ---
-
-
-// ... imports
-import { AllowedIDs } from './AllowedIDs';
-
 export const UserManagementContent: React.FC<UserManagementProps> = ({
     users,
     search,
@@ -63,6 +67,9 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
     const [viewMode, setViewMode] = useState<'users' | 'whitelist'>('users');
     const [sortKey, setSortKey] = useState<'name' | 'email' | 'role' | 'lastLogin'>('name');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'moderator' | 'user'>('all');
+
+    const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'restricted' | 'suspended'>('all');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -89,18 +96,26 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
         }
     };
 
-    const sortedUsers = [...users].sort((a, b) => {
-        const valA = a[sortKey].toString().toLowerCase();
-        const valB = b[sortKey].toString().toLowerCase();
+    const filteredAndSortedUsers = users
+        .filter(u => roleFilter === 'all' || u.role === roleFilter)
+        .filter(u => statusFilter === 'all' || u.status === statusFilter)
+        .filter(u => 
+            search === '' || 
+            u.name.toLowerCase().includes(search.toLowerCase()) || 
+            u.email.toLowerCase().includes(search.toLowerCase())
+        )
+        .sort((a, b) => {
+            const valA = a[sortKey].toString().toLowerCase();
+            const valB = b[sortKey].toString().toLowerCase();
 
-        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-    });
+            if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+            if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
 
     // Pagination Logic
-    const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
-    const paginatedUsers = sortedUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const totalPages = Math.ceil(filteredAndSortedUsers.length / itemsPerPage);
+    const paginatedUsers = filteredAndSortedUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const SortIcon = ({ keyName }: { keyName: typeof sortKey }) => {
         if (sortKey !== keyName) return null;
@@ -130,112 +145,128 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
             <CardContent className="space-y-6">
 
                 {/* Search & Filter */}
-                <div className="flex items-center gap-4">
-                    <Search size={20} className="text-gray-400" />
-                    <Input
-                        type="text"
-                        placeholder="Search by Name or Email..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full bg-white/5 border-white/20 text-white"
-                    />
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="relative flex-1">
+                        <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Input
+                            type="text"
+                            placeholder="Search by Name or Email..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full bg-white/5 border-white/20 text-white pl-10"
+                        />
+                    </div>
+                    <Select value={roleFilter} onValueChange={(val: any) => setRoleFilter(val)}>
+                        <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Filter by Role" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                            <SelectItem value="all">All Roles</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="moderator">Moderator</SelectItem>
+                            <SelectItem value="user">User</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
+                        <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
+                            <SelectValue placeholder="Filter by Status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-gray-800 border-gray-700 text-white">
+                            <SelectItem value="all">All Statuses</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="restricted">Restricted</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                {/* User Table */}
-                <div className="overflow-x-auto">
-                    <Table className="min-w-full">
-                        <TableHeader>
-                            <TableRow className="bg-black/20 border-white/10 hover:bg-black/20 text-gray-400">
+                {/* User Table - styled like ActivityLogs */}
+                <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
+                    <Table className="border-collapse w-full">
+                        <TableHeader className="bg-white/10">
+                            <TableRow className="border-b border-white/20">
                                 <TableHead
-                                    className="cursor-pointer hover:text-white"
+                                    className="cursor-pointer hover:text-white border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4"
                                     onClick={() => handleSort('name')}
                                 >
-                                    Name <SortIcon keyName="name" />
+                                    <div className="flex items-center gap-2">Name <SortIcon keyName="name" /></div>
                                 </TableHead>
                                 <TableHead
-                                    className="cursor-pointer hover:text-white hidden sm:table-cell"
+                                    className="cursor-pointer hover:text-white border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 hidden sm:table-cell"
                                     onClick={() => handleSort('email')}
                                 >
-                                    Email <SortIcon keyName="email" />
+                                    <div className="flex items-center gap-2">Email <SortIcon keyName="email" /></div>
                                 </TableHead>
                                 <TableHead
-                                    className="cursor-pointer hover:text-white"
+                                    className="cursor-pointer hover:text-white border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4"
                                     onClick={() => handleSort('role')}
                                 >
-                                    Role <SortIcon keyName="role" />
+                                    <div className="flex items-center gap-2">Role <SortIcon keyName="role" /></div>
                                 </TableHead>
-                                <TableHead className="text-center">Status</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="text-center border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Status</TableHead>
+                                <TableHead className="text-right text-white font-bold uppercase tracking-wider text-xs p-4">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <AnimatePresence initial={false}>
-                                {paginatedUsers.map((user) => (
-                                    <motion.tr
-                                        key={user.id}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="border-white/10 hover:bg-white/5 text-gray-200"
-                                    >
-                                        <TableCell className="font-medium text-white whitespace-nowrap">{user.name}</TableCell>
-                                        <TableCell className="text-gray-300 hidden sm:table-cell">{user.email}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                className={getRoleVariant(user.role)}
-                                            // Optional: Allow quick role switch (requires handleRoleChange implementation)
-                                            // onClick={() => handleRoleChange(user.id, user.role === 'user' ? 'moderator' : 'user')} 
+                            {paginatedUsers.map((user) => (
+                                <TableRow
+                                    key={user.id}
+                                    className="hover:bg-white/5 transition-colors border-b border-white/10 text-gray-200"
+                                >
+                                    <TableCell className="border-r border-white/10 p-4 font-medium text-white whitespace-nowrap">{user.name}</TableCell>
+                                    <TableCell className="border-r border-white/10 p-4 text-gray-300 hidden sm:table-cell">{user.email}</TableCell>
+                                    <TableCell className="border-r border-white/10 p-4">
+                                        <Badge
+                                            className={getRoleVariant(user.role)}
+                                        >
+                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="border-r border-white/10 p-4 text-center">
+                                        {user.active ? (
+                                            <span title="Active" className="flex justify-center">
+                                                <CheckCircle size={18} className="text-green-400" />
+                                            </span>
+                                        ) : (
+                                            <span title="Inactive" className="flex justify-center">
+                                                <XCircle size={18} className="text-red-400" />
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="p-4 text-right whitespace-nowrap">
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="bg-yellow-600/30 hover:bg-yellow-600/50 border-yellow-500/50"
+                                                onClick={() => setPasswordTarget(user)}
+                                                title="Change Password"
                                             >
-                                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            {user.active ? (
-                                                <span title="Active" className="flex justify-center">
-                                                    <CheckCircle size={18} className="text-green-400" />
-                                                </span>
-                                            ) : (
-                                                <span title="Inactive" className="flex justify-center">
-                                                    <XCircle size={18} className="text-red-400" />
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right whitespace-nowrap">
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="bg-yellow-600/30 hover:bg-yellow-600/50 border-yellow-500/50"
-                                                    onClick={() => setPasswordTarget(user)}
-                                                    title="Change Password"
-                                                >
-                                                    <KeyRound size={16} className="text-yellow-300" />
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/50"
-                                                    onClick={() => handleEditUser(user)}
-                                                    title="Edit User Info"
-                                                >
-                                                    <Edit size={16} className="text-purple-300" />
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="bg-red-600/30 hover:bg-red-600/50 border-red-500/50"
-                                                    onClick={() => handleDeleteUser(user.id, user.name)}
-                                                    title="Delete User"
-                                                >
-                                                    <Trash2 size={16} className="text-red-300" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </motion.tr>
-                                ))}
-                            </AnimatePresence>
-                            {users.length === 0 && (
+                                                <KeyRound size={16} className="text-yellow-300" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/50"
+                                                onClick={() => handleEditUser(user)}
+                                                title="Edit User Info"
+                                            >
+                                                <Edit size={16} className="text-purple-300" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="bg-red-600/30 hover:bg-red-600/50 border-red-500/50"
+                                                onClick={() => handleDeleteUser(user.id, user.name)}
+                                                title="Delete User"
+                                            >
+                                                <Trash2 size={16} className="text-red-300" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {filteredAndSortedUsers.length === 0 && (
                                 <TableRow className="border-white/10 hover:bg-transparent">
                                     <TableCell colSpan={5} className="text-center text-gray-500 py-6">No users found.</TableCell>
                                 </TableRow>
@@ -259,24 +290,35 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                                         className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
                                     />
                                 </PaginationItem>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                    <PaginationItem key={page}>
-                                        <PaginationLink
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setCurrentPage(page);
-                                            }}
-                                            isActive={page === currentPage}
-                                            className={page === currentPage
-                                                ? "bg-indigo-600 text-white border-indigo-500"
-                                                : "text-gray-400 hover:text-white hover:bg-white/10"
-                                            }
-                                        >
-                                            {page}
-                                        </PaginationLink>
-                                    </PaginationItem>
-                                ))}
+                                
+                                {(() => {
+                                    const max = 5;
+                                    const pages: number[] = [];
+                                    let start = Math.max(1, currentPage - Math.floor(max / 2));
+                                    let end = Math.min(totalPages, start + max - 1);
+                                    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
+                                    for (let i = start; i <= end; i++) if (i > 0) pages.push(i);
+                                    
+                                    return pages.map((page) => (
+                                        <PaginationItem key={page}>
+                                            <PaginationLink
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setCurrentPage(page);
+                                                }}
+                                                isActive={page === currentPage}
+                                                className={page === currentPage
+                                                    ? "bg-indigo-600 text-white border-indigo-500"
+                                                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                                                }
+                                            >
+                                                {page}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                    ));
+                                })()}
+
                                 <PaginationItem>
                                     <PaginationNext
                                         href="#"
@@ -295,5 +337,3 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
         </Card>
     );
 };
-
-// ... End of UserManagementContent definition ...

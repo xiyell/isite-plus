@@ -250,22 +250,35 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                 {/* CARD CONTAINER */}
                 <Card className="border border-fuchsia-500/30 bg-fuchsia-950/70 backdrop-blur-xl shadow-2xl relative">
                     {isRegistrationSuccess ? (
-                        <div className="p-8 flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in duration-300">
-                            <div className="h-16 w-16 bg-green-500/20 rounded-full flex items-center justify-center mb-2">
-                                <Users className="h-8 w-8 text-green-400" />
+                        <div className="p-6 flex flex-col items-center text-center space-y-5 animate-in fade-in zoom-in duration-300">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-green-500 blur-xl opacity-20 animate-pulse rounded-full" />
+                                <div className="relative h-16 w-16 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mb-2 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                                    <Users className="h-8 w-8 text-green-400" />
+                                </div>
                             </div>
+                            
                             <div className="space-y-2">
-                                <h3 className="text-2xl font-bold text-white">Registration Successful!</h3>
-                                <p className="text-gray-300">
-                                    We've sent a verification email to <span className="text-fuchsia-400 font-medium">{email}</span>.
+                                <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300 tracking-tight">
+                                    Registration Successful!
+                                </h3>
+                                <p className="text-gray-400 text-sm leading-relaxed max-w-[90%] mx-auto">
+                                    We've sent a verification email to <span className="text-fuchsia-400 font-semibold">{email}</span>.
                                 </p>
-                                <p className="text-sm text-yellow-200/90 bg-yellow-900/40 p-3 rounded-lg border border-yellow-700/50">
-                                    ⚠️ You <strong>must</strong> verify your email before logging in. Please check your inbox, spam, or junk folder.
-                                </p>
+                                
+                                <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-left flex gap-3">
+                                    <div className="shrink-0 mt-0.5">
+                                        <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                                    </div>
+                                    <p className="text-xs text-amber-200/90 leading-snug">
+                                        <strong>One last step:</strong> You must verify your email before logging in. Please check your inbox (and spam/junk folders).
+                                    </p>
+                                </div>
                             </div>
+
                             <Button 
                                 onClick={handleCloseDialog}
-                                className="w-full bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-semibold py-6"
+                                className="w-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-semibold py-5 rounded-xl shadow-lg shadow-fuchsia-900/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                             >
                                 I Understand, Close
                             </Button>

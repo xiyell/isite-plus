@@ -335,6 +335,8 @@ export default function DashboardContent() {
 				name: updatedData.name,
 				email: updatedData.email,
 				role: updatedData.role,
+				status: updatedData.status,
+				active: updatedData.status === 'active',
 			});
 			setMessageState({ message: `${updatedData.name}'s details updated successfully.`, type: "success" });
 			setEditingUser(null); 

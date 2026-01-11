@@ -363,17 +363,51 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                             <PaginationContent>
                                 <PaginationItem>
                                     <PaginationPrevious
-                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                         href="#"
+                                         onClick={(e) => {
+                                            e.preventDefault();
+                                            if (currentPage > 1) setCurrentPage(p => p - 1);
+                                        }}
+                                        className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
                                     />
                                 </PaginationItem>
-                                <span className="text-sm text-gray-500 mx-2 flex items-center">
-                                    Page {currentPage} of {totalPages}
-                                </span>
+
+                                {(() => {
+                                    const max = 5;
+                                    const pages: number[] = [];
+                                    let start = Math.max(1, currentPage - Math.floor(max / 2));
+                                    let end = Math.min(totalPages, start + max - 1);
+                                    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
+                                    for (let i = start; i <= end; i++) if (i > 0) pages.push(i);
+                                    
+                                    return pages.map((page) => (
+                                        <PaginationItem key={page}>
+                                            <PaginationLink
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setCurrentPage(page);
+                                                }}
+                                                isActive={page === currentPage}
+                                                className={page === currentPage
+                                                    ? "bg-indigo-600 text-white border-indigo-500"
+                                                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                                                }
+                                            >
+                                                {page}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                    ));
+                                })()}
+
                                 <PaginationItem>
                                     <PaginationNext
-                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (currentPage < totalPages) setCurrentPage(p => p + 1);
+                                        }}
+                                        className={currentPage === totalPages ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
                                     />
                                 </PaginationItem>
                             </PaginationContent>

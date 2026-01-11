@@ -1,7 +1,7 @@
 // actions/recyclebin.ts
 "use server";
 
-import { getAdminDb } from "@/services/firebaseAdmin";
+import { getAdminDb, getAdminAuth } from "@/services/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 export type TrashType = "post" | "announcement" | "user" | "evaluation" | "ibot";
@@ -153,8 +153,23 @@ export async function restoreItem(id: string, type: TrashType) {
 export async function permanentlyDeleteItem(id: string, type: TrashType) {
   try {
     const db = getAdminDb();
+    
+    // 1. If it's a user, delete from Authentication first
+    if (type === 'user') {
+        try {
+            const auth = getAdminAuth();
+            await auth.deleteUser(id);
+            console.log(`User ${id} deleted from Authentication.`);
+        } catch (authError) {
+            console.error(`Failed to delete user ${id} from Authentication (might already be deleted):`, authError);
+            // We continue to delete from Firestore even if auth delete fails (e.g. user not found)
+        }
+    }
+
+    // 2. Delete from Firestore (Soft-deleted record)
     const ref = db.collection(COLLECTION_MAP[type]).doc(id);
     await ref.delete();
+    
     return { success: true };
   } catch (error) {
     console.error("Error deleting item:", error);
