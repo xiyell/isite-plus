@@ -237,8 +237,8 @@ export default function CommunityPage() {
   // --- Filtering and Sorting (Client-Side) ---
   const filteredAndSortedPosts = posts
     .filter((c) => {
-      // 🚫 Always hide deleted posts in normal community view
-      if (c.status === "deleted") return false;
+      // 🚫 Always hide deleted and rejected posts in normal community view
+      if (c.status === "deleted" || c.status === "rejected") return false;
 
       // 👤 Non-admins see only approved posts, UNLESS it's their own pending post
       if (!isAdmin) {

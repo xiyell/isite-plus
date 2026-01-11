@@ -107,45 +107,100 @@ export default function IChat() {
         const normalizedInput = normalize(text);
         const inputTokens = tokenize(text);
         
+        // 0. QUICK CHECK: "LATEST"
+        if ((normalizedInput.includes("latest") || normalizedInput.includes("recent")) && 
+            (normalizedInput.includes("announcement") || normalizedInput.includes("event") || normalizedInput.includes("news"))) {
+             if (announcements.length > 0) {
+                 // Sort by date if we had date... assuming API returns sorted or index 0 is sufficient for now.
+                 // Announcements usually fetched ordered.
+                 const latest = announcements[0]; 
+                 return {
+                    reply: "Here is the latest announcement:",
+                    attachment: { type: "announcement", title: latest.title, url: `/announcement?id=${latest.id}` }
+                 };
+             } else {
+                 return { reply: "There are no announcements yet." };
+             }
+        }
+
+        // 1. INTELLIGENT ANNOUNCEMENT SEARCH (Priority)
+        // Scans titles and content for semantic matches (Jaccard Similarity)
+        if (inputTokens.length > 0) {
+            let bestAnnMatch = { ann: null as AnnouncementDoc | null, score: 0 };
+
+            for (const ann of announcements) {
+                const titleTokens = tokenize(ann.title);
+                const descTokens = tokenize(ann.description || ""); 
+                const allAnnTokens = [...new Set([...titleTokens, ...descTokens])];
+
+                // Jaccard score (intersection over union)
+                const jaccard = calculateJaccard(inputTokens, allAnnTokens);
+                
+                let score = jaccard;
+                
+                // Boost for exact title substring match
+                if (normalize(ann.title).includes(normalizedInput) && normalizedInput.length > 3) {
+                    score += 0.6; 
+                }
+                
+                // Boost for exact token match in title
+                for (const token of inputTokens) {
+                    if (titleTokens.includes(token)) score += 0.3;
+                }
+
+                if (score > bestAnnMatch.score) {
+                    bestAnnMatch = { ann, score };
+                }
+            }
+
+            // Threshold: 0.3 means significant overlap or strong keyword match
+            if (bestAnnMatch.ann && bestAnnMatch.score > 0.3) {
+                 return {
+                    reply: `I found a relevant announcement: "${bestAnnMatch.ann.title}"`,
+                    attachment: {
+                        type: "announcement",
+                        title: bestAnnMatch.ann.title,
+                        url: `/announcement?id=${bestAnnMatch.ann.id}`
+                    }
+                };
+            }
+        }
+
+        // 2. MANUAL TRIGGERS (Database Responses)
         let bestMatch = { response: null as BotResponse | null, score: 0 };
 
-        // 1. EVALUATE ALL RESPONSES (Scoring System)
         for (const r of responses) {
             const triggers = r.trigger.split(",").map(k => normalize(k).trim()).filter(k => k.length > 0);
             
             for (const trigger of triggers) {
                 let currentScore = 0;
 
-                // A. Exact Phrase Match (Highest Privacy)
+                // Simple includes check
                 if (normalizedInput.includes(trigger) || trigger.includes(normalizedInput)) {
-                    // Bonus if lengths are close (avoids matching "a" to "apple")
-                    const lenRatio = Math.min(normalizedInput.length, trigger.length) / Math.max(normalizedInput.length, trigger.length);
-                    currentScore = 0.9 + (lenRatio * 0.1); 
+                     const lenRatio = Math.min(normalizedInput.length, trigger.length) / Math.max(normalizedInput.length, trigger.length);
+                     currentScore = 0.8 + (lenRatio * 0.2); 
                 } 
                 else {
-                    // B. Word Overlap (Jaccard)
+                    // Jaccard for triggers
                     const triggerTokens = tokenize(trigger);
                     const jaccard = calculateJaccard(inputTokens, triggerTokens);
+                    if (jaccard > 0) currentScore = 0.5 + (jaccard * 0.4);
                     
-                    if (jaccard > 0) {
-                         currentScore = 0.5 + (jaccard * 0.4); // Max 0.9
-                    } 
-                    // C. Fuzzy Word Matching (Fallback)
+                    // Fuzzy Levenshtein (fallback for typos)
                     else if (inputTokens.length > 0 && triggerTokens.length > 0) {
                          let fuzzyMatches = 0;
                          for (const tWord of triggerTokens) {
                              for (const iWord of inputTokens) {
                                  const dist = levenshtein(iWord, tWord);
-                                 // Allow 1 error for short words, 2 for long
                                  const threshold = tWord.length > 4 ? 2 : 1; 
                                  if (dist <= threshold) {
                                      fuzzyMatches++;
-                                     break; // Match found for this trigger word
+                                     break; 
                                  }
                              }
                          }
                          const fuzzyScore = fuzzyMatches / transformLength(triggerTokens.length);
-                         if (fuzzyScore > 0) currentScore = 0.3 + (fuzzyScore * 0.4); // Max 0.7
+                         if (fuzzyScore > 0) currentScore = 0.3 + (fuzzyScore * 0.4);
                     }
                 }
 
@@ -155,15 +210,12 @@ export default function IChat() {
             }
         }
         
-        // Helper to avoid divide by zero
         function transformLength(len: number) { return len === 0 ? 1 : len; }
 
-        // Threshold for accepting a match
-        if (bestMatch.response && bestMatch.score > 0.4) {
+        if (bestMatch.response && bestMatch.score > 0.45) {
              const matchedResponse = bestMatch.response!;
              let attachment: Message['attachment'] | undefined = undefined;
 
-             // CHECK FOR LINKED ANNOUNCEMENT
              if (matchedResponse.linkedAnnouncementId && matchedResponse.linkedAnnouncementId !== "none") {
                  const linkedAnn = announcements.find(a => a.id === matchedResponse.linkedAnnouncementId);
                  if (linkedAnn) {
@@ -174,40 +226,10 @@ export default function IChat() {
                      };
                  }
              }
-
              return { reply: matchedResponse.reply, attachment };
         }
 
-        // 2. SMART CHECK: Announcements (Improved Matching)
-        const commonWords = new Set(["the", "is", "at", "which", "on", "what", "about", "how", "when", "where", "a", "an"]);
-        const inputKeywords = normalizedInput.split(" ").filter(w => w.length > 3 && !commonWords.has(w));
-
-        const foundAnnouncement = announcements.find(ann => {
-            const titleNorm = normalize(ann.title);
-            // High confidence text match
-            if (titleNorm.includes(normalizedInput) && normalizedInput.length > 3) return true;
-            // Keyword intersection
-            if (inputKeywords.length > 0) {
-                 const titleWords = titleNorm.split(" ");
-                 // Require at least one significant keyword match
-                 return inputKeywords.some(kw => titleWords.some(tw => tw.includes(kw) || kw.includes(tw)));
-            }
-            return false;
-        });
-
-        if (foundAnnouncement) {
-            return {
-                reply: `I found an announcement matching your query: "${foundAnnouncement.title}".`,
-                attachment: {
-                    type: "announcement",
-                    title: foundAnnouncement.title,
-                    url: `/announcement?id=${foundAnnouncement.id}`
-                }
-            };
-        }
-
-        // Default Fallback
-        return { reply: "I'm not sure about that. Try asking about 'announcements', or specific keywords like 'attendance' or 'events'." };
+        return { reply: "I'm not sure about that. Try asking for the 'latest announcement' or specific topics like 'events'." };
     };
 
     const sendMessage = async (customText?: string) => {

@@ -52,7 +52,7 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    const itemsPerPage = 5;
 
     useEffect(() => {
         fetchIds();

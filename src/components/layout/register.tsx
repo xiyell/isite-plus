@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // ----------------------------
 
 
@@ -34,6 +35,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [whitelistedName, setWhitelistedName] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [yearLevel, setYearLevel] = useState("");
+    const [section, setSection] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [passwordError, setPasswordError] = useState<string | null>(null); // New state for password complexity feedback
@@ -57,6 +60,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
         setWhitelistedName("");
         setPassword("");
         setConfirmPassword("");
+        setYearLevel("");
+        setSection("");
         setError(null);
         setPasswordError(null);
         setIsSubmitting(false);
@@ -143,6 +148,10 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
             setIsSubmitting(false);
             return setError("Please enter your Full Name.");
         }
+        if (!yearLevel || !section) {
+            setIsSubmitting(false);
+            return setError("Please select your Year Level and Section.");
+        }
 
         // Check password complexity again (redundant but safe)
         if (!validatePassword(password)) {
@@ -181,7 +190,9 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                 uid: user.uid,
                 email,
                 studentId: student_id,
-                provider: "password"
+                provider: "password",
+                yearLevel: yearLevel,
+                section: section
             });
             onRegister?.({
                 uid: user.uid,
@@ -371,6 +382,40 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
+
+                                    {/* Academic Info Row */}
+                                    <div className="grid grid-cols-2 gap-3 pb-2">
+                                        <div className="space-y-1">
+                                            <Label className="text-sm font-semibold text-fuchsia-200">Year Level</Label>
+                                            <Select value={yearLevel} onValueChange={setYearLevel}>
+                                                <SelectTrigger className="h-10 bg-fuchsia-900/40 border-fuchsia-700/50 text-white focus:ring-fuchsia-500">
+                                                    <SelectValue placeholder="Select" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-fuchsia-950 border-fuchsia-800 text-white">
+                                                    <SelectItem value="1st Year">1st Year</SelectItem>
+                                                    <SelectItem value="2nd Year">2nd Year</SelectItem>
+                                                    <SelectItem value="3rd Year">3rd Year</SelectItem>
+                                                    <SelectItem value="4th Year">4th Year</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label className="text-sm font-semibold text-fuchsia-200">Section</Label>
+                                            <Select value={section} onValueChange={setSection}>
+                                                <SelectTrigger className="h-10 bg-fuchsia-900/40 border-fuchsia-700/50 text-white focus:ring-fuchsia-500">
+                                                    <SelectValue placeholder="Select" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-fuchsia-950 border-fuchsia-800 text-white">
+                                                    <SelectItem value="1">Section 1</SelectItem>
+                                                    <SelectItem value="2">Section 2</SelectItem>
+                                                    <SelectItem value="3">Section 3</SelectItem>
+                                                    <SelectItem value="4">Section 4</SelectItem>
+                                                    <SelectItem value="None">None</SelectItem>
+                                                    <SelectItem value="Irregular">Irregular</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
 
                                     {/* Password Field */}
                                     <div className="space-y-1">

@@ -142,21 +142,15 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="name" className="text-xs uppercase font-semibold text-gray-500/70">
-                                    Display Name {formData.role === 'user' && <span className="ml-1 text-indigo-400 capitalize">(Locked)</span>}
+                                    Display Name
                                 </Label>
                                 <Input
                                     id="name"
                                     value={formData.name}
                                     onChange={(e) => handleChange("name", e.target.value)}
-                                    className={`bg-white/5 border-white/10 focus-visible:ring-indigo-500 ${formData.role === 'user' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    className="bg-white/5 border-white/10 focus-visible:ring-indigo-500"
                                     placeholder="Your Name"
-                                    disabled={formData.role === 'user'}
                                 />
-                                {formData.role === 'user' && (
-                                    <p className="text-[10px] text-gray-500 mt-1 italic">
-                                        Your name is verified via the official whitelist and cannot be changed.
-                                    </p>
-                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="studentId" className="text-xs uppercase font-semibold text-gray-500/70">Student ID</Label>
@@ -187,9 +181,14 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
 
                     {/* ACADEMIC INFO */}
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                             <Shield className="w-4 h-4 text-emerald-400" />
-                             <h4 className="text-sm font-bold text-gray-300">Academic Info</h4>
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <Shield className="w-4 h-4 text-emerald-400" />
+                                <h4 className="text-sm font-bold text-gray-300">Academic Info</h4>
+                            </div>
+                            <p className="text-[10px] text-gray-500 italic">
+                                Please ensure your Year Level and Section are updated every academic year.
+                            </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">

@@ -19,9 +19,17 @@ export async function getUsers() {
     }
 }
 
-export async function createUser(data: { uid: string, email: string, studentId?: string, name?: string, provider?: string }) {
+export async function createUser(data: { 
+    uid: string, 
+    email: string, 
+    studentId?: string, 
+    name?: string, 
+    provider?: string,
+    yearLevel?: string,
+    section?: string
+}) {
     try {
-        const { uid, email, studentId, name, provider } = data;
+        const { uid, email, studentId, name, provider, yearLevel, section } = data;
 
         if (!uid || !email) {
             throw new Error("Missing required fields");
@@ -36,6 +44,8 @@ export async function createUser(data: { uid: string, email: string, studentId?:
             role: "user",
             name: name || email.split("@")[0],
             provider: provider || "password",
+            yearLevel: yearLevel || "1st Year",
+            section: section || "None",
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             status: 'active',
