@@ -47,12 +47,13 @@ const mainNavLinks: NavbarNavLink[] = [
     { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'moderator'] },
 
     // Grouped links (Dropdown)
-    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
-    { href: '/iQr', label: 'iQR', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
+    { href: '/iQr', label: 'iQR', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
     { href: '/ievaluation', label: 'iEvaluation', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
+
 ];
 // ------------------------------------------------------------------------
 
