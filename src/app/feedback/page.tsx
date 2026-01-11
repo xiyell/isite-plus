@@ -363,18 +363,7 @@ export default function FeedbackPage() {
         </AnimatePresence>
 
         {/* Note - Colors adjusted, Glassmorphism applied */}
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          // GLASSMORHPISM APPLIED HERE: bg-white/10, border/shadow change, backdrop-blur-md
-          className="mt-10 flex flex-col sm:flex-row items-center gap-3 text-sm text-purple-200 bg-white/10 p-4 rounded-xl border border-purple-300/30 backdrop-blur-md"
-          initial={{ opacity: 0, y: 12 }}
-          transition={{ delay: 0.3 }}
-        >
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-yellow-300" />
-          <p>
-            Your feedback is secured in our **Firestore** database under your user ID ({userId ? userId.substring(0, 8) + '...' : 'Loading...'}). Do not share sensitive information.
-          </p>
-        </motion.div>
+
       </motion.div>
     </div>
   );

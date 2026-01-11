@@ -349,12 +349,6 @@ export default function DashboardContent() {
 			const result = await updateUserPassword(uid, newPass, auth.currentUser?.uid || "system");
 			if (result.success) {
 				setMessageState({ message: "Password updated successfully", type: 'success' });
-				await addLog({
-					category: "users",
-					action: "Password Changed",
-					severity: "high",
-					message: `Password changed for user ${uid}`
-				});
 			} else {
 				throw new Error(result.message);
 			}
