@@ -271,41 +271,67 @@ export default function ActivityLogsContent() {
               <Table className="border-collapse w-full table-fixed">
                 <TableHeader className="bg-white/10">
                   <TableRow className="border-b border-white/20">
-                    <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Time</TableHead>
-                    <TableHead className="w-[150px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Category</TableHead>
-                    <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Actor</TableHead>
-                    <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Action</TableHead>
-                    <TableHead className="w-[120px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Severity</TableHead>
-                    <TableHead className="text-white font-bold uppercase tracking-wider text-xs p-4">Message</TableHead>
+                    <TableHead className="w-[150px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Time</TableHead>
+                    <TableHead className="w-[100px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Category</TableHead>
+                    <TableHead className="w-[150px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Actor</TableHead>
+                    <TableHead className="w-[150px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Action</TableHead>
+                    <TableHead className="w-[100px] text-white font-bold uppercase tracking-wider text-[11px] p-3 text-center">Severity</TableHead>
+                    <TableHead className="text-white font-bold uppercase tracking-wider text-[11px] p-3">Message</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {paginatedLogs.map((log) => (
-                    <TableRow key={log.id} className="hover:bg-white/5 transition-colors border-b border-white/10">
-                      <TableCell className="border-r border-white/10 text-gray-300 p-4 font-mono text-xs truncate">
+                    <TableRow key={log.id} className="group hover:bg-white/5 transition-colors border-b border-white/10">
+                      
+                      {/* Time */}
+                      <TableCell className="p-3 font-mono text-[11px] text-gray-300 whitespace-nowrap align-middle">
                         {log.time}
                       </TableCell>
-                      <TableCell className="border-r border-white/10 text-white p-4">
+
+                      {/* Category */}
+                      <TableCell className="p-3 text-white align-middle">
                         <div className="flex items-center gap-2">
                           {getCategoryIcon(log.category)}
-                          <span className="capitalize text-sm font-medium">{log.category}</span>
+                          <span className="capitalize text-xs font-medium">{log.category}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="border-r border-white/10 text-white p-4 text-xs max-w-[200px]">
-                         <div className="font-semibold truncate" title={log.actorName}>{log.actorName}</div>
-                         <div className="text-gray-400 text-[10px] uppercase truncate">{log.actorRole}</div>
+
+                      {/* Actor */}
+                      <TableCell className="p-3 text-white align-middle">
+                         <div className="w-[140px] truncate">
+                           <span className="font-semibold text-xs py-1" title={log.actorName}>{log.actorName}</span>
+                           <span className="block text-gray-400 text-[10px] uppercase">{log.actorRole}</span>
+                         </div>
                       </TableCell>
-                      <TableCell className="border-r border-white/10 text-gray-300 p-4 text-sm font-medium truncate" title={log.action}>
-                        {log.action}
+
+                      {/* Action */}
+                      <TableCell className="p-3 text-gray-300 align-middle">
+                        <div className="w-[140px] truncate text-xs font-medium" title={log.action}>
+                          {log.action}
+                        </div>
                       </TableCell>
-                      <TableCell className="border-r border-white/10 p-4 text-center">
-                        <Badge className={`${severityColor[log.severity] || severityColor.low} rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0`}>
-                          {log.severity}
-                        </Badge>
+
+                      {/* Severity */}
+                      <TableCell className="p-3 text-center align-middle">
+                        <div className="flex justify-center">
+                            <Badge className={`${severityColor[log.severity] || severityColor.low} rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0`}>
+                            {log.severity}
+                            </Badge>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-gray-300 p-4 text-sm whitespace-normal break-words">
-                        {log.message}
+
+                      {/* Message (Strict Truncation) */}
+                      <TableCell className="p-3 text-gray-300 align-middle relative group cursor-help">
+                        <div className="w-[280px] truncate text-xs">
+                            {log.message}
+                        </div>
+                        
+                        {/* Tooltip */}
+                        <div className="absolute right-full top-0 mr-2 w-[300px] p-3 bg-slate-900 border border-slate-700 rounded-md shadow-xl text-white text-xs z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-normal break-words text-left">
+                            {log.message}
+                        </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
 

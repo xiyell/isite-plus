@@ -58,17 +58,17 @@ const TrashRow = ({ item, onAction }: TrashRowProps) => {
                     {item.type.toUpperCase()}
                 </Badge>
             </TableCell>
-            <TableCell className="border-r border-white/10 text-gray-300 p-4 font-medium truncate" title={item.title}>
+            <TableCell className="border-r border-white/10 text-gray-200 p-4 font-medium truncate" title={item.title}>
                 {item.title}
             </TableCell>
-            <TableCell className="border-r border-white/10 text-gray-300 p-4 truncate hidden sm:table-cell text-center align-middle">
+            <TableCell className="border-r border-white/10 text-gray-200 p-4 truncate hidden sm:table-cell text-center align-middle">
                 {item.deletedBy}
             </TableCell>
-            <TableCell className="border-r border-white/10 text-gray-300 p-4 whitespace-nowrap hidden md:table-cell text-center align-middle">
+            <TableCell className="border-r border-white/10 text-gray-200 p-4 whitespace-nowrap hidden md:table-cell text-center align-middle">
                 {item.deletedAt === 'Unknown' || !item.deletedAt ? (
                     <span className="text-gray-500 text-xs">-</span>
                 ) : (
-                    <span className="font-mono text-xs text-gray-300">
+                    <span className="font-mono text-xs text-gray-200">
                         {new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </span>
                 )}
@@ -129,7 +129,7 @@ const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => 
                         size="sm" 
                         onClick={onEmpty}
                         disabled={disabled}
-                        className="bg-red-600/20 text-red-400 hover:bg-red-600/40 border border-red-500/30"
+                        className="bg-red-600/20 text-white hover:bg-red-600/40 border border-red-500/30"
                     >
                         <Trash2 size={16} className="mr-2" />
                         Delete All

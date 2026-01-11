@@ -353,7 +353,7 @@ export default function IChat() {
     // ✨ DESIGN SYSTEM: Modern "Deep Glass" Aesthetic
     // Primary Gradient: Indigo to Violet (matches the "tech/AI" vibe)
     const PRIMARY_GRADIENT = "bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-600 shadow-lg shadow-indigo-500/20";
-    const GLASS_PANEL = "bg-slate-950/70 backdrop-blur-xl border border-white/10 shadow-2xl";
+    const GLASS_PANEL = "bg-slate-950/95 backdrop-blur-xl border border-white/10 shadow-2xl";
     
     return (
         <div className="fixed bottom-6 right-6 z-[9999] font-sans">
