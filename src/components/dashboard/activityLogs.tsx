@@ -273,8 +273,8 @@ export default function ActivityLogsContent() {
                   <TableRow className="border-b border-white/20">
                     <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Time</TableHead>
                     <TableHead className="w-[150px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Category</TableHead>
-                    <TableHead className="w-[160px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Actor</TableHead>
-                    <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Action</TableHead>
+                    <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Actor</TableHead>
+                    <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Action</TableHead>
                     <TableHead className="w-[120px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Severity</TableHead>
                     <TableHead className="text-white font-bold uppercase tracking-wider text-xs p-4">Message</TableHead>
                   </TableRow>
@@ -291,9 +291,9 @@ export default function ActivityLogsContent() {
                           <span className="capitalize text-sm font-medium">{log.category}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="border-r border-white/10 text-white p-4 text-xs">
-                         <div className="font-semibold">{log.actorName}</div>
-                         <div className="text-gray-400 text-[10px] uppercase">{log.actorRole}</div>
+                      <TableCell className="border-r border-white/10 text-white p-4 text-xs max-w-[200px]">
+                         <div className="font-semibold truncate" title={log.actorName}>{log.actorName}</div>
+                         <div className="text-gray-400 text-[10px] uppercase truncate">{log.actorRole}</div>
                       </TableCell>
                       <TableCell className="border-r border-white/10 text-gray-300 p-4 text-sm font-medium truncate" title={log.action}>
                         {log.action}

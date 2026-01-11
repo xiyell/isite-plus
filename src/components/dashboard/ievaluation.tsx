@@ -858,26 +858,32 @@ function EvaluationStats({ evaluation, onBack }: any) {
                                 <TableBody>
                                     {filteredResponses
                                         .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                                        .map((r) => (
-                                            <TableRow key={r.id} className="border-white/10 hover:bg-white/5">
-                                                <TableCell className="font-medium text-white">
-                                                    <div>{r.userName || 'Unknown'}</div>
-                                                    <div className="text-xs text-gray-500">{r.userEmail}</div>
-                                                </TableCell>
-                                                <TableCell className="text-gray-400">
-                                                    <span className="block text-white">{r.studentId || '-'}</span>
-                                                    <span className="text-xs text-blue-200">{r.yearLevel ? `${r.yearLevel} - ${['1','2','3','4'].includes(r.section) ? `Section ${r.section}` : r.section}` : (['1','2','3','4'].includes(r.section) ? `Section ${r.section}` : r.section || '-')}</span>
-                                                </TableCell>
-                                                <TableCell className="text-gray-400">
-                                                    {new Date(r.submittedAt).toLocaleDateString()}
-                                                </TableCell>
-                                                {evaluation.questions.map((q: EvaluationQuestion) => (
-                                                    <TableCell key={q.id} className="text-gray-300">
-                                                        {r.answers[q.id]}
+                                        .map((r) => {
+                                            const section = r.section || '';
+                                            const sectionDisplay = ['1', '2', '3', '4'].includes(section) ? `Section ${section}` : (section || '-');
+                                            const fullDisplay = r.yearLevel ? `${r.yearLevel} - ${sectionDisplay}` : sectionDisplay;
+
+                                            return (
+                                                <TableRow key={r.id} className="border-white/10 hover:bg-white/5">
+                                                    <TableCell className="font-medium text-white">
+                                                        <div>{r.userName || 'Unknown'}</div>
+                                                        <div className="text-xs text-gray-500">{r.userEmail}</div>
                                                     </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))}
+                                                    <TableCell className="text-gray-400">
+                                                        <span className="block text-white">{r.studentId || '-'}</span>
+                                                        <span className="text-xs text-blue-200">{fullDisplay}</span>
+                                                    </TableCell>
+                                                    <TableCell className="text-gray-400">
+                                                        {new Date(r.submittedAt).toLocaleDateString()}
+                                                    </TableCell>
+                                                    {evaluation.questions.map((q: EvaluationQuestion) => (
+                                                        <TableCell key={q.id} className="text-gray-300">
+                                                            {r.answers[q.id]}
+                                                        </TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            );
+                                        })}
                                     {responses.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={evaluation.questions.length + 2} className="text-center py-8 text-gray-500">
