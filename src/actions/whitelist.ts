@@ -196,7 +196,11 @@ export async function checkWhitelist(studentId: string, fullName: string) {
         }
         
         const data = doc.data();
-        if (data?.name?.toLowerCase() !== fullName.toLowerCase()) {
+        // Normalize strings to handle composed/decomposed characters (e.g. ñ vs n+~)
+        const storedName = (data?.name || "").normalize('NFC').toLowerCase().trim();
+        const inputName = fullName.normalize('NFC').toLowerCase().trim();
+
+        if (storedName !== inputName) {
             return { allowed: false, error: "Name does not match whitelist" };
         }
         

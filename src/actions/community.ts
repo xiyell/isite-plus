@@ -130,6 +130,31 @@ export async function getCommunityPosts(): Promise<Post[]> {
   return posts;
 }
 
+// Fetch all posts for Admin Dashboard (Bypasses Client Rules)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function getAllPostsForModeration(): Promise<any[]> {
+  const db = getAdminDb();
+  // Fetch ALL posts to avoid index issues with complex filters
+  const snapshot = await db.collection("community").get();
+
+  const posts = await Promise.all(snapshot.docs.map(async (doc) => {
+    const d = doc.data();
+    
+    return {
+      id: doc.id,
+      authorId: (typeof d.postedBy === 'string' ? d.postedBy : d.postedBy?.id) || "unknown",
+      authorUsername: d.authorName || "User",
+      title: d.title || "",
+      description: d.description || "",
+      category: d.category || "General",
+      status: d.status || "pending",
+      createdAt: convertFirestoreTimestamp(d.createdAt)
+    };
+  }));
+
+  return posts;
+}
+
 
 // -----------------------------------------------------------------
 // 2. CREATE POST ACTION
@@ -170,6 +195,7 @@ export async function createCommunityPost(data: NewPostData) {
     moderationNote: moderationReason,
     deletedAt: finalStatus === "deleted" ? FieldValue.serverTimestamp() : null,
     postedBy: postedByRef,
+    authorName: user?.name || "Anonymous",
     likesCount: 0,
     dislikesCount: 0,
     createdAt: FieldValue.serverTimestamp(),

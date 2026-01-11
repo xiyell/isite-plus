@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/services/auth";
-import { updatePostStatus, movePostToRecycleBin, getCommunityPosts } from "@/actions/community"; // Server Actions
+import { updatePostStatus, movePostToRecycleBin, getAllPostsForModeration } from "@/actions/community";
 
 /* ───────────────────────────────────────────── */
 /* TYPES                                        */
@@ -48,6 +48,7 @@ interface PendingPost {
   category: string;
   status: "pending" | "approved" | "rejected";
   spamScore?: number; // 0-100 likelihood
+  _sortTime?: number;
 }
 
 /* ───────────────────────────────────────────── */
@@ -71,7 +72,7 @@ const ITEMS_PER_PAGE = 5;
 
 export default function AdminPostModerationPage() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -84,57 +85,63 @@ export default function AdminPostModerationPage() {
 
   const CATEGORIES = ["All", "General", "News", "Events", "Questions", "Feedback"];
 
-  /* ─────────── FETCH POSTS ─────────── */
-
-  /* ─────────── FETCH POSTS (REAL-TIME) ─────────── */
-  useEffect(() => {
+  /* ─────────── FETCH POSTS (SERVER ACTION) ─────────── */
+  const fetchPosts = useCallback(async () => {
     if (!user) return;
-    
     setLoading(true);
-    const q = query(
-      collection(db, "community"),
-      where("status", "==", statusFilter),
-      orderBy("createdAt", "desc")
-    );
+    try {
+      const data = await getAllPostsForModeration();
+      
+      const results = data.map((d: any) => {
+         const spamScore = calculateSpamScore(d.title || "", d.description || "");
+         
+         let timestampStr = "Recently";
+         let rawTime = Date.now();
+         
+         if (d.createdAt) {
+             const date = new Date(d.createdAt);
+             timestampStr = date.toLocaleString();
+             rawTime = date.getTime();
+         }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const results: PendingPost[] = snapshot.docs.map((docSnap) => {
-        const d = docSnap.data();
-        const spamScore = calculateSpamScore(d.title || "", d.description || "");
-        
-        return {
-          id: docSnap.id,
-          authorId: d.postedBy?.id || "unknown", // onSnapshot gives plain data, refs might be strings or objects
-          authorUsername: d.authorName || "User", // Fallback for real-time feed
+         return {
+          id: d.id,
+          authorId: d.authorId,
+          authorUsername: d.authorUsername,
           title: d.title,
           contentSnippet: d.description || "No description provided.",
-          timestamp: d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString() : "Recently",
+          timestamp: timestampStr,
           category: d.category,
           status: d.status,
           spamScore,
-        };
-      }).filter(p => categoryFilter === 'All' || p.category === categoryFilter);
+          _sortTime: rawTime
+         };
+      })
+      .filter(p => {
+          const s = (p.status || 'pending').toLowerCase();
+          const f = statusFilter.toLowerCase();
+          if (s === 'deleted') return false;
+          return s === f && (categoryFilter === 'All' || p.category === categoryFilter);
+      })
+      .sort((a, b) => (b._sortTime || 0) - (a._sortTime || 0));
 
-      setPosts(results);
-      setLoading(false);
-    }, (err) => {
-      console.error("Moderation listener error:", err);
-      // If error is due to missing index, we provide a degraded but working experience
-      if (err.message.includes("index")) {
-        const fallbackQ = query(collection(db, "community"), where("status", "==", statusFilter));
-        onSnapshot(fallbackQ, (snap) => {
-           // ... (same mapping but then sort in JS)
-        });
-      }
-      setLoading(false);
-    });
+      setPosts(results as PendingPost[]);
+    } catch (error) {
+       console.error("Failed to fetch posts:", error);
+       toast({ title: "Error", description: "Failed to load posts from server. Permissions issue resolved.", variant: "destructive" });
+    } finally {
+       setLoading(false);
+    }
+  }, [user, statusFilter, categoryFilter, toast]);
 
-    return () => unsubscribe();
-  }, [user, statusFilter, categoryFilter]);
+  useEffect(() => {
+    if (authLoading) return;
+    fetchPosts();
+  }, [authLoading, fetchPosts]);
 
-  // Legacy function for manual triggers (e.g. error recovery)
+  // Expose refresh function
   async function loadPendingPosts() {
-     // No-op or trigger a state refresh if needed, but the listener above handles it.
+     fetchPosts();
   }
 
   /* ─────────── UPDATE STATUS ─────────── */
@@ -232,19 +239,9 @@ export default function AdminPostModerationPage() {
     }
   };
 
-  /* ─────────── EFFECT ─────────── */
+  /* ─────────── UI ─────────── */
 
-  useEffect(() => {
-    if (user !== undefined) {
-      loadPendingPosts();
-    }
-  }, [user, statusFilter, categoryFilter]); // Trigger load on filter change
-
-  /* ───────────────────────────────────────────── */
-  /* UI                                           */
-  /* ───────────────────────────────────────────── */
-
-  if (loading && user === undefined) { // Wait for auth init
+  if (authLoading) { 
     return (
       <div className="flex items-center justify-center h-40 text-white">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />

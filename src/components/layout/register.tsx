@@ -227,7 +227,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
 
             {/* DIALOG CONTENT (The modal box) */}
             <DialogContent
-                className="sm:max-w-[380px] w-[95%] max-h-[90vh] overflow-y-auto p-0 bg-transparent border-none"
+                className="sm:max-w-[380px] w-[95%] p-0 bg-transparent border-none shadow-none overflow-visible"
             >
                 <VisuallyHidden><DialogTitle>Register Modal</DialogTitle></VisuallyHidden>
 

@@ -141,8 +141,8 @@ export default function DashboardContent() {
 		{
 			title: "Content",
 			items: [
-				{ id: "announcement", name: "Announcement", icon: Send },
 				{ id: "pendings", name: "Pending Posts", icon: Upload },
+				{ id: "announcement", name: "Announcement", icon: Send },
 				{ id: "ibot", name: "iBot", icon: Bot },
 			]
 		},
@@ -168,10 +168,11 @@ export default function DashboardContent() {
 				const unsubUser = onSnapshot(docRef, (snap) => {
 					if (snap.exists()) {
 						const data = snap.data() as UserData;
-						setUserRole(data.role);
+						const normalizedRole = (data.role || 'user').toLowerCase() as 'admin' | 'moderator' | 'user';
+						setUserRole(normalizedRole);
                         
                         // RESTRICTION: Redirect normal users
-                        if (data.role === 'user') {
+                        if (normalizedRole === 'user') {
                              router.push('/');
                              return;
                         }
@@ -204,6 +205,7 @@ export default function DashboardContent() {
 		if (userRole === 'admin') return tabGroups;
 
 		if (userRole === 'moderator') {
+			// Explicitly allowing "pendings" and other core tabs
 			const allowed = ["overview", "activity", "attendance", "announcement", "pendings", "evaluations"];
 			return filterGroups(allowed);
 		}

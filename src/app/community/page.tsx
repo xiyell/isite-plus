@@ -145,21 +145,22 @@ export default function CommunityPage() {
   const [newCategory, setNewCategory] = useState(categories[1] || "Tech");
   const [creating, setCreating] = useState(false);
 
-  // Dynamic Tailwind classes (unchanged)
+  // Dynamic Tailwind classes
   const GLASSY_CARD_CLASSES =
-    "rounded-xl border border-white/20 bg-white/5 backdrop-blur-md text-white p-6 overflow-hidden transition-all hover:border-primary/50 shadow-2xl";
+    "rounded-xl border border-white/10 bg-black/40 backdrop-blur-md text-white p-6 overflow-hidden transition-all hover:border-fuchsia-500/50 shadow-2xl hover:shadow-fuchsia-500/10";
   const GLASSY_MODAL_CLASSES =
-    "max-w-xl p-8 sm:p-10 overflow-y-auto max-h-[90vh] rounded-xl border border-white/20 bg-white/10 backdrop-blur-xl text-white shadow-2xl";
+    "max-w-xl p-8 sm:p-10 overflow-y-auto max-h-[90vh] rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl text-white shadow-2xl";
   const GLASSY_BUTTON_OUTLINE =
-    "gap-2 rounded-full border border-white/30 bg-white/10 text-white hover:bg-white/20 transition-colors";
+    "gap-2 rounded-full border border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/40 transition-all backdrop-blur-sm"; // More subtle glass
   const GLASSY_BUTTON_GHOST =
     "text-white/80 hover:bg-white/10 hover:text-white rounded-full";
+  // Updated Inputs to be cleaner
   const GLASSY_INPUT_CLASSES =
-    "flex-1 rounded-full px-4 py-2 border-white/30 bg-white/10 text-white placeholder:text-white/60 focus-visible:ring-primary focus-visible:ring-offset-white/10";
+    "flex-1 rounded-full px-4 py-2 border-white/20 bg-white/5 text-white placeholder:text-gray-500 focus-visible:ring-fuchsia-500 focus-visible:border-fuchsia-500 transition-all";
   const GLASSY_TEXTAREA_CLASSES =
-    "w-full min-h-[120px] rounded-xl p-4 bg-white/5 border border-white/10 text-white placeholder:text-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white/10 transition-shadow";
+    "w-full min-h-[120px] rounded-xl p-4 bg-white/5 border border-white/20 text-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:border-transparent transition-all";
   const GLASSY_COMMENT_BG = "bg-white/5 border border-white/10";
-  const GLASSY_SEPARATOR = "bg-white/20";
+  const GLASSY_SEPARATOR = "bg-white/10";
 
 
   // --- Data Fetching Logic (Uses Server Action) ---
@@ -684,7 +685,7 @@ export default function CommunityPage() {
             {/* Create Post Button */}
             <Button
               variant="default"
-              className="rounded-full bg-accent text-black font-semibold"
+              className="rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-semibold shadow-lg shadow-fuchsia-900/20 transition-all hover:scale-105 active:scale-95 border-0"
               onClick={() => {
                 if (!currentUser) {
                   // REPLACEMENT (Toast triggered here too)
@@ -896,7 +897,7 @@ export default function CommunityPage() {
                           </div>
                           <Button
                             size="sm"
-                            className="rounded-full bg-primary hover:bg-primary/90 text-white font-semibold"
+                            className="rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 transition-all font-medium text-xs sm:text-sm px-5"
                           >
                             View Post
                           </Button>
@@ -1280,13 +1281,13 @@ export default function CommunityPage() {
               <div className="flex justify-end gap-3 mt-4">
                 <Button
                   variant="ghost"
-                  className="rounded-full"
+                  className="rounded-full text-white/70 hover:text-white hover:bg-white/10"
                   onClick={() => setCreateOpen(false)}
                 >
                   Cancel
                 </Button>
                 <Button
-                  className="rounded-full bg-primary hover:bg-primary/90 text-white font-semibold"
+                  className="rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-semibold shadow-lg shadow-fuchsia-900/20 transition-all hover:scale-[1.02] active:scale-[0.98] border-0"
                   onClick={handleCreatePost}
                   disabled={creating}
                 >

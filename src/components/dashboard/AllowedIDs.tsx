@@ -85,19 +85,22 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
         const lines = bulkInput.split(/\n/).filter(line => line.trim().length > 0);
         
         const newEntries: WhitelistEntry[] = lines.map(line => {
-            // Check for comma first
-            if (line.includes(',')) {
-                const [id, ...nameParts] = line.split(',');
-                return { 
-                    id: id.trim(), 
-                    name: nameParts.join(',').trim() || "Unknown Name" 
+            // Regex to match "ID, Name" or "ID Name"
+            // Captures: Group 1 (ID), Group 2 (Name)
+            // Supports Names with special chars, spaces, etc.
+            const match = line.match(/^([^\s,]+)[\s,]+(.+)$/);
+            
+            if (match) {
+                return {
+                    id: match[1].trim(),
+                    name: match[2].trim() // Captures "Peña", "O'Connor", etc.
                 };
             }
-            // Fallback to space if no comma
-            const parts = line.trim().split(/\s+/);
-            const id = parts[0];
-            const name = parts.slice(1).join(' ') || "Unknown Name";
-            return { id, name };
+            // Fallback if regex fails (e.g. only ID provided)
+            return { 
+                id: line.trim(), 
+                name: "Unknown Name" 
+            };
         });
 
         const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
