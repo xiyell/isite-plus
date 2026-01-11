@@ -23,7 +23,7 @@ export async function DELETE(
             isDeleted: true,
             status: "deleted",
             deletedAt: FieldValue.serverTimestamp(),
-            deletedBy: session.uid, // Track who deleted it
+            deletedBy: session.uid, 
             deletedByRole: session.role
         });
 

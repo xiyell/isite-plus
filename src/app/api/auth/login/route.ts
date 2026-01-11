@@ -26,22 +26,31 @@ export async function POST(req: Request) {
         const expiresAt = new Date(Date.now() + maxAge * 1000);
         const session = await encrypt({ uid, role: role as any, expiresAt });
 
+        const response = NextResponse.json({ success: true, role }, { status: 200 });
+
         const isProd = process.env.NODE_ENV === "production";
-        
-        // Manual Set-Cookie headers for maximum compatibility
-        const sessionCookie = `session=${session}; HttpOnly; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
+        const cookieOptions = {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: "lax" as const,
+            path: "/",
+            maxAge: maxAge,
+            expires: expiresAt
+        };
+
+        // Set secure session cookie
+        response.cookies.set("session", session, cookieOptions);
+
         const uiRoleToken = await encrypt({ role } as any);
-        const uiRoleCookie = `ui_role=${uiRoleToken}; Path=/; Max-Age=${maxAge}; SameSite=Lax${isProd ? "; Secure" : ""}`;
+        response.cookies.set("ui_role", uiRoleToken, cookieOptions);
+
+        // Clear legacy cookies to ensure a fresh start
+        response.cookies.delete("admin");
+        response.cookies.delete("userRole");
 
         console.log(`✅ Login prepared | UID: ${uid} | Role: ${role}`);
 
-        return new Response(JSON.stringify({ success: true, role }), {
-            status: 200,
-            headers: {
-                "Content-Type": "application/json",
-                "Set-Cookie": [sessionCookie, uiRoleCookie].join(", "),
-            },
-        });
+        return response;
     }catch (error) {
     console.error("Login error:", error);
     return NextResponse.json({ error: (error as any)?.message || "Internal server error" }, { status: 500 });
