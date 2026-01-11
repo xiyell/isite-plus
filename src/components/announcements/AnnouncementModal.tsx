@@ -4,6 +4,10 @@ import { motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Announcement } from "@/types/announcement";
 import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CalendarIcon, UserIcon, X } from "lucide-react";
+import Image from "next/image";
+import { AspectRatio } from "@/components/ui/AspectRatio";
 
 interface Props {
   selected: Announcement | null;
@@ -16,7 +20,6 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
 
   useEffect(() => {
     if (selected) {
-        // Use provided image, or passed fallback, or hardcoded reliable fallback
       setImgSrc(selected.image || fallbackImage || "/assets/pupsmb-banner-logo.jpg");
     }
   }, [selected, fallbackImage]);
@@ -24,67 +27,68 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
   if (!selected) return null;
 
   return (
-    <>
-      {/* Overlay */}
-      <motion.div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-70"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
+    <Dialog open={!!selected} onOpenChange={(open) => !open && onClose()}>
+      {/* [&>button]:hidden hides the default shadcn close button so we only have our custom premium one */}
+      <DialogContent className="max-w-3xl p-0 overflow-hidden bg-zinc-950/95 backdrop-blur-3xl border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] rounded-[2rem] [&>button]:hidden max-h-[90vh]">
+        <ScrollArea className="h-[90vh] w-full">
+          <div className="relative group shrink-0">
+            <AspectRatio ratio={21 / 9} className="overflow-hidden">
+              <Image
+                src={imgSrc}
+                alt={selected.title}
+                fill
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                onError={() => setImgSrc("/assets/pupsmb-banner-logo.jpg")}
+                priority
+              />
+            </AspectRatio>
+            {/* Enhanced Gradient for better content transition */}
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent opacity-90" />
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-zinc-950 to-transparent" />
+            
+            <button
+              onClick={onClose}
+              className="absolute top-5 right-5 p-2.5 rounded-full bg-black/60 backdrop-blur-xl text-white/90 hover:text-white hover:bg-black/90 hover:scale-110 transition-all z-50 border border-white/20 shadow-2xl"
+            >
+              <X size={22} />
+            </button>
+          </div>
 
-      {/* Modal container */}
-      <motion.div
-        className="fixed inset-0 z-70 flex items-start justify-center p-4 pt-24 sm:pt-32"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.25 }}
-        onClick={onClose}
-      >
-        <div
-          className="relative w-full max-w-lg bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl text-white"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 text-gray-300 hover:text-white transition z-10"
-          >
-            ✕
-          </button>
-
-          {/* Scrollable Content */}
-          <ScrollArea className="h-[80vh] rounded-2xl">
-            <div className="p-6 flex flex-col gap-4">
-              {/* Image */}
-              {imgSrc && (
-                <motion.img
-                  src={imgSrc}
-                  alt={selected.title}
-                  className="w-full h-auto max-h-[50vh] object-contain rounded-xl"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  onError={() => setImgSrc("/assets/pupsmb-banner-logo.jpg")}
-                />
+          <div className="p-10 sm:p-14 sm:pt-10 pb-24 space-y-8">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 text-xs font-medium">
+                <CalendarIcon size={14} />
+                {selected.createdAt ? new Date(selected.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : 'Recent'}
+              </div>
+              {selected.postedBy?.name && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium">
+                  <UserIcon size={14} />
+                  {selected.postedBy.name}
+                </div>
               )}
+            </div>
 
-              {/* Title & Description */}
-              <h2 className="text-2xl font-bold">{selected.title}</h2>
-              <p className="text-gray-300 whitespace-pre-line">{selected.description}</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-6 tracking-tight leading-tight bg-gradient-to-br from-white to-white/60 bg-clip-text">
+              {selected.title}
+            </h2>
 
-              {/* Metadata */}
-              <p className="text-sm text-gray-400">
-                {selected.createdAt
-                  ? new Date(selected.createdAt).toLocaleString()
-                  : "No date"}
+            <div className="space-y-4 text-zinc-300 leading-relaxed text-lg font-normal">
+              <p className="whitespace-pre-line">
+                {selected.description}
               </p>
             </div>
-          </ScrollArea>
-        </div>
-      </motion.div>
-    </>
+
+            <div className="mt-12 flex justify-end">
+                <button
+                    onClick={onClose}
+                    className="px-8 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium transition-all"
+                >
+                    Dismiss
+                </button>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -11,7 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 // --- FIREBASE IMPORTS (Adjust path as necessary) ---
 import { db } from "@/services/firebase";
-import { collection, getDocs, query, Timestamp, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query, Timestamp, onSnapshot, doc } from "firebase/firestore";
+import { getAttendance, getAttendanceSheets } from "@/actions/attendance";
 
 // --- TYPE DEFINITIONS ---
 interface OverviewStats {
@@ -121,48 +122,59 @@ export default function OverviewContent() {
         return () => unsub();
     }, []);
 
-    // --- 3. Attendance (Google Sheets API - Fetch on mount) ---
-    const fetchAttendance = useCallback(async () => {
-        try {
-            const eventsRes = await fetch('/api/events');
-            if (eventsRes.ok) {
-                const events: string[] = await eventsRes.json();
-                if (events.length > 0) {
-                    // Get 'latest' event
-                    const latestEvent = events[events.length - 1]; 
+    // --- 3. Attendance (Real-time Firestore Stats with optimized listener) ---
+    useEffect(() => {
+        let unsubAttendance: (() => void) | undefined;
+        let totalUserCount = 0;
+
+        // Listen to users collection size once/real-time to get the denominator for "Missed"
+        const unsubUsers = onSnapshot(collection(db, "users"), (userSnap) => {
+            totalUserCount = userSnap.size;
+            // Trigger an update if we already have attendance data
+            updateChartData(lastCount.current, totalUserCount);
+        });
+
+        // Ref to track last count for partial updates
+        const lastCount = { current: 0 };
+
+        const updateChartData = (attended: number, total: number) => {
+            const absent = Math.max(0, total - attended);
+            setAttendanceData([
+                { name: 'Attended', value: attended, color: '#4ade80' },
+                { name: 'Missed', value: absent, color: '#f87171' },
+            ]);
+        };
+
+        const setupAttendanceListener = async () => {
+            try {
+                const events = await getAttendanceSheets();
+                if (events && events.length > 0) {
+                    const latestEvent = events[events.length - 1];
                     
-                    // Display Date
                     try {
                         const [year, month, day] = latestEvent.split('_');
                         const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                         setLatestEventDate(dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
                     } catch { setLatestEventDate(latestEvent); }
 
-                    // Fetch actual data
-                    const attRes = await fetch(`/api/attendance?sheetDate=${latestEvent}`);
-                    if (attRes.ok) {
-                        const attendees = await attRes.json();
-                        
-                        // We need total users to calc absent. Use a one-time fetch to be accurate locally.
-                        const usersSnap = await getDocs(collection(db, "users")); 
-                        const totalU = usersSnap.size;
-
-                        const attended = attendees.length;
-                        const absent = Math.max(0, totalU - attended);
-                         
-                        setAttendanceData([
-                             { name: 'Attended', value: attended, color: '#4ade80' },
-                             { name: 'Missed', value: absent, color: '#f87171' },
-                        ]);
-                    }
+                    unsubAttendance = onSnapshot(doc(db, "attendance_stats", latestEvent), (snapshot) => {
+                        const statsData = snapshot.data();
+                        const attended = statsData?.count || 0;
+                        lastCount.current = attended;
+                        updateChartData(attended, totalUserCount);
+                    });
                 }
+            } catch (e) {
+                console.error("Attendance listener setup error", e);
             }
-        } catch (e) {
-            console.error("Attendance fetch error", e);
-        }
-    }, []);
+        };
 
-    useEffect(() => { fetchAttendance(); }, [fetchAttendance]);
+        setupAttendanceListener();
+        return () => { 
+            unsubUsers();
+            if (unsubAttendance) unsubAttendance(); 
+        };
+    }, []);
 
     // --- 4. System Health Check (Latency) ---
     useEffect(() => {

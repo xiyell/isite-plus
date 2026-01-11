@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { auth } from '@/services/firebase';
 import { useToast } from '@/components/ui/use-toast';
+import { logoutAction } from '@/actions/auth';
 
 // 10 minutes in milliseconds
 const SESSION_DURATION = 10 * 60 * 1000;
@@ -16,8 +17,8 @@ export default function SessionTimeout() {
     const handleSignOut = useCallback(async () => {
         try {
             console.log("Session expired: Logging out...");
+            await logoutAction();
             await auth.signOut();
-            navigator.sendBeacon('/api/auth/logout');
             // Redirect with flag to show toast after reload
             window.location.href = "/?sessionExpired=true";
         } catch (error) {

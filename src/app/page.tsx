@@ -61,8 +61,12 @@ export default function Home() {
       */}
       <Divider />
 
-      <AnnouncementCarousel />
-      <AnnouncementsFeed limit={3} />
+      <section className="py-24 sm:py-32 flex flex-col gap-24 sm:gap-32">
+        <AnnouncementCarousel />
+        <div className="container mx-auto">
+          <AnnouncementsFeed limit={3} />
+        </div>
+      </section>
       {/* -----------------------------------------------------------------
 
         Platform Features

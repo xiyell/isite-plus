@@ -6,6 +6,7 @@ import { User } from "@/types/user";
 import Comment from "@/types/comment";
 import { addLog } from "./logs";
 import { checkProfanity, checkSpam } from "@/lib/moderation";
+import { revalidatePath } from "next/cache";
 
 // --- Type Helpers for Firestore Data ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

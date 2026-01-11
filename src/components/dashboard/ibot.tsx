@@ -40,6 +40,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"; // Add Select imports
+import { getAnnouncements } from "@/actions/announcements";
 
 // ...
 
@@ -115,11 +116,8 @@ export default function IBot() {
 
         const loadAnnouncements = async () => {
             try {
-                const res = await fetch("/api/announcements");
-                if (res.ok) {
-                    const data: AnnouncementDoc[] = await res.json();
-                    setAnnouncements(data);
-                }
+                const data = await getAnnouncements();
+                setAnnouncements(data);
             } catch (e) {
                 console.error("Failed to load announcements", e);
             }

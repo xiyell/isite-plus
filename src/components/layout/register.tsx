@@ -8,6 +8,9 @@ import { Loader2, Users } from "lucide-react";
 
 import { handleSignup } from "@/services/auth";
 import { auth } from "@/services/firebase";
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
+import { checkWhitelist, getWhitelistEntry } from "@/actions/whitelist";
+import { createUser } from "@/actions/users";
 import { User } from "@/types/user";
 
 // --- Shadcn UI Components ---
@@ -159,45 +162,26 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
 
         try {
             // 1. Final Whitelist Verification
-            const checkRes = await fetch("/api/whitelist/check", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ studentId: student_id }),
-            });
-
-            const checkData = await checkRes.json();
+            const checkData = await checkWhitelist(student_id, inputName);
 
             if (!checkData.allowed) {
                 setIsSubmitting(false);
-                return setError("This Student ID is not whitelisted. Please contact your local iSITE admin.");
+                return setError(checkData.error || "Whitelist verification failed.");
             }
 
             // --- NAME VERIFICATION ---
-            const officialName = checkData.name.toLowerCase().trim();
-            const typedName = inputName.toLowerCase().trim();
+            // Note: server action checkWhitelist already validates the name.
 
-            if (officialName !== typedName) {
-                setIsSubmitting(false);
-                return setError("The name provided does not match our records for this Student ID.");
-            }
-
-            // Always use the official whitelisted name, formatted formally
-            const formalName = toTitleCase(checkData.name);
             // 2. Auth Signup
             const user = await handleSignup(email, password, student_id);
 
-            // API call to save user details to your database
-            await fetch("/api/users", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: formalName,
-                    uid: user.uid,
-                    email,
-                    studentId: student_id,
-                    provider: "password",
-                    role: "user",
-                }),
+            // Save user details to database via Server Action
+            await createUser({
+                name: toTitleCase(inputName),
+                uid: user.uid,
+                email,
+                studentId: student_id,
+                provider: "password"
             });
             onRegister?.({
                 uid: user.uid,
@@ -328,13 +312,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                                 // Auto-verify if format is correct
                                                 if (studentIdPattern.test(val)) {
                                                     try {
-                                                        const res = await fetch("/api/whitelist/check", {
-                                                            method: "POST",
-                                                            headers: { "Content-Type": "application/json" },
-                                                            body: JSON.stringify({ studentId: val }),
-                                                        });
-                                                        const data = await res.json();
-                                                        if (data.allowed) {
+                                                        const data = await getWhitelistEntry(val);
+                                                        if (data) {
                                                             setWhitelistedName(toTitleCase(data.name));
                                                             setError(null);
                                                         } else {

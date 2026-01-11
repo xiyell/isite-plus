@@ -88,6 +88,88 @@ export async function verifyTwoFactorCode(userUid: string, inputCode: string) {
     }
 
     // Success! Delete the code so it can't be reused
-    await docRef.delete();
+    await docRef.update({ 
+        verified: true,
+        verifiedAt: FieldValue.serverTimestamp()
+    });
+    return { success: true };
+}
+
+// 🚀 NEW: AUTH SESSION ACTIONS (Direct Firebase & Session Management)
+import { getAdminAuth } from "@/services/firebaseAdmin";
+import { encrypt } from "@/lib/session";
+import { cookies } from "next/headers";
+
+export async function loginAction(token: string) {
+    try {
+        if (!token) throw new Error("Missing token");
+
+        const auth = getAdminAuth();
+        const decodedToken = await auth.verifyIdToken(token);
+        const uid = decodedToken.uid;
+
+        if (!decodedToken.email_verified) {
+            throw new Error("Email not verified. Please check your inbox.");
+        }
+
+        const db = getAdminDb();
+        const userDoc = await db.collection("users").doc(uid).get();
+        
+        if (!userDoc.exists) {
+            throw new Error("User account not found.");
+        }
+
+        const userData = userDoc.data();
+        if (userData?.isDeleted || userData?.status === 'deleted') {
+            throw new Error("This account has been deactivated.");
+        }
+
+        const role = userData?.role || "user";
+
+        // Update last login and status
+        await db.collection("users").doc(uid).update({
+            status: 'active',
+            active: true,
+            lastLogin: new Date().toISOString()
+        });
+
+        // Session Setup
+        const maxAge = 7 * 24 * 60 * 60; // 7 days
+        const expiresAt = new Date(Date.now() + maxAge * 1000);
+        const session = await encrypt({ uid, role: role as any, expiresAt });
+
+        const isProd = process.env.NODE_ENV === "production";
+        const cookieStore = await cookies();
+
+        cookieStore.set("session", session, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: "lax",
+            path: "/",
+            maxAge: maxAge,
+        });
+
+        const uiRoleToken = await encrypt({ role } as any);
+        cookieStore.set("ui_role", uiRoleToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: "lax",
+            path: "/",
+            maxAge: maxAge,
+        });
+
+        return { success: true, role };
+    } catch (error: any) {
+        console.error("Login action error:", error);
+        return { success: false, message: error.message || "Failed to log in" };
+    }
+}
+
+export async function logoutAction() {
+    const cookieStore = await cookies();
+    cookieStore.delete("session");
+    cookieStore.delete("ui_role");
+    cookieStore.delete("admin");
+    cookieStore.delete("userRole");
     return { success: true };
 }

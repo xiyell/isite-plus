@@ -27,6 +27,8 @@ type AttendanceRecord = {
 type SortKeys = 'name' | 'idNumber' | 'timestamp';
 type SortOrder = 'asc' | 'desc';
 
+import { getAttendance, getAttendanceSheets } from "@/actions/attendance";
+
 // Re-using the Glassy Card class for consistency (Dark Theme)
 const GLASSY_CARD_CLASS =
     "p-6 sm:p-8 rounded-2xl border border-slate-700 bg-black/10 shadow-2xl backdrop-blur-xl w-full max-w-sm md:max-w-7xl";
@@ -40,7 +42,6 @@ const Input = React.forwardRef<
         ref={ref}
         className={cn(
             "flex h-11 w-full rounded-lg border border-input bg-transparent px-4 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-base file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-            // *** COLOR ADJUSTMENTS HERE ***
             "border-slate-700 bg-black/30 text-slate-100 focus-visible:ring-cyan-500 placeholder:text-slate-400 transition-colors",
             className,
         )}
@@ -64,7 +65,7 @@ export default function AttendanceTracker() {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 5;
+    const ITEMS_PER_PAGE = 8;
 
     // Helper to format sheet name (2025_12_14) to display date (Dec 14, 2025)
     const formatSheetTitle = (title: string): string => {
@@ -81,16 +82,12 @@ export default function AttendanceTracker() {
     const fetchEvents = useCallback(async () => {
         setLoadingEvents(true);
         try {
-            const res = await fetch(`/api/events`);
-            if (!res.ok) {
-                throw new Error("Failed to fetch event list.");
-            }
-            const data: string[] = await res.json();
-            setEventList(data.reverse()); // Reverse to show latest event first
+            const data = await getAttendanceSheets();
+            setEventList([...data].reverse()); // Reverse to show latest event first
 
             // Set the latest event as the default selected date
             if (data.length > 0) {
-                setSelectedDate(data[0]);
+                setSelectedDate(data[data.length - 1]);
             } else {
                 setSelectedDate('');
             }
@@ -103,28 +100,16 @@ export default function AttendanceTracker() {
     }, []);
 
     // 2. Fetch attendance data for the selected event/sheet
-    const fetchAttendance = useCallback(async (sheetName: string) => {
+    const fetchAttendanceData = useCallback(async (sheetName: string) => {
         if (!sheetName) {
             setAttendanceData([]);
             return;
         }
         setLoading(true);
         setError(null);
-        setAttendanceData([]);
 
         try {
-            // Note: The GET API expects the sheet name to be passed as 'sheetDate'
-            const res = await fetch(`/api/attendance?sheetDate=${sheetName}`);
-
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                if (res.status === 404) {
-                    throw new Error(`Sheet '${formatSheetTitle(sheetName)}' not found.`);
-                }
-                throw new Error(err.error || "Failed to fetch attendance data.");
-            }
-
-            const data: AttendanceRecord[] = await res.json();
+            const data = await getAttendance(sheetName);
             setAttendanceData(data);
         } catch (e: unknown) {
             const err = e as Error;
@@ -143,9 +128,9 @@ export default function AttendanceTracker() {
     // Trigger attendance fetch when selectedDate (sheet name) changes
     useEffect(() => {
         if (selectedDate) {
-            fetchAttendance(selectedDate);
+            fetchAttendanceData(selectedDate);
         }
-    }, [selectedDate, fetchAttendance]);
+    }, [selectedDate, fetchAttendanceData]);
 
     // Sorting logic (Unchanged)
     const handleSort = (key: SortKeys) => {

@@ -8,7 +8,7 @@ import { Loader2, MailWarning } from "lucide-react"; // Import a loading icon
 
 import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
-import { sendVerificationCode, verifyTwoFactorCode } from "@/actions/auth"; // Import actions
+import { sendVerificationCode, verifyTwoFactorCode, loginAction } from "@/actions/auth"; // Import actions
 
 // --- Shadcn UI Components ---
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
@@ -84,7 +84,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                 return;
             }
 
-            // ⚠️ IMMEDIATE SIGN OUT to prevent global app login state 
+            // IMMEDIATE SIGN OUT to prevent global app login state 
             // until 2FA is passed.
             await auth.signOut();
 
@@ -160,21 +160,24 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
             const user = userCredential.user;
             const token = await user.getIdToken();
 
-            const res = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token }),
-                credentials: "include"
-            });
+            const authResult = await loginAction(token);
 
-            const data = await res.json();
+            if (!authResult.success) {
+                toast({
+                    variant: "destructive",
+                    title: "Access Denied",
+                    description: authResult.message
+                });
+                setIsSubmitting(false);
+                return;
+            }
 
             // 3. Update Global State
             onLogin({
                 name: user.displayName || user.email?.split("@")[0],
                 email: user.email || undefined,
                 uid: user.uid,
-                role: data.role || "user",
+                role: (authResult as any).role || "user",
             });
 
             toast({

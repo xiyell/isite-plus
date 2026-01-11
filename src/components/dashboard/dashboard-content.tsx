@@ -30,7 +30,7 @@ import TrashbinContent from "@/components/dashboard/trashbin";
 import { UserManagementContent } from "./userManagement";
 
 import {
-	collection, onSnapshot, doc, updateDoc, serverTimestamp,
+	collection, onSnapshot, doc, updateDoc, serverTimestamp, query, where
 } from "firebase/firestore";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 
 import AdminPostModerationPage from "@/components/dashboard/pendingpost";
-import { createAnnouncement } from "@/actions/announcements";
+import { createAnnouncement, getAnnouncements, deleteAnnouncement } from "@/actions/announcements";
 import OverviewContent from "@/components/dashboard/overview";
 import { addLog } from "@/actions/logs";
 import { moveUserToRecycleBin, updateUserPassword } from "@/actions/userManagement";
@@ -242,24 +242,23 @@ export default function DashboardContent() {
 		return () => unsub();
 	}, []);
 
-	const fetchAnnouncements = useCallback(async () => {
-		try {
-			const res = await fetch('/api/announcements');
-			const data = await res.json();
-			if (Array.isArray(data)) {
-				// Filter out soft-deleted announcements
-				const activeAnnouncements = data.filter(a => a.status !== 'deleted');
-				setAnnouncements(activeAnnouncements);
-			} else {
-				setAnnouncements([]);
-			}
-		} catch (err) {
-			console.error("Announcement fetch error:", err);
-			setAnnouncements([]);
-		}
-	}, []);
+	useEffect(() => {
+		const q = query(
+			collection(db, "announcements"),
+			where("status", "!=", "deleted")
+		);
 
-	useEffect(() => { fetchAnnouncements(); }, [fetchAnnouncements]);
+		const unsub = onSnapshot(q, (snapshot) => {
+			const data = snapshot.docs.map(doc => ({
+				id: doc.id,
+				...doc.data()
+			})) as Announcement[];
+			setAnnouncements(data);
+		}, (err) => {
+			console.error("Announcement watch error:", err);
+		});
+		return () => unsub();
+	}, []);
 
 	// Pagination Reset
 	useEffect(() => {
@@ -290,7 +289,6 @@ export default function DashboardContent() {
 				title: "", description: "", image: "",
 				platforms: { websitePost: false, facebook: false, instagram: false, twitter: false },
 			});
-			fetchAnnouncements(); 
 			setMessageState({ message: "Announcement posted successfully!", type: 'success' });
 		} catch (error) {
 			console.error("Error posting announcement:", error);
@@ -303,11 +301,9 @@ export default function DashboardContent() {
 	const handleDeleteAnnouncement = async () => {
 		if (confirmState.type === 'announcement' && confirmState.id) {
 			try {
-				const response = await fetch(`/api/announcements?id=${confirmState.id}`, { method: 'DELETE' });
-				if (!response.ok) throw new Error("Failed to delete");
+				await deleteAnnouncement(confirmState.id);
 				
 				setMessageState({ message: "Announcement moved to trash bin", type: 'success' });
-				fetchAnnouncements();
 				await addLog({
 					category: "system",
 					action: "Announcement Deleted",

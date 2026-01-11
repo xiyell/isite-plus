@@ -27,9 +27,9 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2 text-sm">
                 <li><Link href="/" className="hover:text-fuchsia-400 transition">Home</Link></li>
-                <li><Link href="/about" className="hover:text-fuchsia-400 transition">About</Link></li>
+                <li><Link href="/announcement" className="hover:text-fuchsia-400 transition">Announcement</Link></li>
                 <li><Link href="/community" className="hover:text-fuchsia-400 transition">Community</Link></li>
-                <li><Link href="/iQr" className="hover:text-fuchsia-400 transition">QR Attendance</Link></li>
+                <li><Link href="/iQr" className="hover:text-fuchsia-400 transition">iQR</Link></li>
               </ul>
             </div>
 

@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { CalendarIcon, MessageSquareIcon } from "lucide-react";
 import Image from "next/image";
+import { db } from "@/services/firebase";
+import { collection, query, where, orderBy, limit as firestoreLimit, onSnapshot } from "firebase/firestore";
 
 // shadcn/ui components
 import { Button } from "@/components/ui/Button";
@@ -15,60 +17,10 @@ import { AspectRatio } from "@/components/ui/AspectRatio";
 // Custom/Conceptual Imports
 import { getLatestAnnouncements } from "@/actions/announcements";
 import { Announcement } from "@/types/announcement"; // Assuming this type is available
+import AnnouncementModal from "./AnnouncementModal";
 
 // --- Internal Utility Components (Keep these for component reusability) ---
 
-/** 1. AnnouncementModal Component (using shadcn Dialog) */
-function AnnouncementModal({
-    selected,
-    onClose,
-    fallbackImage,
-}: {
-    selected: Announcement | null;
-    onClose: () => void;
-    fallbackImage: string;
-}) {
-    if (!selected) return null;
-
-    return (
-        <Dialog open={!!selected} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[800px] p-0 overflow-hidden">
-                <div className="relative">
-                    <AspectRatio ratio={16 / 9}>
-                        <Image
-                            src={selected.image || fallbackImage}
-                            alt={selected.title}
-                            fill
-                            className="object-cover"
-                            priority
-                        />
-                    </AspectRatio>
-                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
-                </div>
-                <div className="p-6 pt-0 sm:p-8 sm:pt-2">
-                    {/* ... (rest of modal content) */}
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-4">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>{new Date(selected.createdAt).toLocaleDateString()}</span>
-                        {selected.postedBy?.name && (
-                            <>
-                                <MessageSquareIcon className="h-4 w-4 ml-4" />
-                                <span>Posted by: {selected.postedBy.name}</span>
-                            </>
-                        )}
-                    </div>
-                    <h2 className="text-3xl font-bold mb-4">{selected.title}</h2>
-                    <p className="text-muted-foreground whitespace-pre-line">
-                        {selected.description}
-                    </p>
-                    <Button onClick={onClose} className="mt-6 w-full">
-                        Close
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
 
 /** 2. Announcement Card Component (using shadcn Card) */
 function AnnouncementCard({
@@ -220,23 +172,33 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
     // Use the provided image or the default one
     const fallbackImage = defaultFallbackImage || "https://img.freepik.com/premium-photo/random-image_590832-9941.jpg";
 
-    // Fetch announcements (using the robust action)
+    // Fetch announcements in real-time
     useEffect(() => {
-        const fetchAnnouncements = async () => {
-            try {
-                setLoading(true);
-                // Use the 'limit' prop for fetching
-                const data = await getLatestAnnouncements(limit);
-                setAnnouncements(data);
-            } catch (err) {
-                console.error("Error loading announcements:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
+        setLoading(true);
+        const q = query(
+            collection(db, "announcements"),
+            orderBy("createdAt", "desc"),
+            firestoreLimit(limit)
+        );
 
-        fetchAnnouncements();
-    }, [limit]); // Rerun fetch if the limit changes
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+                    updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
+                } as Announcement))
+                .filter(a => a.status === "active"); // Client-side filter to avoid composite index
+            setAnnouncements(data);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error loading announcements:", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [limit]);
 
     // Filter out the featured item for the grid
     const featured = announcements[0];

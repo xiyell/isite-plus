@@ -17,6 +17,7 @@ import { useIsScrolled, useScrollProgress } from '@/hooks/use-scroll';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserRole } from '@/types/user-role';
 import { auth } from '@/services/firebase';
+import { logoutAction } from "@/actions/auth";
 import { useAuth } from '@/services/auth';
 import { useToast } from "@/components/ui/use-toast";
 
@@ -42,12 +43,12 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
 // ------------------------------------------------------------------------
 const mainNavLinks: NavbarNavLink[] = [
     { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
-    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
-    { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'moderator'] },
-    { href: '/announcement', label: 'Announcement', rolesAllowed: ['user', 'admin', 'guest', 'moderator'] },
-    { href: '/iQr', label: 'QR Attendance', rolesAllowed: ['admin', 'moderator', 'user'] },
+    { href: '/announcement', label: 'Announcement', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
+    { href: '/community', label: 'Community', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
 
     // Grouped links (Dropdown)
+    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
+    { href: '/iQr', label: 'iQR', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
     { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
     { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
@@ -135,11 +136,14 @@ export default function Navbar() {
             console.log("Firebase signOut complete");
 
             // 2. Clear server-side admin cookie
-            await fetch('/api/auth/logout', { method: 'POST' });
+            await logoutAction();
             console.log("Server logout complete");
 
             setUser(null);
-
+            toast({
+                title: "Logged out",
+                description: "You have been successfully logged out.",
+            });
             // 3. Force redirect to home
             window.location.href = "/";
         } catch (error) {
@@ -201,7 +205,7 @@ export default function Navbar() {
                         : "bg-gradient-to-b from-fuchsia-950/40 to-transparent border-transparent"
                 )}
             >
-                <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10 py-4">
+                <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10 py-5 sm:py-6">
 
                     <div className="flex items-center gap-2">
 

@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { auth, db } from "@/services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { Button } from "@/components/ui/Button";
+import { CheckCircle, XCircle, AlertCircle, Camera, RefreshCcw, LayoutDashboard, History, Info } from "lucide-react";
+import { recordAttendance } from "@/actions/attendance";
+import { useToast } from "@/components/ui/use-toast";
 import { useZxing } from "react-zxing";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
@@ -139,43 +143,32 @@ export default function IReader() {
         setDecodedData(json);
 
         // --------------------------------------------------------
-        // Send the data to the backend API to record attendance
+        // Send the data to the server action to record attendance
         // --------------------------------------------------------
-        fetch("/api/attendance", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...json, sheetDate }),
-        })
-          .then(async (res) => {
-            if (res.ok) {
-              showNotification("success", `✅ ${json!.name} recorded successfully!`);
-            } else {
-              const err = await res.json().catch(() => ({}));
-              // If backend says duplicate, we are already covered by UI check usually, but good to have fallback
-              if (res.status === 409) {
-                 showNotification("error", `⚠️ Already recorded in database.`);
-              } else {
-                 showNotification("error", `❌ Failed: ${err.error || "Unknown error"}`);
-              }
-            }
-          })
-          .catch((e) => {
-            console.error("Network error posting attendance:", e);
-            showNotification("error", "⚠️ Network error. Try again.");
-            // If network fail, maybe remove from local set? 
-            // For now, we keep it to prevent spamming.
-          })
-          .finally(() => {
-            setTimeout(() => setIsProcessing(false), 1500);
-          });
+        recordAttendance({
+          name: json.name,
+          idNumber: json.idNumber,
+          yearLevel: json.yearLevel,
+          section: json.section,
+          sheetDate: sheetDate
+        }).then((res) => {
+          if (res.success) {
+            showNotification("success", `✅ ${json!.name} recorded!`);
+          } else {
+            showNotification("error", "❌ Failed to record.");
+          }
+        }).catch((err) => {
+          console.error("Attendance API error:", err);
+          showNotification("error", "❌ Server error occurred.");
+        }).finally(() => {
+          setTimeout(() => setIsProcessing(false), 800);
+        });
       } catch (e) {
         console.error("Invalid QR format", e);
         showNotification("error", "❌ Invalid QR format.");
         setIsProcessing(false);
       }
-    },  // --------------------------------------------------------
-        // Start/Stops scanning depending on Camera Permissions
-        // --------------------------------------------------------
+    },
     paused: !isCameraAllowed,
   });
 

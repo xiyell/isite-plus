@@ -1,22 +1,33 @@
 
 "use server";
-import { db } from "@/services/firebase";
+import { getAdminDb } from "@/services/firebaseAdmin";
+import { FieldValue } from "firebase-admin/firestore";
 import { Announcement } from "@/types/announcement";
-import { addDoc, collection, getDocs, serverTimestamp } from "firebase/firestore";
 import { addLog } from "./logs";
+import { revalidatePath } from "next/cache";
 
 export async function getAnnouncements(): Promise<Announcement[]> {
-  const querySnapshot = await getDocs(collection(db, "announcements"));
-  return querySnapshot.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() } as Announcement))
-    .filter((ann) => ann.status !== "deleted");
+  const db = getAdminDb();
+  const snapshot = await db.collection("announcements").where("status", "!=", "deleted").get();
+  
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+    } as Announcement;
+  });
 }
 
-export async function createAnnouncement(data: Omit<Announcement, "id" | "createdAt">) {
-  await addDoc(collection(db, "announcements"), {
+export async function createAnnouncement(data: any) {
+  const db = getAdminDb();
+  const res = await db.collection("announcements").add({
     ...data,
     status: "active",
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   await addLog({
@@ -24,38 +35,53 @@ export async function createAnnouncement(data: Omit<Announcement, "id" | "create
     action: "CREATE_ANNOUNCEMENT",
     severity: "low",
     message: `Announcement "${data.title}" was created`,
-    actorRole: "system", // In a real app, pass the actor
+    actorRole: "system",
   });
+  
+  revalidatePath("/");
+  revalidatePath("/announcement");
+  revalidatePath("/dashboard");
+  
+  return { id: res.id };
 }
 
+export async function deleteAnnouncement(id: string) {
+    const db = getAdminDb();
+    await db.collection("announcements").doc(id).update({
+        status: "deleted",
+        deletedAt: FieldValue.serverTimestamp(),
+    });
+
+    await addLog({
+        category: "posts",
+        action: "DELETE_ANNOUNCEMENT_SOFT",
+        severity: "medium",
+        message: `Announcement ID "${id}" was moved to trash`,
+        actorRole: "system",
+    });
+
+    revalidatePath("/");
+    revalidatePath("/announcement");
+    revalidatePath("/dashboard");
+}
 
 export async function getLatestAnnouncements(limit: number): Promise<Announcement[]> {
-  const querySnapshot = await getDocs(collection(db, "announcements"));
+  const db = getAdminDb();
+  // Note: Admin SDK doesn't support "!=" without an index if combined with other things, 
+  // but for simple fetch it's fine. Or just fetch all and filter in memory if small.
+  const snapshot = await db.collection("announcements")
+    .where("status", "==", "active")
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
 
-  const announcements = querySnapshot.docs
-    .map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        title: data.title,
-        description: data.description,
-        image: data.image,
-        status: data.status,
-        createdAt: data.createdAt?.toDate
-          ? data.createdAt.toDate().toISOString()
-          : data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt?.toDate
-          ? data.updatedAt.toDate().toISOString()
-          : data.updatedAt || new Date().toISOString(),
-      } as Announcement;
-    })
-    .filter((ann) => ann.status !== "deleted");
-
-  // Sort by date (strings are converted to Date for sorting)
-  announcements.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-
-  // Limit the results
-  return announcements.slice(0, limit);
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+      updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+    } as Announcement;
+  });
 }

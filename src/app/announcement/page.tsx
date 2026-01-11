@@ -14,6 +14,8 @@ import { AspectRatio } from "@/components/ui/AspectRatio";
 import AnnouncementModal from "@/components/announcements/AnnouncementModal";
 import { getLatestAnnouncements } from "@/actions/announcements";
 import { Announcement } from "@/types/announcement";
+import { db } from "@/services/firebase";
+import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 
 const ANNOUNCEMENTS_PER_PAGE = 6;
 const INITIAL_FETCH_LIMIT = 24;
@@ -217,29 +219,37 @@ function AnnouncementContent() {
 
     const bottomObserverRef = useRef<HTMLDivElement | null>(null);
 
-    const fetchInitial = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getLatestAnnouncements(INITIAL_FETCH_LIMIT);
-            if (Array.isArray(data)) {
-                const unique = Array.from(new Map(data.map((d: Announcement) => [d.id, d])).values());
-                setAllAnnouncements(unique);
-                setPage(1);
-                setVisibleCount(ANNOUNCEMENTS_PER_PAGE);
-            } else {
-                setAllAnnouncements([]);
-            }
-        } catch (err) {
-            console.error("Error loading announcements:", err);
-            setAllAnnouncements([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
     useEffect(() => {
-        fetchInitial();
-    }, [fetchInitial]);
+        setLoading(true);
+        const q = query(
+            collection(db, "announcements"),
+            orderBy("createdAt", "desc"),
+            limit(INITIAL_FETCH_LIMIT)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+                    updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
+                } as Announcement))
+                .filter(a => a.status === "active");
+            
+            const unique = Array.from(new Map(data.map((d: Announcement) => [d.id, d])).values());
+            setAllAnnouncements(unique);
+            setPage(1);
+            setVisibleCount(ANNOUNCEMENTS_PER_PAGE);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error loading announcements:", error);
+            setAllAnnouncements([]);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     const featured = allAnnouncements[0] ?? null;
     const nonFeaturedAnnouncements = allAnnouncements.slice(1);

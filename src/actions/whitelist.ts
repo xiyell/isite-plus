@@ -1,35 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+"use server";
+
 import { getAdminDb } from "@/services/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
 
-export const dynamic = 'force-dynamic';
+export interface WhitelistEntry {
+  id: string;
+  name: string;
+}
 
 // GET: Fetch all allowed IDs with names
-export async function GET(req: NextRequest) {
+export async function getWhitelist() {
   try {
     const db = getAdminDb();
     const snapshot = await db.collection("allowed_student_ids").get();
     
-    // Return array of objects { id, name }
     const entries = snapshot.docs.map(doc => ({
       id: doc.id,
       name: doc.data().name || "Unknown Name"
     }));
     
-    return NextResponse.json({ entries });
+    return { success: true, entries };
   } catch (error) {
     console.error("Error fetching whitelist:", error);
-    return NextResponse.json({ error: "Failed to fetch whitelist" }, { status: 500 });
+    throw new Error("Failed to fetch whitelist");
   }
 }
 
 // POST: Add Entries (Bulk)
-export async function POST(req: NextRequest) {
+export async function addWhitelistEntries(entries: { id: string, name: string }[], actorName?: string) {
   try {
-    const { entries, actorName } = await req.json(); // Expected: { entries: [{ id: string, name: string }] }
-
     if (!Array.isArray(entries) || entries.length === 0) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      throw new Error("Invalid input");
     }
 
     const db = getAdminDb();
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     const collectionRef = db.collection("allowed_student_ids");
     let count = 0;
 
-    entries.forEach((entry: { id: string, name: string }) => {
+    entries.forEach((entry) => {
       if (entry.id && typeof entry.id === 'string' && entry.id.trim().length > 0) {
         const docRef = collectionRef.doc(entry.id.trim());
         batch.set(docRef, { 
@@ -64,20 +65,18 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    return NextResponse.json({ message: `Successfully whitelisted ${count} students` });
-  } catch (error) {
+    return { success: true, message: `Successfully whitelisted ${count} students` };
+  } catch (error: any) {
     console.error("Error adding to whitelist:", error);
-    return NextResponse.json({ error: "Failed to update whitelist" }, { status: 500 });
+    throw new Error(error.message || "Failed to update whitelist");
   }
 }
 
 // DELETE: Remove IDs
-export async function DELETE(req: NextRequest) {
+export async function deleteWhitelistEntries(studentIds: string[], actorName?: string) {
   try {
-    const { studentIds, actorName } = await req.json();
-
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      throw new Error("Invalid input");
     }
 
     const db = getAdminDb();
@@ -103,20 +102,18 @@ export async function DELETE(req: NextRequest) {
         time: new Date().toLocaleString(),
     });
 
-    return NextResponse.json({ message: `Successfully removed ${studentIds.length} IDs` });
-  } catch (error) {
+    return { success: true, message: `Successfully removed ${studentIds.length} IDs` };
+  } catch (error: any) {
     console.error("Error removing from whitelist:", error);
-    return NextResponse.json({ error: "Failed to remove IDs" }, { status: 500 });
+    throw new Error(error.message || "Failed to remove IDs");
   }
 }
 
 // PATCH: Update an entry (Edit ID or Name)
-export async function PATCH(req: NextRequest) {
+export async function updateWhitelistEntry(oldStudentId: string, newStudentId?: string, name?: string, actorName?: string) {
   try {
-    const { oldStudentId, newStudentId, name, actorName } = await req.json();
-
     if (!oldStudentId) {
-      return NextResponse.json({ error: "Original Student ID is required" }, { status: 400 });
+      throw new Error("Original Student ID is required");
     }
 
     const db = getAdminDb();
@@ -129,12 +126,12 @@ export async function PATCH(req: NextRequest) {
         // Check conflicts
         const newSnap = await newRef.get();
         if (newSnap.exists) {
-            return NextResponse.json({ error: "New Student ID already exists" }, { status: 409 });
+            throw new Error("New Student ID already exists");
         }
         
         const oldSnap = await oldRef.get();
         if (!oldSnap.exists) {
-            return NextResponse.json({ error: "Original Student ID not found" }, { status: 404 });
+            throw new Error("Original Student ID not found");
         }
 
         const batch = db.batch();
@@ -152,7 +149,7 @@ export async function PATCH(req: NextRequest) {
         await db.collection("activitylogs").add({
             category: "users",
             action: "Whitelist Edit ID",
-            severity: "high", // ID change is high severity
+            severity: "high",
             message: `Renamed Student ID from "${oldStudentId}" to "${newStudentId}"`,
             actorRole: "admin",
             actorName: actorName || "Unknown Admin",
@@ -162,7 +159,7 @@ export async function PATCH(req: NextRequest) {
 
     } else {
         // Case 2: Just Name Update
-        if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+        if (!name) throw new Error("Name is required");
 
         await oldRef.update({
             name: name.trim(),
@@ -182,9 +179,41 @@ export async function PATCH(req: NextRequest) {
         });
     }
 
-    return NextResponse.json({ message: "Successfully updated entry" });
-  } catch (error) {
+    return { success: true, message: "Successfully updated entry" };
+  } catch (error: any) {
     console.error("Error updating whitelist:", error);
-    return NextResponse.json({ error: "Failed to update entry" }, { status: 500 });
+    throw new Error(error.message || "Failed to update entry");
   }
+}
+
+export async function checkWhitelist(studentId: string, fullName: string) {
+    try {
+        const db = getAdminDb();
+        const doc = await db.collection("allowed_student_ids").doc(studentId).get();
+        
+        if (!doc.exists) {
+            return { allowed: false, error: "ID not whitelisted" };
+        }
+        
+        const data = doc.data();
+        if (data?.name?.toLowerCase() !== fullName.toLowerCase()) {
+            return { allowed: false, error: "Name does not match whitelist" };
+        }
+        
+        return { allowed: true, name: data?.name };
+    } catch (error) {
+        process.env.NODE_ENV === "development" && console.error("Whitelist check error:", error);
+        return { allowed: false, error: "System error" };
+    }
+}
+
+export async function getWhitelistEntry(studentId: string) {
+    try {
+        const db = getAdminDb();
+        const doc = await db.collection("allowed_student_ids").doc(studentId).get();
+        if (!doc.exists) return null;
+        return { id: doc.id, name: doc.data()?.name };
+    } catch (error) {
+        return null;
+    }
 }

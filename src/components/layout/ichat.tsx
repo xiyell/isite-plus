@@ -13,6 +13,7 @@ import Link from "next/link"; // For smart navigation
 
 import { collection, doc, onSnapshot, getDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/services/firebase";
+import { getAnnouncements } from "@/actions/announcements";
 
 // Types remain concise
 interface Message {
@@ -247,16 +248,10 @@ export default function IChat() {
         //  Fetch Announcements via API (Bypasses Firestore Rules issues and ensures consistency)
         const loadAnnouncements = async () => {
             try {
-                const res = await fetch("/api/announcements");
-                if (res.ok) {
-                    const data: AnnouncementDoc[] = await res.json();
-                    setAnnouncements(data);
-                } else {
-                    console.warn("SmartBot: API returned mismatch", res.status);
-                    setAnnouncements([]);
-                }
+                const data = await getAnnouncements();
+                setAnnouncements(data);
             } catch (e) {
-                console.warn("SmartBot: Failed to fetch announcements from API", e);
+                console.warn("SmartBot: Failed to fetch announcements", e);
                 setAnnouncements([]);
             }
         };

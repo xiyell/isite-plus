@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Trash2, Plus, Upload, X, Save, AlertCircle, FileText, Pencil, Edit } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, Loader2, Download, AlertCircle, CheckCircle2, X, Pencil, Upload, Save, FileText, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/Button";
@@ -12,12 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    getWhitelist,
+    addWhitelistEntries,
+    deleteWhitelistEntries,
+    updateWhitelistEntry,
+    WhitelistEntry
+} from "@/actions/whitelist";
 import { auth } from "@/services/firebase";
-
-interface WhitelistEntry {
-    id: string;
-    name: string;
-}
 
 interface AllowedIDsProps {
     onBack: () => void;
@@ -49,8 +52,7 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     const fetchIds = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/whitelist');
-            const data = await res.json();
+            const data = await getWhitelist();
             if (data.entries) {
                 setEntries(data.entries);
             }
@@ -92,30 +94,20 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
         const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
 
         try {
-            const res = await fetch('/api/whitelist', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    entries: newEntries,
-                    actorName
-                }),
-            });
-
-            if (res.ok) {
+            const res = await addWhitelistEntries(newEntries, actorName);
+            if (res.success) {
                 toast({
                     title: "Success",
-                    description: `Successfully whitelisted ${newEntries.length} entries.`,
+                    description: res.message,
                 });
-                setBulkInput('');
                 setIsAddDialogOpen(false);
+                setBulkInput('');
                 fetchIds();
-            } else {
-                throw new Error("Failed to add entries");
             }
-        } catch (error) {
+        } catch (error: any) {
             toast({
                 title: "Error",
-                description: "Failed to add entries. Please try again.",
+                description: error.message || "Failed to add entries.",
                 variant: "destructive",
             });
         } finally {
@@ -129,29 +121,21 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
         setIsSubmitting(true);
         const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
         try {
-            const res = await fetch('/api/whitelist', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    oldStudentId: editingEntry.id, 
-                    newStudentId: editId.trim(),
-                    name: editName.trim(),
-                    actorName
-                }),
-            });
+            const res = await updateWhitelistEntry(
+                editingEntry.id, 
+                editId !== editingEntry.id ? editId : undefined,
+                editName,
+                actorName
+            );
 
-            if (res.ok) {
-                setEntries(entries.map(e => 
-                    e.id === editingEntry.id ? { ...e, id: editId.trim(), name: editName.trim() } : e
-                ));
+            if (res.success) {
                 toast({
                     title: "Updated",
-                    description: `Successfully updated entry.`,
+                    description: res.message,
                 });
                 setIsEditDialogOpen(false);
-            } else {
-                const d = await res.json();
-                throw new Error(d.error || "Update failed");
+                setEditingEntry(null);
+                fetchIds();
             }
         } catch (error: any) {
             toast({
@@ -164,34 +148,21 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
         }
     };
 
-    const handleDelete = async (idToDelete: string) => {
-        const originalEntries = [...entries];
-        setEntries(entries.filter(e => e.id !== idToDelete));
+    const handleDelete = async (id: string) => {
         const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
-
         try {
-            const res = await fetch('/api/whitelist', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    studentIds: [idToDelete],
-                    actorName
-                }),
-            });
-
-            if (!res.ok) {
-                throw new Error("Failed to delete");
+            const res = await deleteWhitelistEntries([id], actorName);
+            if (res.success) {
+                toast({
+                    title: "Deleted",
+                    description: res.message,
+                });
+                fetchIds();
             }
-
-            toast({
-                title: "Deleted",
-                description: `Entry ${idToDelete} removed from whitelist.`,
-            });
-        } catch (error) {
-            setEntries(originalEntries); 
+        } catch (error: any) {
             toast({
                 title: "Error",
-                description: "Failed to delete entry.",
+                description: "Failed to delete from whitelist.",
                 variant: "destructive",
             });
         }

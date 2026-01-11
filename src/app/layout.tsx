@@ -32,7 +32,7 @@ export default function RootLayout({
 }>) {
 
   return (
-    <html suppressHydrationWarning lang="en">
+    <html suppressHydrationWarning lang="en" className="dark">
       <body
         suppressHydrationWarning={true}
         className={clsx(
@@ -56,7 +56,7 @@ export default function RootLayout({
         <div className="flex flex-col min-h-screen relative text-lg sm:text-xl">
           <Navbar />
 
-          <main className="flex-grow flex flex-col justify-start pt-10 sm:pt-14 overflow-y-auto">
+          <main className="flex-grow flex flex-col justify-start pt-20 sm:pt-24 overflow-y-auto">
             {children}
           </main>
 

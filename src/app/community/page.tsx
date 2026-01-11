@@ -57,7 +57,8 @@ import {
 
 // Firebase/Data Imports
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/services/firebase";
+import { auth, db } from "@/services/firebase";
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
 
 // Type Imports
 import Post from "@/types/post";

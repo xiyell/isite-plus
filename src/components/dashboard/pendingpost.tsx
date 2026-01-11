@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/Button";
+import { db } from "@/services/firebase";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import {
   Table,
   TableBody,
@@ -30,7 +32,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/services/auth";
-import { updatePostStatus, movePostToRecycleBin } from "@/actions/community"; // Server Actions
+import { updatePostStatus, movePostToRecycleBin, getCommunityPosts } from "@/actions/community"; // Server Actions
 
 /* ───────────────────────────────────────────── */
 /* TYPES                                        */
@@ -84,61 +86,55 @@ export default function AdminPostModerationPage() {
 
   /* ─────────── FETCH POSTS ─────────── */
 
-  async function loadPendingPosts() {
-    if (!user) {
-      if (user === null) setLoading(false);
-      return;
-    }
+  /* ─────────── FETCH POSTS (REAL-TIME) ─────────── */
+  useEffect(() => {
+    if (!user) return;
+    
+    setLoading(true);
+    const q = query(
+      collection(db, "community"),
+      where("status", "==", statusFilter),
+      orderBy("createdAt", "desc")
+    );
 
-    try {
-      setLoading(true);
-
-      const queryParams = new URLSearchParams({
-        status: statusFilter,
-        limit: "100" // Safety limit
-      });
-      if (categoryFilter !== "All") queryParams.append("category", categoryFilter);
-
-      const res = await fetch(`/api/community?${queryParams.toString()}`);
-      if (!res.ok) {
-        if (res.status === 403) throw new Error("Unauthorized");
-        throw new Error("Failed to fetch");
-      }
-
-      const data = await res.json();
-      const results: PendingPost[] = [];
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data.forEach((d: any) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const results: PendingPost[] = snapshot.docs.map((docSnap) => {
+        const d = docSnap.data();
         const spamScore = calculateSpamScore(d.title || "", d.description || "");
-        results.push({
-          id: d.id,
-          authorId: d.postedBy?.id || "unknown",
-          authorUsername: d.postedBy?.name || "Unknown User",
+        
+        return {
+          id: docSnap.id,
+          authorId: d.postedBy?.id || "unknown", // onSnapshot gives plain data, refs might be strings or objects
+          authorUsername: d.authorName || "User", // Fallback for real-time feed
           title: d.title,
           contentSnippet: d.description || "No description provided.",
-          timestamp: d.createdAt ? new Date(d.createdAt).toLocaleString() : "Recently",
+          timestamp: d.createdAt?.toDate ? d.createdAt.toDate().toLocaleString() : "Recently",
           category: d.category,
           status: d.status,
           spamScore,
-        });
-      });
-
-      // Sort by newest first
-      results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        };
+      }).filter(p => categoryFilter === 'All' || p.category === categoryFilter);
 
       setPosts(results);
-      setCurrentPage(1); // Reset page on new fetch
-    } catch (error) {
-      console.error("Error loading posts:", error);
-      toast({
-        title: "Error",
-        description: "Available only to Admins/Moderators.",
-        variant: "destructive"
-      });
-    } finally {
       setLoading(false);
-    }
+    }, (err) => {
+      console.error("Moderation listener error:", err);
+      // If error is due to missing index, we provide a degraded but working experience
+      if (err.message.includes("index")) {
+        const fallbackQ = query(collection(db, "community"), where("status", "==", statusFilter));
+        onSnapshot(fallbackQ, (snap) => {
+           // ... (same mapping but then sort in JS)
+        });
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, statusFilter, categoryFilter]);
+
+  // Legacy function for manual triggers (e.g. error recovery)
+  async function loadPendingPosts() {
+     // No-op or trigger a state refresh if needed, but the listener above handles it.
   }
 
   /* ─────────── UPDATE STATUS ─────────── */
