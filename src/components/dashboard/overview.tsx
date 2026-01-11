@@ -122,59 +122,57 @@ export default function OverviewContent() {
         return () => unsub();
     }, []);
 
-    // --- 3. Attendance (Real-time Firestore Stats with optimized listener) ---
+    const [attendedCount, setAttendedCount] = useState<number | null>(null);
+
+    // --- 3. Attendance (Fetched directly from latest Sheet) ---
     useEffect(() => {
-        let unsubAttendance: (() => void) | undefined;
-        let totalUserCount = 0;
-
-        // Listen to users collection size once/real-time to get the denominator for "Missed"
-        const unsubUsers = onSnapshot(collection(db, "users"), (userSnap) => {
-            totalUserCount = userSnap.size;
-            // Trigger an update if we already have attendance data
-            updateChartData(lastCount.current, totalUserCount);
-        });
-
-        // Ref to track last count for partial updates
-        const lastCount = { current: 0 };
-
-        const updateChartData = (attended: number, total: number) => {
-            const absent = Math.max(0, total - attended);
-            setAttendanceData([
-                { name: 'Attended', value: attended, color: '#4ade80' },
-                { name: 'Missed', value: absent, color: '#f87171' },
-            ]);
-        };
-
-        const setupAttendanceListener = async () => {
+        const fetchAttendance = async () => {
             try {
-                const events = await getAttendanceSheets();
-                if (events && events.length > 0) {
-                    const latestEvent = events[events.length - 1];
-                    
+                // 1. Get all sheets
+                const sheets = await getAttendanceSheets();
+                // 2. Filter for date-based sheets (YYYY_MM_DD) and Sort Descending
+                const validSheets = sheets
+                    .filter(s => /^\d{4}_\d{2}_\d{2}$/.test(s))
+                    .sort().reverse();
+
+                if (validSheets.length > 0) {
+                    const latestEvent = validSheets[0];
+
+                    // Format Date for Display
                     try {
                         const [year, month, day] = latestEvent.split('_');
                         const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
                         setLatestEventDate(dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
-                    } catch { setLatestEventDate(latestEvent); }
+                    } catch { 
+                        setLatestEventDate(latestEvent); 
+                    }
 
-                    unsubAttendance = onSnapshot(doc(db, "attendance_stats", latestEvent), (snapshot) => {
-                        const statsData = snapshot.data();
-                        const attended = statsData?.count || 0;
-                        lastCount.current = attended;
-                        updateChartData(attended, totalUserCount);
-                    });
+                    // 3. Fetch Actual Data to get Count
+                    const attendees = await getAttendance(latestEvent);
+                    setAttendedCount(attendees.length);
+                } else {
+                    setAttendedCount(0);
+                    setLatestEventDate("No Events");
                 }
             } catch (e) {
-                console.error("Attendance listener setup error", e);
+                console.error("Error fetching attendance:", e);
+                setAttendedCount(0);
             }
         };
 
-        setupAttendanceListener();
-        return () => { 
-            unsubUsers();
-            if (unsubAttendance) unsubAttendance(); 
-        };
+        fetchAttendance();
     }, []);
+
+    // Update Attendance Chart when count or total users changes
+    useEffect(() => {
+        if (attendedCount !== null && stats) {
+            const absent = Math.max(0, stats.totalUsers - attendedCount);
+            setAttendanceData([
+                { name: 'Attended', value: attendedCount, color: '#4ade80' },
+                { name: 'Missed', value: absent, color: '#f87171' },
+            ]);
+        }
+    }, [attendedCount, stats]);
 
     // --- 4. System Health Check (Latency) ---
     useEffect(() => {
