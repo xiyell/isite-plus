@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 // Assuming @heroui/button is the Button your form uses (aliased here)
 import { motion, AnimatePresence } from "framer-motion";
 import { signOut } from "firebase/auth";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Users, Eye, EyeOff } from "lucide-react";
 
 import { handleSignup } from "@/services/auth";
 import { auth } from "@/services/firebase";
@@ -42,6 +42,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [passwordError, setPasswordError] = useState<string | null>(null); // New state for password complexity feedback
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Error is now permanent until clicked (dismissible)
     // useEffect(() => {
@@ -422,16 +424,30 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                         <Label htmlFor="password" className="text-sm font-semibold text-fuchsia-200">
                                             Password
                                         </Label>
-                                        <Input
-                                            id="password"
-                                            placeholder="Enter password"
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                            required
-                                            disabled={isSubmitting}
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                placeholder="Enter password"
+                                                type={showPassword ? "text" : "password"}
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                className="h-10 bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 pr-10"
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-fuchsia-400 hover:text-fuchsia-200 transition-colors"
+                                                tabIndex={-1}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                         {/* NEW: Password complexity feedback */}
                                         {passwordError && (
                                             <p className={`text-xs ${passwordError.includes('requires') ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -445,16 +461,30 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                         <Label htmlFor="confirmPassword" className="text-sm font-semibold text-fuchsia-200">
                                             Confirm Password
                                         </Label>
-                                        <Input
-                                            id="confirmPassword"
-                                            placeholder="Re-enter password"
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className={`h-10 bg-fuchsia-900/40 border focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 ${matchError ? 'border-red-500 ring-1 ring-red-500' : 'border-fuchsia-700/50'}`}
-                                            required
-                                            disabled={isSubmitting}
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                id="confirmPassword"
+                                                placeholder="Re-enter password"
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                className={`h-10 bg-fuchsia-900/40 border focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 pr-10 ${matchError ? 'border-red-500 ring-1 ring-red-500' : 'border-fuchsia-700/50'}`}
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-fuchsia-400 hover:text-fuchsia-200 transition-colors"
+                                                tabIndex={-1}
+                                            >
+                                                {showConfirmPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                         {matchError && (
                                             <p className="text-xs text-red-400 font-semibold">
                                                 ❌ Passwords do not match

@@ -174,25 +174,33 @@ export default function IChat() {
             
             for (const trigger of triggers) {
                 let currentScore = 0;
+                
+                // Create a word-boundary regex for the trigger
+                // Escape special regex characters in trigger just in case
+                const escapedTrigger = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const wordBoundaryRegex = new RegExp(`\\b${escapedTrigger}\\b`, 'i');
 
-                // Simple includes check
-                if (normalizedInput.includes(trigger) || trigger.includes(normalizedInput)) {
-                     const lenRatio = Math.min(normalizedInput.length, trigger.length) / Math.max(normalizedInput.length, trigger.length);
-                     currentScore = 0.8 + (lenRatio * 0.2); 
+                // A. Exact Word Match (Highest Priority)
+                if (wordBoundaryRegex.test(normalizedInput)) {
+                     currentScore = 1.0;
                 } 
+                // B. Jaccard Similarity (Topic Overlap)
                 else {
-                    // Jaccard for triggers
                     const triggerTokens = tokenize(trigger);
                     const jaccard = calculateJaccard(inputTokens, triggerTokens);
-                    if (jaccard > 0) currentScore = 0.5 + (jaccard * 0.4);
                     
-                    // Fuzzy Levenshtein (fallback for typos)
+                    if (jaccard > 0) {
+                        currentScore = 0.5 + (jaccard * 0.4);
+                    }
                     else if (inputTokens.length > 0 && triggerTokens.length > 0) {
+                         // C. Fuzzy Levenshtein (Only for reasonably sized words to avoid "hi" matching "ho")
                          let fuzzyMatches = 0;
                          for (const tWord of triggerTokens) {
+                             if (tWord.length < 4) continue; // Skip short words for fuzzy matching
+
                              for (const iWord of inputTokens) {
                                  const dist = levenshtein(iWord, tWord);
-                                 const threshold = tWord.length > 4 ? 2 : 1; 
+                                 const threshold = Math.floor(tWord.length / 3); // Allow 1 mistake per 3 chars
                                  if (dist <= threshold) {
                                      fuzzyMatches++;
                                      break; 
@@ -200,7 +208,7 @@ export default function IChat() {
                              }
                          }
                          const fuzzyScore = fuzzyMatches / transformLength(triggerTokens.length);
-                         if (fuzzyScore > 0) currentScore = 0.3 + (fuzzyScore * 0.4);
+                         if (fuzzyScore > 0) currentScore = 0.4 + (fuzzyScore * 0.4);
                     }
                 }
 
@@ -212,7 +220,8 @@ export default function IChat() {
         
         function transformLength(len: number) { return len === 0 ? 1 : len; }
 
-        if (bestMatch.response && bestMatch.score > 0.45) {
+        // Increased threshold to 0.6 to reduce false positives
+        if (bestMatch.response && bestMatch.score >= 0.6) {
              const matchedResponse = bestMatch.response!;
              let attachment: Message['attachment'] | undefined = undefined;
 
@@ -229,7 +238,7 @@ export default function IChat() {
              return { reply: matchedResponse.reply, attachment };
         }
 
-        return { reply: "I'm not sure about that. Try asking for the 'latest announcement' or specific topics like 'events'." };
+        return { reply: "I'm not sure about that. Try asking for the 'latest announcement' or specific topics like 'enrollment' or 'grades'." };
     };
 
     const sendMessage = async (customText?: string) => {

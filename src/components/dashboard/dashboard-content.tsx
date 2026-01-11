@@ -36,7 +36,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
 	Upload, Send, AlertTriangle, Users, Activity, Calendar, Bot,
-	ChevronDown, ChevronUp, Recycle, FileText, Trash2, Edit, KeyRound
+	ChevronDown, ChevronUp, Recycle, FileText, Trash2, Edit, KeyRound, Eye, EyeOff
 } from "lucide-react";
 
 import AdminPostModerationPage from "@/components/dashboard/pendingpost";
@@ -496,6 +496,8 @@ export default function DashboardContent() {
 		const PasswordModal = () => {
 			const [newPass, setNewPass] = useState('');
 			const [confirmPass, setConfirmPass] = useState('');
+			const [showNewPass, setShowNewPass] = useState(false);
+			const [showConfirmPass, setShowConfirmPass] = useState(false);
 
 			const handleSubmit = (e: React.FormEvent) => {
 				e.preventDefault();
@@ -528,23 +530,43 @@ export default function DashboardContent() {
 						<form onSubmit={handleSubmit} className="space-y-4 pt-4">
 							<div className="space-y-2">
 								<Label className="text-gray-300">New Password</Label>
-								<Input
-									placeholder="New Password"
-									type="password"
-									value={newPass}
-									onChange={(e) => setNewPass(e.target.value)}
-									className="bg-white/10 border-white/20 text-white"
-								/>
+								<div className="relative">
+									<Input
+										placeholder="New Password"
+										type={showNewPass ? "text" : "password"}
+										value={newPass}
+										onChange={(e) => setNewPass(e.target.value)}
+										className="bg-white/10 border-white/20 text-white pr-10"
+									/>
+									<button
+										type="button"
+										onClick={() => setShowNewPass(!showNewPass)}
+										className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+										tabIndex={-1}
+									>
+										{showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+									</button>
+								</div>
 							</div>
 							<div className="space-y-2">
 								<Label className="text-gray-300">Confirm Password</Label>
-								<Input
-									placeholder="Confirm Password"
-									type="password"
-									value={confirmPass}
-									onChange={(e) => setConfirmPass(e.target.value)}
-									className="bg-white/10 border-white/20 text-white"
-								/>
+								<div className="relative">
+									<Input
+										placeholder="Confirm Password"
+										type={showConfirmPass ? "text" : "password"}
+										value={confirmPass}
+										onChange={(e) => setConfirmPass(e.target.value)}
+										className="bg-white/10 border-white/20 text-white pr-10"
+									/>
+									<button
+										type="button"
+										onClick={() => setShowConfirmPass(!showConfirmPass)}
+										className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+										tabIndex={-1}
+									>
+										{showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
+									</button>
+								</div>
 							</div>
 							<DialogFooter className="pt-4">
 								<Button type="button" variant="ghost" onClick={() => setPasswordTarget(null)} className="text-gray-400 hover:text-white">

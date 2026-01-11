@@ -68,7 +68,7 @@ import { User } from "@/types/user";
 // --- Configuration Constants ---
 const categories = ["All", "Tech", "Gaming", "Art", "Science", "Fun", "Other"];
 const ADMIN_UIDS: string[] = []; // Replace with actual admin UIDs
-const postsPerPage = 5;
+const postsPerPage = 8;
 const commentsPerPage = 5;
 
 // --- Helper Functions ---

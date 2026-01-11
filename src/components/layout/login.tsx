@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 // Assuming @heroui/button is the Button your form uses (aliased here)
 import { motion, AnimatePresence } from "framer-motion";
 import { signInWithEmailAndPassword, sendEmailVerification, signOut } from "firebase/auth";
-import { Loader2, MailWarning } from "lucide-react"; // Import a loading icon
+import { Loader2, MailWarning, Eye, EyeOff } from "lucide-react"; // Import a loading icon
 
 import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
@@ -32,6 +32,7 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     const { toast } = useToast();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     // Renamed 'loading' to 'isSubmitting' for clarity in the form context
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -293,16 +294,30 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                                         <Label htmlFor="password" className="text-sm font-semibold text-fuchsia-200">
                                             Password
                                         </Label>
-                                        <Input
-                                            id="password"
-                                            placeholder="Enter your password"
-                                            type="password"
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60"
-                                            required
-                                            disabled={isSubmitting}
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                placeholder="Enter your password"
+                                                type={showPassword ? "text" : "password"}
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                className="bg-fuchsia-900/40 border border-fuchsia-700/50 focus-visible:ring-fuchsia-500 text-white placeholder-fuchsia-400/60 pr-10"
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-fuchsia-400 hover:text-fuchsia-200 transition-colors"
+                                                tabIndex={-1}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Buttons */}
