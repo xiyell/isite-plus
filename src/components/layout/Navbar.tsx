@@ -174,8 +174,18 @@ export default function Navbar() {
     };
 
     const currentUserRole = user?.role as UserRole || ('guest' as UserRole);
-    const mainLinks = mainNavLinks.filter(link => !link.group);
-    const groupedLinks = mainNavLinks.filter(link => link.group === 'tools');
+
+    // Filter links: HIDE restricted links for Guests completely,
+    // but keep them visible for other roles to support the "Access Restricted" toasts.
+    const filteredNavLinks = mainNavLinks.filter(link => {
+        if (currentUserRole === 'guest') {
+            return link.rolesAllowed.includes('guest');
+        }
+        return true;
+    });
+
+    const mainLinks = filteredNavLinks.filter(link => !link.group);
+    const groupedLinks = filteredNavLinks.filter(link => link.group === 'tools');
     const isGroupVisible = groupedLinks.length > 0;
 
     // Close the dropdown when the mobile menu is opened/closed
@@ -394,7 +404,7 @@ export default function Navbar() {
                             </div>
 
                             <div className="flex flex-col items-center gap-4 w-full">
-                                {mainNavLinks.map((link, index) => (
+                                {filteredNavLinks.map((link, index) => (
                                     <Link
                                         key={index}
                                         href={link.href}
