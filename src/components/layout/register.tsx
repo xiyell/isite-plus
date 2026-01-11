@@ -37,12 +37,13 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isRegistrationSuccess, setIsRegistrationSuccess] = useState(false);
 
-    useEffect(() => {
-        if (error) {
-            const timer = setTimeout(() => setError(null), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [error]);
+    // Error is now permanent until clicked (dismissible)
+    // useEffect(() => {
+    //     if (error) {
+    //         const timer = setTimeout(() => setError(null), 5000);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [error]);
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
@@ -432,7 +433,8 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                                 animate={{ opacity: 1, y: 0 }}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 exit={{ opacity: 0, y: -10 }}
-                                                className={`px-4 py-2 text-sm font-medium rounded-lg text-center ${error.startsWith("✅")
+                                                onClick={() => setError(null)}
+                                                className={`px-4 py-2 text-sm font-medium rounded-lg text-center cursor-pointer ${error.startsWith("✅")
                                                     ? "bg-green-600/90 text-white"
                                                     : "bg-red-600/90 text-white"
                                                     } transition-all duration-300`}

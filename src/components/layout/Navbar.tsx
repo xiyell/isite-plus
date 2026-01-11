@@ -70,7 +70,7 @@ export default function Navbar() {
     // Sync global auth state to local navbar state
     React.useEffect(() => {
         const fetchUserRole = async () => {
-            if (!authLoading && authUser) {
+            if (!authLoading && authUser && authUser.emailVerified) {
                 try {
                      // Dynamically import needed functions to avoid top-level SSR issues if any, 
                      // though standard import is fine. adhering to previous patterns.

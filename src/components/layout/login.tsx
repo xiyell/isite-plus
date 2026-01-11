@@ -40,12 +40,13 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     const [tempUser, setTempUser] = useState<any>(null); // Store user data temporarily between steps
 
     // Auto-hide toast after 3 seconds
-    useEffect(() => {
-        if (toast) {
-            const timer = setTimeout(() => setToast(null), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast]);
+    // Toast is now permanent until closed/clicked
+    // useEffect(() => {
+    //     if (toast) {
+    //         const timer = setTimeout(() => setToast(null), 5000);
+    //         return () => clearTimeout(timer);
+    //     }
+    // }, [toast]);
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);

@@ -82,3 +82,30 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Failed to post" }, { status: 500 });
     }
 }
+
+// DELETE: Soft delete announcement
+export async function DELETE(req: NextRequest) {
+    try {
+        await requireAdmin();
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get("id");
+
+        if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
+
+        const db = getAdminDb();
+        
+        // Soft Delete: Update status to 'deleted'
+        await db.collection("announcements").doc(id).update({
+            status: "deleted",
+            deletedAt: FieldValue.serverTimestamp()
+        });
+
+        // Or Hard Delete if preferred:
+        // await db.collection("announcements").doc(id).delete();
+
+        return NextResponse.json({ message: "Announcement deleted" });
+    } catch (error: unknown) {
+        console.error("Error deleting announcement:", error);
+        return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+    }
+}
