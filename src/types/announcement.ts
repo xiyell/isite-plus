@@ -19,4 +19,5 @@ export interface Announcement {
         grade?: string;
         section?: string;
     } | null;
+    status?: 'active' | 'deleted';
 }

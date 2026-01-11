@@ -16,6 +16,7 @@ export interface LogEntry {
   message: string;
   time: string;
   actorRole: string;
+  actorName?: string;
   timestamp: number;
 
 }
@@ -48,6 +49,7 @@ export async function getLogs(): Promise<LogEntry[]> {
         time: data.time ?? new Date(ts).toLocaleString(),
         timestamp: ts,
         actorRole: data.actorRole ?? "unknown",
+        actorName: data.actorName || "System",
       };
     });
   } catch (error) {

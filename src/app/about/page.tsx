@@ -1,7 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Users, Code, Rocket, Sparkles, Bot, User } from "lucide-react"; // Imported User icon for avatar fallback
+import { 
+  Users, Code, Rocket, Sparkles, Bot, User, 
+  Globe, Database, Zap, Palette, Layers, Cpu, ShieldCheck 
+} from "lucide-react"; 
 
 // Custom Placeholder Avatar Component
 const DeveloperAvatar = ({ name, imageSrc }: { name: string, imageSrc?: string }) => {
@@ -28,9 +31,8 @@ const DeveloperAvatar = ({ name, imageSrc }: { name: string, imageSrc?: string }
 };
 
 
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/services/firebase";
 import { useEffect, useState } from "react";
+import { getContributorImages } from "@/actions/about";
 
 export default function AboutPage() {
 
@@ -46,17 +48,8 @@ export default function AboutPage() {
     const fetchContributorProfiles = async () => {
       try {
         const names = contributors.map(c => c.name);
-        // Firestore 'in' query supports up to 10 values
-        const q = query(collection(db, "users"), where("name", "in", names));
-        const querySnapshot = await getDocs(q);
-
-        const fetchedData: Record<string, string> = {};
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.name && data.photoURL) {
-            fetchedData[data.name] = data.photoURL;
-          }
-        });
+        // Use Server Action to fetch images (bypasses client-side auth requirements)
+        const fetchedData = await getContributorImages(names);
 
         setContributors(prev => prev.map(c => ({
           ...c,
@@ -233,29 +226,57 @@ export default function AboutPage() {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="w-full max-w-5xl text-center"
       >
-        <h2 className="text-3xl font-bold mb-6 flex justify-center items-center gap-2 text-green-300">
-          <Code className="text-green-400" /> Powered By
-        </h2>
-        <div className="flex flex-wrap justify-center gap-4 text-white/85 text-sm">
-          {["Next.js 15", "React 19", "Tailwind CSS", "HeroUI", "Framer Motion"].map((tech, i) => (
-            <span
+        <div className="relative mb-12">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+            <div className="w-full border-t border-white/10"></div>
+          </div>
+          <div className="relative flex justify-center">
+            <h2 className="bg-black/20 backdrop-blur-xl px-6 py-2 text-3xl font-bold flex items-center gap-2 text-green-300 border border-white/10 rounded-full">
+              <Code className="text-green-400" /> Powered By
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {[
+            { name: "Next.js 15", icon: <Globe size={18} />, color: "text-white" },
+            { name: "React 19", icon: <Layers size={18} />, color: "text-blue-400" },
+            { name: "TypeScript", icon: <Code size={18} />, color: "text-blue-500" },
+            { name: "Tailwind 4", icon: <Palette size={18} />, color: "text-cyan-400" },
+            { name: "Firebase", icon: <Database size={18} />, color: "text-yellow-500" },
+            { name: "Gemini AI", icon: <Sparkles size={18} />, color: "text-purple-400" },
+            { name: "Framer", icon: <Zap size={18} />, color: "text-pink-500" },
+            { name: "Shadcn UI", icon: <Layers size={18} />, color: "text-slate-300" },
+            { name: "Lucide", icon: <Zap size={18} />, color: "text-orange-400" },
+            { name: "Security", icon: <ShieldCheck size={18} />, color: "text-green-400" },
+          ].map((tech, i) => (
+            <motion.div
               key={i}
-              className="border border-white/10 bg-gradient-to-br from-white/10 to-transparent px-4 py-2 rounded-full backdrop-blur-md shadow-md"
+              whileHover={{ y: -5, scale: 1.05 }}
+              className="group relative flex flex-col items-center justify-center border border-white/10 bg-white/5 p-4 rounded-xl backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)]"
             >
-              {tech}
-            </span>
+              <div className={`${tech.color} mb-2 group-hover:scale-110 transition-transform`}>
+                {tech.icon}
+              </div>
+              <span className="text-white/80 text-xs font-medium group-hover:text-white transition-colors">
+                {tech.name}
+              </span>
+            </motion.div>
           ))}
         </div>
 
         {/* BOT CTA */}
-        <div className="flex justify-center mt-10">
+        <div className="flex justify-center mt-16">
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 200 }}
-            className="flex items-center gap-2 bg-gradient-to-r from-fuchsia-500/20 via-purple-600/20 to-blue-500/20 border border-white/20 text-white px-6 py-3 rounded-full hover:from-fuchsia-400/30 hover:to-blue-400/30 transition backdrop-blur-md shadow-lg"
+            whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(168, 85, 247, 0.4)" }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-ichat'))}
+            className="group relative flex items-center gap-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-full font-bold shadow-xl overflow-hidden"
           >
-            <Bot className="w-5 h-5 text-purple-300" />
-            <span>Meet the iSITE+ AI Assistant</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            <Bot className="w-6 h-6 animate-bounce" />
+            <span className="text-lg">Talk to iSITE+ Assistant</span>
           </motion.button>
         </div>
       </motion.section>

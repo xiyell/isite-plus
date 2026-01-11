@@ -176,3 +176,67 @@ export async function permanentlyDeleteItem(id: string, type: TrashType) {
     throw new Error("Failed to delete item");
   }
 }
+
+export async function emptyTrash(type: TrashType) {
+  try {
+    const db = getAdminDb();
+    const colName = COLLECTION_MAP[type];
+    if (!colName) throw new Error("Invalid type");
+
+    // 1. Fetch all eligible items
+    let q;
+    if (type === 'user') {
+        q = db.collection(colName).where("isDeleted", "==", true);
+    } else {
+        q = db.collection(colName).where("status", "==", "deleted");
+    }
+    const snap = await q.get();
+
+    if (snap.empty) return { success: true, count: 0 };
+
+    // Firestore batch limit is 500. Handle chunks if needed, but for now assuming one batch or multiple calls.
+    // If strict 500 limit is needed, we should loop. Here is a simple loop implementation.
+    const batches = [];
+    let currentBatch = db.batch();
+    let batchCount = 0;
+    
+    const auth = getAdminAuth();
+    const userDeletePromises: Promise<any>[] = [];
+    let count = 0;
+
+    snap.docs.forEach((doc) => {
+        currentBatch.delete(doc.ref);
+        batchCount++;
+        count++;
+
+        if (type === 'user') {
+            userDeletePromises.push(
+                auth.deleteUser(doc.id).catch(e => console.warn(`Failed to delete auth user ${doc.id}`, e))
+            );
+        }
+
+        if (batchCount >= 450) {
+            batches.push(currentBatch.commit());
+            currentBatch = db.batch();
+            batchCount = 0;
+        }
+    });
+
+    if (batchCount > 0) {
+        batches.push(currentBatch.commit());
+    }
+
+    // 3. Commit Firestore Batches
+    await Promise.all(batches);
+
+    // 4. Wait for Auth deletions
+    if (type === 'user') {
+        await Promise.all(userDeletePromises);
+    }
+
+    return { success: true, count };
+  } catch (error) {
+    console.error("Error emptying trash:", error);
+    throw new Error("Failed to empty trash");
+  }
+}

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTrash, restoreItem, permanentlyDeleteItem, TrashedItem, TrashType } from "@/actions/recyclebin";
-
+import { getTrash, restoreItem, permanentlyDeleteItem, emptyTrash, TrashedItem, TrashType } from "@/actions/recyclebin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -103,10 +102,11 @@ const TrashRow = ({ item, onAction }: TrashRowProps) => {
 interface TrashTableProps {
     items: TrashedItem[];
     onAction: (action: 'restore' | 'delete', item: TrashedItem) => void;
+    onEmpty?: () => void;
     disabled?: boolean;
 }
 
-const TrashTable = ({ items, onAction, disabled }: TrashTableProps) => {
+const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => {
     const [page, setPage] = useState(1);
     const ITEMS_PER_PAGE = 5;
 
@@ -122,6 +122,20 @@ const TrashTable = ({ items, onAction, disabled }: TrashTableProps) => {
 
     return (
         <div className="space-y-4">
+            {items.length > 0 && onEmpty && (
+                <div className="flex justify-end">
+                    <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={onEmpty}
+                        disabled={disabled}
+                        className="bg-red-600/20 text-red-400 hover:bg-red-600/40 border border-red-500/30"
+                    >
+                        <Trash2 size={16} className="mr-2" />
+                        Delete All
+                    </Button>
+                </div>
+            )}
             <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
                 <Table className="border-collapse w-full table-fixed">
                     <TableHeader className="bg-white/10">
@@ -217,7 +231,7 @@ export default function TrashBinDashboard() {
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
-        action: 'restore' | 'delete' | null;
+        action: 'restore' | 'delete' | 'empty' | null;
         id: string;
         type: string;
         title: string;
@@ -255,6 +269,16 @@ export default function TrashBinDashboard() {
             id: item.id,
             type: item.type,
             title: item.title
+        });
+    };
+
+    const handleEmptyRequest = (type: string) => {
+        setConfirmState({
+            isOpen: true,
+            action: 'empty',
+            id: '',
+            type,
+            title: `All ${type}s`
         });
     };
 
@@ -322,19 +346,19 @@ export default function TrashBinDashboard() {
                         ) : (
                             <>
                                 <TabsContent value="posts">
-                                    <TrashTable items={posts} onAction={handleActionRequest} disabled={isProcessing} />
+                                    <TrashTable items={posts} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('post')} disabled={isProcessing} />
                                 </TabsContent>
                                 <TabsContent value="announcements">
-                                    <TrashTable items={announcements} onAction={handleActionRequest} disabled={isProcessing} />
+                                    <TrashTable items={announcements} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('announcement')} disabled={isProcessing} />
                                 </TabsContent>
                                 <TabsContent value="users">
-                                    <TrashTable items={users} onAction={handleActionRequest} disabled={isProcessing} />
+                                    <TrashTable items={users} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('user')} disabled={isProcessing} />
                                 </TabsContent>
                                 <TabsContent value="evaluations">
-                                    <TrashTable items={evaluations} onAction={handleActionRequest} disabled={isProcessing} />
+                                    <TrashTable items={evaluations} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('evaluation')} disabled={isProcessing} />
                                 </TabsContent>
                                 <TabsContent value="ibot">
-                                    <TrashTable items={ibotItems} onAction={handleActionRequest} disabled={isProcessing} />
+                                    <TrashTable items={ibotItems} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('ibot')} disabled={isProcessing} />
                                 </TabsContent>
                             </>
                         )}
@@ -351,15 +375,34 @@ export default function TrashBinDashboard() {
                         await handleRestore(confirmState.id, confirmState.type);
                     } else if (confirmState.action === 'delete') {
                         await handlePermanentDelete(confirmState.id, confirmState.type);
+                    } else if (confirmState.action === 'empty') {
+                         setIsProcessing(true);
+                         try {
+                            await emptyTrash(confirmState.type as TrashType);
+                            toast({ title: "Trash Emptied", description: `All ${confirmState.type}s deleted.`, variant: "default" });
+                            await loadTrash();
+                         } catch(e) { 
+                             console.error("Empty trash failed", e);
+                             toast({ variant: "destructive", title: "Action Failed", description: "Could not empty trash." });
+                         } finally { setIsProcessing(false); }
                     }
                     setConfirmState(prev => ({ ...prev, isOpen: false }));
                 }}
-                title={confirmState.action === 'restore' ? "Restore Item?" : "Permanently Delete?"}
-                description={confirmState.action === 'restore'
+                title={
+                    confirmState.action === 'restore' ? "Restore Item?" : 
+                    confirmState.action === 'empty' ? "Empty Trash?" : "Permanently Delete?"
+                }
+                description={
+                    confirmState.action === 'restore'
                     ? `Are you sure you want to restore this ${confirmState.type}: "${confirmState.title}"?`
+                    : confirmState.action === 'empty'
+                    ? `Are you sure you want to PERMANENTLY delete ALL ${confirmState.type}s? This cannot be undone.`
                     : `PERMANENTLY delete ${confirmState.type}: "${confirmState.title}"? This action CANNOT be undone.`
                 }
-                confirmText={confirmState.action === 'restore' ? "Yes, restore" : "Yes, delete permanently"}
+                confirmText={
+                    confirmState.action === 'restore' ? "Yes, restore" : 
+                    confirmState.action === 'empty' ? "Yes, Empty Trash" : "Yes, delete permanently"
+                }
                 variant={confirmState.action === 'restore' ? "default" : "destructive"}
             />
         </div>

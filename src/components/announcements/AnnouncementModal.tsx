@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Announcement } from "@/types/announcement";
+import { useState, useEffect } from "react";
 
 interface Props {
   selected: Announcement | null;
@@ -11,6 +12,15 @@ interface Props {
 }
 
 export default function AnnouncementModal({ selected, onClose, fallbackImage }: Props) {
+  const [imgSrc, setImgSrc] = useState<string>("");
+
+  useEffect(() => {
+    if (selected) {
+        // Use provided image, or passed fallback, or hardcoded reliable fallback
+      setImgSrc(selected.image || fallbackImage || "/assets/pupsmb-banner-logo.jpg");
+    }
+  }, [selected, fallbackImage]);
+
   if (!selected) return null;
 
   return (
@@ -49,16 +59,17 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
           <ScrollArea className="h-[80vh] rounded-2xl">
             <div className="p-6 flex flex-col gap-4">
               {/* Image */}
-              {selected.image || fallbackImage ? (
+              {imgSrc && (
                 <motion.img
-                  src={selected.image || fallbackImage}
+                  src={imgSrc}
                   alt={selected.title}
                   className="w-full h-auto max-h-[50vh] object-contain rounded-xl"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
+                  onError={() => setImgSrc("/assets/pupsmb-banner-logo.jpg")}
                 />
-              ) : null}
+              )}
 
               {/* Title & Description */}
               <h2 className="text-2xl font-bold">{selected.title}</h2>

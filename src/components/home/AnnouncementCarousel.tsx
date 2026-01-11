@@ -13,6 +13,37 @@ function Loading() {
     <h1 className="text-white">Loading Announcements</h1>
   )
 }
+// Sub-component for individual card with robust image handling
+const CarouselCard = ({ item, onClick }: { item: Announcement; onClick: () => void }) => {
+  const DEFAULT_IMAGE = "/assets/pupsmb-banner-logo.jpg";
+  const [imgSrc, setImgSrc] = useState(item.image || DEFAULT_IMAGE);
+
+  return (
+    <Card
+      onClick={onClick}
+      className="relative w-[300px] h-[400px] sm:w-[380px] sm:h-[380px] md:w-[570px] md:h-[400px] rounded-3xl overflow-hidden backdrop-blur-md border border-white/20 shadow-[0_8px_40px_rgba(0,0,0,0.4)]"
+      style={{
+        background: "linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)",
+      }}
+    >
+      <div className="absolute inset-0">
+        <Image
+          src={imgSrc}
+          alt={item.title}
+          fill
+          className="object-cover opacity-80"
+          priority
+          onError={() => setImgSrc(DEFAULT_IMAGE)}
+        />
+      </div>
+      <CardContent className="absolute inset-0 flex flex-col justify-end items-start text-left text-white z-10 p-6 bg-gradient-to-t from-black/70 via-black/40 to-transparent">
+        <h3 className="text-2xl font-semibold mb-2">{item.title}</h3>
+        <p className="text-base opacity-80 line-clamp-2">{item.description}</p>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default function AnnouncementCarousel() {
 
   const [featuredAnnouncements, setFeaturedAnnouncements] = useState<Announcement[]>([])
@@ -88,31 +119,8 @@ export default function AnnouncementCarousel() {
               className="absolute cursor-pointer"
               animate={{ x, scale, opacity, zIndex }}
               transition={{ type: "spring", stiffness: 220, damping: 25 }}
-              onClick={() => setSelected(item)}
             >
-              <Card
-                className=" relative w-[300px] h-[400px] sm:w-[380px] sm:h-[380px] md:w-[570px] md:h-[400px] rounded-3xl overflow-hidden backdrop-blur-md border border-white/20 shadow-[0_8px_40px_rgba(0,0,0,0.4)]"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)",
-                }}
-              >
-                {/* Top image section */}
-                <div className="absolute inset-0">
-                  <Image
-                    src={item.image ? item.image : "/assets/default-announcement.jpg"}
-                    alt={item.title}
-                    fill
-                    className="object-cover opacity-80"
-                    priority
-                  />
-                </div>
-                <CardContent className="absolute inset-0 flex flex-col justify-end items-start text-left text-white z-10 p-6 bg-gradient-to-t from-black/70 via-black/40 to-transparent">
-                  <h3 className="text-2xl font-semibold mb-2">{item.title}</h3>
-                  <p className="text-base opacity-80 line-clamp-2">{item.description}</p>
-                </CardContent>
-              </Card>
-
+              <CarouselCard item={item} onClick={() => setSelected(item)} />
             </motion.div>
           );
         })}
@@ -145,6 +153,7 @@ export default function AnnouncementCarousel() {
           />
         ))}
       </div>
+
 
 
       <AnimatePresence>

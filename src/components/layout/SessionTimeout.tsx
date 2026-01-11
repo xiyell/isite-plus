@@ -18,9 +18,12 @@ export default function SessionTimeout() {
             console.log("Session expired: Logging out...");
             await auth.signOut();
             navigator.sendBeacon('/api/auth/logout');
-            window.location.href = "/";
+            // Redirect with flag to show toast after reload
+            window.location.href = "/?sessionExpired=true";
         } catch (error) {
             console.error("Auto-logout failed", error);
+            // Fallback redirect even if signOut fails
+             window.location.href = "/?sessionExpired=true";
         }
     }, []);
 
@@ -29,15 +32,32 @@ export default function SessionTimeout() {
         
         if (auth.currentUser) {
             inactivityTimerRef.current = setTimeout(() => {
-                toast({
-                    title: "Session Expired",
-                    description: "You have been logged out due to inactivity.",
-                    variant: "destructive",
-                });
                 handleSignOut();
             }, INACTIVITY_TIMEOUT);
         }
-    }, [handleSignOut, toast]);
+    }, [handleSignOut]);
+
+    useEffect(() => {
+        // Check for session expired flag on mount (after redirect)
+        // Using window.location directly to avoid Next.js Suspense boundary requirements for useSearchParams
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('sessionExpired') === 'true') {
+                // Small delay to ensure UI is ready
+                setTimeout(() => {
+                    toast({
+                        title: "Session Finished",
+                        description: "Your session has finished. Please log in again.",
+                        variant: "destructive", 
+                    });
+                }, 100);
+                
+                // Clean URL
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        }
+    }, [toast]);
 
     useEffect(() => {
         // 1. Setup Absolute Timeout (Force login every 10 mins)
@@ -46,11 +66,6 @@ export default function SessionTimeout() {
                 // When user logs in, set an absolute timer
                 if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
                 absoluteTimerRef.current = setTimeout(() => {
-                    toast({
-                        title: "Session Timed Out",
-                        description: "Your 10-minute session has reached its limit. Please log in again.",
-                        variant: "destructive",
-                    });
                     handleSignOut();
                 }, SESSION_DURATION);
 
@@ -73,7 +88,7 @@ export default function SessionTimeout() {
             if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
             events.forEach(event => window.removeEventListener(event, handleActivity));
         };
-    }, [handleSignOut, resetInactivityTimer, toast]);
+    }, [handleSignOut, resetInactivityTimer]);
 
     return null;
 }

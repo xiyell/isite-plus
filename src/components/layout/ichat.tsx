@@ -299,6 +299,13 @@ export default function IChat() {
         }
     }, []);
 
+    // Effect 4: External Open Trigger
+    useEffect(() => {
+        const handleOpenChat = () => setIsOpen(true);
+        window.addEventListener('open-ichat', handleOpenChat);
+        return () => window.removeEventListener('open-ichat', handleOpenChat);
+    }, []);
+
     const startListening = () => {
         if (recognitionRef.current) recognitionRef.current.start();
         else toast({

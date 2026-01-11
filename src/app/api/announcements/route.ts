@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
             description,
             platforms,
             image: imageUrl,
+            status: "active",
             createdAt: FieldValue.serverTimestamp()
         };
 

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { auth } from "@/services/firebase";
 
 interface WhitelistEntry {
     id: string;
@@ -34,6 +35,7 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     // Edit state
     const [editingEntry, setEditingEntry] = useState<WhitelistEntry | null>(null);
     const [editName, setEditName] = useState('');
+    const [editId, setEditId] = useState('');
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
     // Pagination
@@ -87,11 +89,16 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
             return { id, name };
         });
 
+        const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
+
         try {
             const res = await fetch('/api/whitelist', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ entries: newEntries }),
+                body: JSON.stringify({ 
+                    entries: newEntries,
+                    actorName
+                }),
             });
 
             if (res.ok) {
@@ -117,35 +124,39 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     };
 
     const handleUpdateEntry = async () => {
-        if (!editingEntry || !editName.trim()) return;
+        if (!editingEntry || !editName.trim() || !editId.trim()) return;
 
         setIsSubmitting(true);
+        const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
         try {
             const res = await fetch('/api/whitelist', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    studentId: editingEntry.id, 
-                    name: editName.trim() 
+                    oldStudentId: editingEntry.id, 
+                    newStudentId: editId.trim(),
+                    name: editName.trim(),
+                    actorName
                 }),
             });
 
             if (res.ok) {
                 setEntries(entries.map(e => 
-                    e.id === editingEntry.id ? { ...e, name: editName.trim() } : e
+                    e.id === editingEntry.id ? { ...e, id: editId.trim(), name: editName.trim() } : e
                 ));
                 toast({
                     title: "Updated",
-                    description: `Successfully updated ${editingEntry.id}.`,
+                    description: `Successfully updated entry.`,
                 });
                 setIsEditDialogOpen(false);
             } else {
-                throw new Error("Update failed");
+                const d = await res.json();
+                throw new Error(d.error || "Update failed");
             }
-        } catch (error) {
+        } catch (error: any) {
             toast({
                 title: "Error",
-                description: "Failed to update entry.",
+                description: error.message || "Failed to update entry.",
                 variant: "destructive",
             });
         } finally {
@@ -156,12 +167,16 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
     const handleDelete = async (idToDelete: string) => {
         const originalEntries = [...entries];
         setEntries(entries.filter(e => e.id !== idToDelete));
+        const actorName = auth.currentUser?.displayName || auth.currentUser?.email || "Admin";
 
         try {
             const res = await fetch('/api/whitelist', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ studentIds: [idToDelete] }),
+                body: JSON.stringify({ 
+                    studentIds: [idToDelete],
+                    actorName
+                }),
             });
 
             if (!res.ok) {
@@ -302,6 +317,7 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                                                     onClick={() => {
                                                         setEditingEntry(entry);
                                                         setEditName(entry.name);
+                                                        setEditId(entry.id);
                                                         setIsEditDialogOpen(true);
                                                     }}
                                                     className="h-8 w-8 text-gray-500 hover:text-indigo-400 hover:bg-indigo-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -333,10 +349,19 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                         <DialogHeader>
                             <DialogTitle>Edit Whitelisted Student</DialogTitle>
                             <DialogDescription className="text-gray-400">
-                                Updating name for Student ID: <span className="text-indigo-400 font-mono">{editingEntry?.id}</span>
+                                Update the student details below.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300">Student ID</label>
+                                <Input
+                                    value={editId}
+                                    onChange={(e) => setEditId(e.target.value)}
+                                    className="bg-black/20 border-white/10 text-white font-mono"
+                                    placeholder="Enter Student ID"
+                                />
+                            </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-300">Full Name</label>
                                 <Input
@@ -349,7 +374,7 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                         </div>
                         <DialogFooter>
                             <Button variant="ghost" onClick={() => setIsEditDialogOpen(false)} className="text-gray-400 hover:text-white">Cancel</Button>
-                            <Button onClick={handleUpdateEntry} disabled={isSubmitting || !editName.trim()} className="bg-indigo-600 hover:bg-indigo-700">
+                            <Button onClick={handleUpdateEntry} disabled={isSubmitting || !editName.trim() || !editId.trim()} className="bg-indigo-600 hover:bg-indigo-700">
                                 {isSubmitting ? "Saving..." : "Save Changes"}
                             </Button>
                         </DialogFooter>
@@ -363,12 +388,12 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                             <PaginationContent>
                                 <PaginationItem>
                                     <PaginationPrevious
-                                         href="#"
-                                         onClick={(e) => {
+                                        href="#"
+                                        onClick={(e) => {
                                             e.preventDefault();
-                                            if (currentPage > 1) setCurrentPage(p => p - 1);
+                                            if (currentPage > 1) setCurrentPage((p) => Math.max(1, p - 1));
                                         }}
-                                        className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
+                                        className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
                                     />
                                 </PaginationItem>
 
@@ -379,19 +404,19 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                                     let end = Math.min(totalPages, start + max - 1);
                                     if (end - start + 1 < max) start = Math.max(1, end - max + 1);
                                     for (let i = start; i <= end; i++) if (i > 0) pages.push(i);
-                                    
+
                                     return pages.map((page) => (
                                         <PaginationItem key={page}>
                                             <PaginationLink
                                                 href="#"
+                                                isActive={page === currentPage}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     setCurrentPage(page);
                                                 }}
-                                                isActive={page === currentPage}
                                                 className={page === currentPage
                                                     ? "bg-indigo-600 text-white border-indigo-500"
-                                                    : "text-gray-400 hover:text-white hover:bg-white/10"
+                                                    : "text-gray-400 hover:text-white"
                                                 }
                                             >
                                                 {page}
@@ -405,9 +430,9 @@ export const AllowedIDs: React.FC<AllowedIDsProps> = ({ onBack }) => {
                                         href="#"
                                         onClick={(e) => {
                                             e.preventDefault();
-                                            if (currentPage < totalPages) setCurrentPage(p => p + 1);
+                                            if (currentPage < totalPages) setCurrentPage((p) => Math.min(totalPages, p + 1));
                                         }}
-                                        className={currentPage === totalPages ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
+                                        className={currentPage === totalPages ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
                                     />
                                 </PaginationItem>
                             </PaginationContent>

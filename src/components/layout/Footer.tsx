@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 export default function Footer() {
   return (
     <footer className="w-full bg-black text-gray-200 border-t border-fuchsia-900/30">
@@ -24,10 +26,10 @@ export default function Footer() {
                 Menu
               </h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-fuchsia-400 transition">Home</a></li>
-                <li><a href="/about" className="hover:text-fuchsia-400 transition">About</a></li>
-                <li><a href="/community#" className="hover:text-fuchsia-400 transition">Community</a></li>
-                <li><a href="/iqr" className="hover:text-fuchsia-400 transition">QR Attendance</a></li>
+                <li><Link href="/" className="hover:text-fuchsia-400 transition">Home</Link></li>
+                <li><Link href="/about" className="hover:text-fuchsia-400 transition">About</Link></li>
+                <li><Link href="/community" className="hover:text-fuchsia-400 transition">Community</Link></li>
+                <li><Link href="/iQr" className="hover:text-fuchsia-400 transition">QR Attendance</Link></li>
               </ul>
             </div>
 
@@ -37,10 +39,10 @@ export default function Footer() {
                 About Us
               </h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="/about" className="hover:text-fuchsia-400 transition">Vision</a></li>
-                <li><a href="/about" className="hover:text-fuchsia-400 transition">Mission</a></li>
-                <li><a href="/about" className="hover:text-fuchsia-400 transition">Core Values</a></li>
-                <li><a href="/about" className="hover:text-fuchsia-400 transition">Goals</a></li>
+                <li><Link href="/about" className="hover:text-fuchsia-400 transition">Vision</Link></li>
+                <li><Link href="/about" className="hover:text-fuchsia-400 transition">Mission</Link></li>
+                <li><Link href="/about" className="hover:text-fuchsia-400 transition">Core Values</Link></li>
+                <li><Link href="/about" className="hover:text-fuchsia-400 transition">Goals</Link></li>
               </ul>
             </div>
 
@@ -50,10 +52,10 @@ export default function Footer() {
                 Help & FAQ
               </h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="/about" className="hover:text-fuchsia-400 transition">FAQ</a></li>
-                <li><a href="#" className="hover:text-fuchsia-400 transition">What&apos;s New</a></li>
-                <li><a href="/feedbacks" className="hover:text-fuchsia-400 transition">Request a Feature</a></li>
-                <li><a href="/feedbacks" className="hover:text-fuchsia-400 transition">Supports</a></li>
+                <li><Link href="/about" className="hover:text-fuchsia-400 transition">FAQ</Link></li>
+                <li><Link href="#" className="hover:text-fuchsia-400 transition">What&apos;s New</Link></li>
+                <li><Link href="/feedback" className="hover:text-fuchsia-400 transition">Request a Feature</Link></li>
+                <li><Link href="/feedback" className="hover:text-fuchsia-400 transition">Supports</Link></li>
               </ul>
             </div>
           </div>

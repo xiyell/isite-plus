@@ -273,6 +273,7 @@ export default function ActivityLogsContent() {
                   <TableRow className="border-b border-white/20">
                     <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Time</TableHead>
                     <TableHead className="w-[150px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Category</TableHead>
+                    <TableHead className="w-[160px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Actor</TableHead>
                     <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Action</TableHead>
                     <TableHead className="w-[120px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Severity</TableHead>
                     <TableHead className="text-white font-bold uppercase tracking-wider text-xs p-4">Message</TableHead>
@@ -290,6 +291,10 @@ export default function ActivityLogsContent() {
                           <span className="capitalize text-sm font-medium">{log.category}</span>
                         </div>
                       </TableCell>
+                      <TableCell className="border-r border-white/10 text-white p-4 text-xs">
+                         <div className="font-semibold">{log.actorName}</div>
+                         <div className="text-gray-400 text-[10px] uppercase">{log.actorRole}</div>
+                      </TableCell>
                       <TableCell className="border-r border-white/10 text-gray-300 p-4 text-sm font-medium truncate" title={log.action}>
                         {log.action}
                       </TableCell>
@@ -298,7 +303,7 @@ export default function ActivityLogsContent() {
                           {log.severity}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-gray-300 p-4 text-sm truncate" title={log.message}>
+                      <TableCell className="text-gray-300 p-4 text-sm whitespace-normal break-words">
                         {log.message}
                       </TableCell>
                     </TableRow>
@@ -311,13 +316,14 @@ export default function ActivityLogsContent() {
                       <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
                       <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
                       <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
+                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
                       <TableCell className="p-4">&nbsp;</TableCell>
                     </TableRow>
                   ))}
 
                   {paginatedLogs.length === 0 && filteredLogs.length === 0 && (
                     <TableRow className="absolute inset-x-0 mt-16 border-none pointer-events-none">
-                      <TableCell colSpan={5} className="text-center text-gray-500 border-none">
+                      <TableCell colSpan={6} className="text-center text-gray-500 border-none">
                         No logs found matching your criteria.
                       </TableCell>
                     </TableRow>

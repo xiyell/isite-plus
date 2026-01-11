@@ -42,18 +42,16 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
 // ------------------------------------------------------------------------
 const mainNavLinks: NavbarNavLink[] = [
     { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
-    { href: '/announcement', label: 'Announcement', rolesAllowed: ['user', 'admin', 'guest', 'moderator'] },
+    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
     { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'moderator'] },
+    { href: '/announcement', label: 'Announcement', rolesAllowed: ['user', 'admin', 'guest', 'moderator'] },
+    { href: '/iQr', label: 'QR Attendance', rolesAllowed: ['admin', 'moderator', 'user'] },
 
-    // Grouped links
-
-    // Grouped links
+    // Grouped links (Dropdown)
     { href: '/profile', label: 'Profile', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/dashboard', label: 'Dashboard', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
-    { href: '/iQr', label: 'iQr', rolesAllowed: ['admin', 'moderator', 'user'], group: 'tools' },
     { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
     { href: '/ievaluation', label: 'iEvaluation', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
-    { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
 ];
 // ------------------------------------------------------------------------
 

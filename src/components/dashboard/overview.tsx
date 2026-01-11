@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
 // --- FIREBASE IMPORTS (Adjust path as necessary) ---
 import { db } from "@/services/firebase";
-import { collection, getDocs, query, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, Timestamp, onSnapshot } from "firebase/firestore";
 
 // --- TYPE DEFINITIONS ---
 interface OverviewStats {
@@ -50,130 +50,145 @@ export default function OverviewContent() {
         return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     };
 
-    const aggregatePostsByMonth = (communitySnapshot: any) => {
-        const counts: { [key: string]: number } = {};
-        const postRecords: { timestamp: Timestamp, title: string }[] = [];
 
-        // 1. Gather all posts and their timestamps
-        communitySnapshot.docs.forEach((doc: any) => {
-            const data = doc.data();
-            // Assuming primary posts have a 'title' field
-            if (data.title && data.createdAt instanceof Timestamp) {
-                postRecords.push({ timestamp: data.createdAt, title: data.title });
-            }
+
+    const [presence, setPresence] = useState({ online: true, lastChecked: new Date() });
+
+    // --- 1. Real-time Users Listener ---
+    useEffect(() => {
+        const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
+            const count = snapshot.size;
+            setStats(prev => ({ 
+                ...prev!, 
+                totalUsers: count,
+                totalPosts: prev?.totalPosts || 0,
+                pendingPosts: prev?.pendingPosts || 0,
+                serverUptime: "Online (99.9%)"
+            }));
+            setLoading(false);
+        }, (err) => {
+             console.error("Users listener error:", err);
+             setStats(prev => ({ ...prev!, totalUsers: 0, totalPosts: 0, pendingPosts: 0, serverUptime: "Error" }));
         });
+        return () => unsub();
+    }, []);
 
-        // 2. Sort by date (oldest first for the line chart)
-        postRecords.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds);
+    // --- 2. Real-time Posts Listener ---
+    useEffect(() => {
+        const unsub = onSnapshot(collection(db, "community"), (snapshot) => {
+            let total = 0;
+            let pending = 0;
 
-        // 3. Aggregate posts by Month/Year string
-        postRecords.forEach(record => {
-            const monthYear = formatTimestampToMonthYear(record.timestamp);
-            counts[monthYear] = (counts[monthYear] || 0) + 1;
-        });
+            // For Chart Aggregation
+            const rawPosts: { timestamp: Timestamp, title: string }[] = [];
 
-        // 4. Convert aggregated map to the array format Recharts expects
-        const aggregatedData: MonthlyData[] = Object.keys(counts).map(monthYear => ({
-            monthYear: monthYear,
-            posts: counts[monthYear],
-        }));
-
-        setMonthlyPostData(aggregatedData);
-    };
-
-    const fetchOverviewStats = useCallback(async () => {
-        setLoading(true);
-        try {
-            // --- 1. Fetch Users ---
-            const usersSnapshot = await getDocs(collection(db, "users"));
-            const totalUsers = usersSnapshot.size;
-
-            // --- 2. Fetch Community Activity ---
-            const communityQuery = collection(db, "community");
-            const communitySnapshot = await getDocs(communityQuery);
-
-            let totalPosts = 0;
-            let pendingPosts = 0;
-
-            communitySnapshot.docs.forEach(doc => {
+            snapshot.docs.forEach(doc => {
                 const data = doc.data();
                 if (data.title) {
-                    totalPosts++;
-                    if (data.status === "pending") {
-                        pendingPosts++;
+                    total++;
+                    if (data.status === "pending") pending++;
+                    if (data.createdAt) {
+                        rawPosts.push({ timestamp: data.createdAt, title: data.title });
                     }
                 }
             });
 
-            // --- 3. Aggregate Monthly Data ---
-            aggregatePostsByMonth(communitySnapshot);
+            // Update Aggregated Chart Data
+            // 1. Sort by date
+            rawPosts.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds);
+            // 2. Aggregate
+            const counts: { [key: string]: number } = {};
+            rawPosts.forEach(p => {
+                const date = p.timestamp ? p.timestamp.toDate() : new Date(); // Safety fallback
+                const key = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                counts[key] = (counts[key] || 0) + 1;
+            });
+            const chartData: MonthlyData[] = Object.keys(counts).map(key => ({
+                monthYear: key,
+                posts: counts[key]
+            }));
 
-            // --- 4. Fetch Attendance Data for Pie Chart ---
-            // A. Get latest event
+            setMonthlyPostData(chartData);
+
+            setStats(prev => ({ 
+                ...prev!, 
+                totalUsers: prev?.totalUsers || 0,
+                totalPosts: total,
+                pendingPosts: pending,
+                serverUptime: "Online (99.9%)"
+            }));
+        });
+        return () => unsub();
+    }, []);
+
+    // --- 3. Attendance (Google Sheets API - Fetch on mount) ---
+    const fetchAttendance = useCallback(async () => {
+        try {
             const eventsRes = await fetch('/api/events');
             if (eventsRes.ok) {
                 const events: string[] = await eventsRes.json();
                 if (events.length > 0) {
-                    // Events are usually returned sorted, but let's take the last one or first based on API.
-                    // Assuming API returns sorted or we just take the first one if reversed.
-                    // Based on attendance.tsx, it reverses the list. Let's assume index 0 after reverse is latest.
-                    // Actually, let's just reverse it here to be safe if the API returns chronological.
-                    // But attendance.tsx did: setEventList(data.reverse());
-                    // So let's check the API response format. If typically chronological, last is latest.
-                    // Let's assume the API returns chronological [oldest, ..., newest].
-                    // So we want the last one.
-                    const latestEvent = events[events.length - 1];
-
-                    // Format date for display
-                    let displayDate = latestEvent;
+                    // Get 'latest' event
+                    const latestEvent = events[events.length - 1]; 
+                    
+                    // Display Date
                     try {
                         const [year, month, day] = latestEvent.split('_');
                         const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                        displayDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                    } catch (e) { console.error("Date parse error", e); }
-                    setLatestEventDate(displayDate);
+                        setLatestEventDate(dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+                    } catch { setLatestEventDate(latestEvent); }
 
-                    // B. Get attendance for this event
+                    // Fetch actual data
                     const attRes = await fetch(`/api/attendance?sheetDate=${latestEvent}`);
                     if (attRes.ok) {
-                        const attendees: any[] = await attRes.json();
-                        const attendedCount = attendees.length;
-                        // const absentCount = Math.max(0, totalUsers - attendedCount); // Simple calculation
-                        // Actually, 'totalUsers' might include admins, etc.
-                        // Ideally we check total *students* vs attended, but totalUsers is a good proxy for now.
-                        const absentCount = Math.max(0, totalUsers - attendedCount);
+                        const attendees = await attRes.json();
+                        
+                        // We need total users to calc absent. Use a one-time fetch to be accurate locally.
+                        const usersSnap = await getDocs(collection(db, "users")); 
+                        const totalU = usersSnap.size;
 
+                        const attended = attendees.length;
+                        const absent = Math.max(0, totalU - attended);
+                         
                         setAttendanceData([
-                            { name: 'Attended', value: attendedCount, color: '#4ade80' }, // Green-400
-                            { name: 'Did Not Attend', value: absentCount, color: '#f87171' }, // Red-400
+                             { name: 'Attended', value: attended, color: '#4ade80' },
+                             { name: 'Missed', value: absent, color: '#f87171' },
                         ]);
                     }
                 }
             }
-
-
-            // --- 5. Simulate External Data ---
-            const serverUptime = "99.9% (6d ago)";
-
-            setStats({
-                totalUsers,
-                totalPosts,
-                pendingPosts,
-                serverUptime,
-            });
-
-        } catch (error) {
-            console.error("Error fetching overview stats:", error);
-            setStats({ totalUsers: 0, totalPosts: 0, pendingPosts: 0, serverUptime: "Error" });
-            setMonthlyPostData([]);
-        } finally {
-            setLoading(false);
+        } catch (e) {
+            console.error("Attendance fetch error", e);
         }
     }, []);
 
+    useEffect(() => { fetchAttendance(); }, [fetchAttendance]);
+
+    // --- 4. System Health Check (Latency) ---
     useEffect(() => {
-        fetchOverviewStats();
-    }, [fetchOverviewStats]);
+        const checkHealth = async () => {
+             const start = Date.now();
+             try {
+                 // Ping the server to check connectivity and speed
+                 await fetch('/', { method: 'HEAD', cache: 'no-store' }); 
+                 const latency = Date.now() - start;
+                 
+                 setStats(prev => ({ 
+                     ...prev!, 
+                     serverUptime: `Online (${latency}ms)`
+                 }));
+             } catch (e) {
+                 setStats(prev => ({ 
+                     ...prev!, 
+                     serverUptime: "Offline" 
+                 }));
+             }
+        };
+        
+        checkHealth();
+        const interval = setInterval(checkHealth, 30000); // Check every 30s
+        return () => clearInterval(interval);
+    }, []);
 
 
     const displayStats: OverviewStats = stats || { totalUsers: 0, totalPosts: 0, pendingPosts: 0, serverUptime: "Loading..." };
