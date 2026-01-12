@@ -37,68 +37,36 @@ interface AnnouncementDoc {
     id: string;
     title: string;
     description: string;
+    status?: 'active' | 'deleted' | 'disabled';
+    createdAt?: any; // Allow timestamp for sorting
 }
 
 export default function IChat() {
     const { toast } = useToast();
     const [isOpen, setIsOpen] = useState(false);
-    const [isListening, setIsListening] = useState(false);
-    const [isTyping, setIsTyping] = useState(false); // New: Typing state
-    const [messages, setMessages] = useState<Message[]>([
-        { sender: "bot", text: "Hi there 👋, how can I help you today?" },
-    ]);
     const [input, setInput] = useState("");
-    const [botEnabled, setBotEnabled] = useState(true);
-    const [responses, setResponses] = useState<BotResponse[]>([]);
-
-    // Smart Data: Announcements
+    const [messages, setMessages] = useState<Message[]>([
+        { sender: "bot", text: "Hi! I'm iBot. How can I help you today?" }
+    ]);
+    const [isTyping, setIsTyping] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [userHasTyped, setUserHasTyped] = useState(false);
     const [announcements, setAnnouncements] = useState<AnnouncementDoc[]>([]);
+    const [botEnabled, setBotEnabled] = useState(true);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recognitionRef = useRef<any>(null);
 
-    const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+    const normalize = (text: string) => text.toLowerCase().trim();
+    const tokenize = (text: string) => normalize(text).split(/\s+/);
 
-    // Helper: Levenshtein Distance for fuzzy matching
-    const levenshtein = (a: string, b: string): number => {
-        const matrix = [];
-        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-
-        for (let i = 1; i <= b.length; i++) {
-            for (let j = 1; j <= a.length; j++) {
-                if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(
-                        matrix[i - 1][j - 1] + 1, // substitution
-                        matrix[i][j - 1] + 1,     // insertion
-                        matrix[i - 1][j] + 1      // deletion
-                    );
-                }
-            }
-        }
-        return matrix[b.length][a.length];
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // Helper: Stop words to filter out noise
-    const STOP_WORDS = new Set(["a", "an", "the", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "has", "have", "had", "do", "does", "did", "can", "could", "should", "would", "may", "might", "must", "will", "shall", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us", "them", "my", "your", "his", "its", "our", "their", "how", "what", "why", "who", "when", "where", "please", "help"]);
-
-    // Helper: Tokenize and clean
-    const tokenize = (text: string) => {
-        return normalize(text).split(" ").filter(w => w.length > 2 && !STOP_WORDS.has(w));
-    };
-
-    // Helper: Calculate Jaccard Similarity (Word Overlap)
-    const calculateJaccard = (tokens1: string[], tokens2: string[]) => {
-        if (tokens1.length === 0 || tokens2.length === 0) return 0;
-        const set1 = new Set(tokens1);
-        const set2 = new Set(tokens2);
-        let intersection = 0;
-        set1.forEach(t => { if (set2.has(t)) intersection++; });
-        return intersection / (set1.size + set2.size - intersection);
-    };
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isOpen]);
 
     //  SMART RESPONSE LOGIC
     const getBotResponse = (text: string): { reply: string, attachment?: Message['attachment'] } => {
@@ -111,190 +79,84 @@ export default function IChat() {
         if ((normalizedInput.includes("latest") || normalizedInput.includes("recent")) && 
             (normalizedInput.includes("announcement") || normalizedInput.includes("event") || normalizedInput.includes("news"))) {
              if (announcements.length > 0) {
-                 // Sort by date if we had date... assuming API returns sorted or index 0 is sufficient for now.
-                 // Announcements usually fetched ordered.
-                 const latest = announcements[0]; 
-                 return {
-                    reply: "Here is the latest announcement:",
-                    attachment: { type: "announcement", title: latest.title, url: `/announcement?id=${latest.id}` }
-                 };
+                 // FILTER: Only show active announcements
+                 const activeAnnouncements = announcements.filter(a => a.status === 'active');
+                 
+                 if (activeAnnouncements.length > 0) {
+                     // SORT: Ensure we get the actual latest (Client-side sort to avoid index requirements)
+                     activeAnnouncements.sort((a, b) => {
+                        const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0).getTime());
+                        const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0).getTime());
+                        return dateB - dateA; // Descending
+                     });
+
+                     const latest = activeAnnouncements[0]; 
+                     return {
+                        reply: "Here is the latest announcement:",
+                        attachment: { type: "announcement", title: latest.title, url: `/announcement?id=${latest.id}` }
+                     };
+                 } else {
+                     return { reply: "There are no new announcements at the moment." };
+                 }
              } else {
                  return { reply: "There are no announcements yet." };
              }
         }
-
-        // 1. INTELLIGENT ANNOUNCEMENT SEARCH (Priority)
-        // Scans titles and content for semantic matches (Jaccard Similarity)
-        if (inputTokens.length > 0) {
-            let bestAnnMatch = { ann: null as AnnouncementDoc | null, score: 0 };
-
-            for (const ann of announcements) {
-                const titleTokens = tokenize(ann.title);
-                const descTokens = tokenize(ann.description || ""); 
-                const allAnnTokens = [...new Set([...titleTokens, ...descTokens])];
-
-                // Jaccard score (intersection over union)
-                const jaccard = calculateJaccard(inputTokens, allAnnTokens);
-                
-                let score = jaccard;
-                
-                // Boost for exact title substring match
-                if (normalize(ann.title).includes(normalizedInput) && normalizedInput.length > 3) {
-                    score += 0.6; 
-                }
-                
-                // Boost for exact token match in title
-                for (const token of inputTokens) {
-                    if (titleTokens.includes(token)) score += 0.3;
-                }
-
-                if (score > bestAnnMatch.score) {
-                    bestAnnMatch = { ann, score };
-                }
-            }
-
-            // Threshold: 0.3 means significant overlap or strong keyword match
-            if (bestAnnMatch.ann && bestAnnMatch.score > 0.3) {
-                 return {
-                    reply: `I found a relevant announcement: "${bestAnnMatch.ann.title}"`,
-                    attachment: {
-                        type: "announcement",
-                        title: bestAnnMatch.ann.title,
-                        url: `/announcement?id=${bestAnnMatch.ann.id}`
-                    }
-                };
-            }
-        }
-
-        // 2. MANUAL TRIGGERS (Database Responses)
-        let bestMatch = { response: null as BotResponse | null, score: 0 };
-
-        for (const r of responses) {
-            const triggers = r.trigger.split(",").map(k => normalize(k).trim()).filter(k => k.length > 0);
-            
-            for (const trigger of triggers) {
-                let currentScore = 0;
-                
-                // Create a word-boundary regex for the trigger
-                // Escape special regex characters in trigger just in case
-                const escapedTrigger = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const wordBoundaryRegex = new RegExp(`\\b${escapedTrigger}\\b`, 'i');
-
-                // A. Exact Word Match (Highest Priority)
-                if (wordBoundaryRegex.test(normalizedInput)) {
-                     currentScore = 1.0;
-                } 
-                // B. Jaccard Similarity (Topic Overlap)
-                else {
-                    const triggerTokens = tokenize(trigger);
-                    const jaccard = calculateJaccard(inputTokens, triggerTokens);
-                    
-                    if (jaccard > 0) {
-                        currentScore = 0.5 + (jaccard * 0.4);
-                    }
-                    else if (inputTokens.length > 0 && triggerTokens.length > 0) {
-                         // C. Fuzzy Levenshtein (Only for reasonably sized words to avoid "hi" matching "ho")
-                         let fuzzyMatches = 0;
-                         for (const tWord of triggerTokens) {
-                             if (tWord.length < 4) continue; // Skip short words for fuzzy matching
-
-                             for (const iWord of inputTokens) {
-                                 const dist = levenshtein(iWord, tWord);
-                                 const threshold = Math.floor(tWord.length / 3); // Allow 1 mistake per 3 chars
-                                 if (dist <= threshold) {
-                                     fuzzyMatches++;
-                                     break; 
-                                 }
-                             }
-                         }
-                         const fuzzyScore = fuzzyMatches / transformLength(triggerTokens.length);
-                         if (fuzzyScore > 0) currentScore = 0.4 + (fuzzyScore * 0.4);
-                    }
-                }
-
-                if (currentScore > bestMatch.score) {
-                    bestMatch = { response: r, score: currentScore };
-                }
-            }
-        }
         
-        function transformLength(len: number) { return len === 0 ? 1 : len; }
-
-        // Increased threshold to 0.6 to reduce false positives
-        if (bestMatch.response && bestMatch.score >= 0.6) {
-             const matchedResponse = bestMatch.response!;
-             let attachment: Message['attachment'] | undefined = undefined;
-
-             if (matchedResponse.linkedAnnouncementId && matchedResponse.linkedAnnouncementId !== "none") {
-                 const linkedAnn = announcements.find(a => a.id === matchedResponse.linkedAnnouncementId);
-                 if (linkedAnn) {
-                     attachment = {
-                         type: "announcement",
-                         title: linkedAnn.title,
-                         url: `/announcement?id=${linkedAnn.id}`
-                     };
-                 }
-             }
-             return { reply: matchedResponse.reply, attachment };
-        }
-
-        return { reply: "I'm not sure about that. Try asking for the 'latest announcement' or specific topics like 'enrollment' or 'grades'." };
+        return { reply: "I'm sorry, I don't have information on that yet. Try asking about 'latest announcements'!" };
     };
 
-    const sendMessage = async (customText?: string) => {
-        const text = customText || input;
+    const sendMessage = async (textOverride?: string) => {
+        const text = textOverride || input;
         if (!text.trim()) return;
 
-        const userMsg: Message = { sender: "user", text };
-
-        // Optimistic update
-        setMessages((prev) => [...prev, userMsg]);
+        const userMsg: Message = { sender: 'user', text };
+        setMessages(prev => [...prev, userMsg]);
         setInput("");
+        setUserHasTyped(true);
         setIsTyping(true);
 
-        // Simulate "Thinking" time for realism
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Get smart response
-        const { reply, attachment } = getBotResponse(text);
-        const botReply: Message = { sender: "bot", text: reply, attachment };
-
-        setIsTyping(false);
-        setMessages((prev) => [...prev, botReply]);
+        // Local Bot Logic
+        setTimeout(() => {
+            const response = getBotResponse(text);
+            const botMsg: Message = { 
+                sender: 'bot', 
+                text: response.reply,
+                attachment: response.attachment
+            };
+            setMessages(prev => [...prev, botMsg]);
+            setIsTyping(false);
+        }, 600);
     };
-
-    // Effect 1: Auto-scroll
+    
+    // Effect 2: Announcements & Settings
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isTyping]); // Add isTyping to dependency to scroll when typing starts
-
-    // Effect 2: Load data/settings AND Announcements
-    useEffect(() => {
-        const unsubResponses = onSnapshot(collection(db, "ibot_responses"), (snap) => {
-            const list: BotResponse[] = [];
-            snap.forEach((d) => list.push({ id: d.id, ...(d.data() as Omit<BotResponse, 'id'>) }));
-            setResponses(list);
-        });
-
-        //  Fetch Announcements via API (Bypasses Firestore Rules issues and ensures consistency)
-        const loadAnnouncements = async () => {
-            try {
-                const data = await getAnnouncements();
-                setAnnouncements(data);
-            } catch (e) {
-                console.warn("SmartBot: Failed to fetch announcements", e);
-                setAnnouncements([]);
-            }
-        };
+        // B. Listen for Announcements
+        const unsubAnnouncements = onSnapshot(
+            collection(db, "announcements"), 
+            (snap) => {
+                const list = snap.docs.map(d => ({
+                    id: d.id,
+                    ...d.data()
+                } as AnnouncementDoc));
+                // We'll trust the component state to sort when needed or we can sort here if we want list consistency
+                setAnnouncements(list);
+            },
+            (error) => { console.warn("SmartBot: Real-time announcements failed", error); }
+        );
 
         const loadSettings = async () => {
             const snap = await getDoc(doc(db, "settings", "ibot_settings"));
             if (snap.exists()) setBotEnabled(snap.data().enabled);
         };
 
-        loadAnnouncements();
         loadSettings();
-        return () => unsubResponses();
+        
+        // Cleanup all listeners
+        return () => {
+             // unsubResponses(); 
+             unsubAnnouncements();
+        };
     }, []);
 
     // Effect 3: Voice setup
@@ -493,6 +355,32 @@ export default function IChat() {
                                                 </div>
                                             </motion.div>
                                         )}
+
+                                        {/* Preset Suggestions (Persist until user types manually) */}
+                                        {!userHasTyped && (
+                                            <motion.div 
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: 0.5 }}
+                                                className="grid grid-cols-1 gap-2 mt-2 px-1"
+                                            >
+                                                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1 pl-1">Suggested</p>
+                                                {[
+                                                    "📢 Latest Announcements",
+                                                    "📅 School Events",
+                                                ].map((text, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => { setUserHasTyped(true); sendMessage(text); }}
+                                                        disabled={isTyping}
+                                                        className={`text-left text-xs text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-xl px-4 py-3 transition-all active:scale-[0.98] flex items-center justify-between group ${isTyping ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    >
+                                                        {text}
+                                                        <Send className="h-3 w-3 opacity-0 group-hover:opacity-50 -translate-x-2 group-hover:translate-x-0 transition-all text-indigo-400" />
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
                                         <div ref={messagesEndRef} />
                                     </div>
                                 </ScrollArea>
@@ -524,7 +412,7 @@ export default function IChat() {
                                         <Button
                                             size="icon"
                                             className={`h-9 w-9 rounded-full shrink-0 transition-all ${input.trim() ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "bg-white/10 text-gray-500 cursor-not-allowed"}`}
-                                            onClick={() => sendMessage()}
+                                            onClick={() => { setUserHasTyped(true); sendMessage(); }}
                                             disabled={!input.trim()}
                                         >
                                             <Send className="h-4 w-4 ml-0.5" />

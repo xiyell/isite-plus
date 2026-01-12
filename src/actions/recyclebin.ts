@@ -12,6 +12,7 @@ export interface TrashedItem {
   title: string;
   deletedBy: string;
   deletedAt: string;
+  status?: string;
 }
 
 const COLLECTION_MAP: Record<TrashType, string> = {
@@ -31,6 +32,9 @@ export async function getTrash(): Promise<TrashedItem[]> {
       let q;
       if (type === 'user') {
         q = db.collection(colName).where("isDeleted", "==", true);
+      } else if (type === 'announcement') {
+        // Fetch both 'deleted' and 'disabled' (which serves as soft-delete/trash for announcements now)
+        q = db.collection(colName).where("status", "in", ["deleted", "disabled"]);
       } else {
         q = db.collection(colName).where("status", "==", "deleted");
       }
@@ -75,6 +79,7 @@ export async function getTrash(): Promise<TrashedItem[]> {
           title: title || "Untitled",
           deletedBy: deletedByStr,
           deletedAt: deletedAt,
+          status: d.status,
         });
       });
     };
@@ -187,6 +192,8 @@ export async function emptyTrash(type: TrashType) {
     let q;
     if (type === 'user') {
         q = db.collection(colName).where("isDeleted", "==", true);
+    } else if (type === 'announcement') {
+        q = db.collection(colName).where("status", "in", ["deleted", "disabled"]);
     } else {
         q = db.collection(colName).where("status", "==", "deleted");
     }

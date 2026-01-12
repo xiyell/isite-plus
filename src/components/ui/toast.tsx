@@ -15,7 +15,7 @@ const ToastViewport = React.forwardRef<
         ref={ref}
         // Adjusted viewport positioning for better mobile safety and centered placement
         className={cn(
-            "fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex max-h-screen w-[95vw] sm:w-full max-w-sm sm:max-w-md flex-col-reverse p-2 sm:p-4",
+            "fixed top-4 left-1/2 -translate-x-1/2 z-[200] flex max-h-screen w-[95vw] sm:w-full max-w-sm sm:max-w-md flex-col-reverse p-2 sm:p-4",
             className
         )}
         {...props}

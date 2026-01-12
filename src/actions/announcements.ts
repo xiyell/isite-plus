@@ -45,20 +45,27 @@ export async function createAnnouncement(data: any) {
   return { id: res.id };
 }
 
-export async function deleteAnnouncement(id: string) {
+export async function deleteAnnouncement(id: string, deletedBy?: string) {
     const db = getAdminDb();
-    await db.collection("announcements").doc(id).update({
-        status: "deleted",
+    const updateData: any = {
+        status: "disabled",
         deletedAt: FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (deletedBy) {
+        updateData.deletedBy = deletedBy; 
+    }
+
+    await db.collection("announcements").doc(id).update(updateData);
 
     await addLog({
         category: "posts",
-        action: "DELETE_ANNOUNCEMENT_SOFT",
+        action: "DISABLE_ANNOUNCEMENT",
         severity: "medium",
-        message: `Announcement ID "${id}" was moved to trash`,
-        actorRole: "system",
+        message: `Announcement ID "${id}" was disabled (moved to trash)`,
+        actorRole: "system", // We ideally want the real role here, but keeping system for safety or updating logs signature
     });
+
 
     revalidatePath("/");
     revalidatePath("/announcement");

@@ -247,7 +247,7 @@ export default function DashboardContent() {
 	useEffect(() => {
 		const q = query(
 			collection(db, "announcements"),
-			where("status", "!=", "deleted")
+			where("status", "==", "active")
 		);
 
 		const unsub = onSnapshot(q, (snapshot) => {
@@ -303,14 +303,15 @@ export default function DashboardContent() {
 	const handleDeleteAnnouncement = async () => {
 		if (confirmState.type === 'announcement' && confirmState.id) {
 			try {
-				await deleteAnnouncement(confirmState.id);
+                // Pass current user ID for better audit trail
+				await deleteAnnouncement(confirmState.id, auth.currentUser?.uid);
 				
 				setMessageState({ message: "Announcement moved to trash bin", type: 'success' });
 				await addLog({
 					category: "system",
 					action: "Announcement Deleted",
 					severity: "medium",
-					message: `Announcement "${confirmState.title || 'Unknown'}" was moved to trash.`
+					message: `Announcement "${confirmState.title || 'Unknown'}" was moved to trash by ${auth.currentUser?.email || 'unknown user'}.`
 				});
 			} catch (error) {
 				console.error(error);

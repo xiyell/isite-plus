@@ -57,6 +57,11 @@ const TrashRow = ({ item, onAction }: TrashRowProps) => {
                     {typeConfig.Icon && <typeConfig.Icon size={12} className="mr-1" />}
                     {item.type.toUpperCase()}
                 </Badge>
+                {item.status === 'disabled' && (
+                    <Badge className="ml-2 bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[10px] uppercase">
+                        Disabled
+                    </Badge>
+                )}
             </TableCell>
             <TableCell className="border-r border-white/10 text-gray-200 p-4 font-medium truncate" title={item.title}>
                 {item.title}
@@ -257,8 +262,13 @@ export default function TrashBinDashboard() {
         }
     };
 
+    // Expose refresh function/effect
     useEffect(() => {
         loadTrash();
+        
+        // Optional: Poll every 30s to keep it fresh
+        const interval = setInterval(loadTrash, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     // ---------------- ACTIONS ----------------
