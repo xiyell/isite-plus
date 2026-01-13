@@ -17,15 +17,9 @@ const accessRules: Record<string, ("guest" | "user" | "admin" | "moderator")[]> 
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  console.log(`[Middleware] Processing: ${pathname}`);
 
-  // 1. Check for Session Cookie
   const cookieStore = await cookies();
-  const allCookies = cookieStore.getAll();
-  console.log(`[Middleware] All cookies present: ${allCookies.map(c => c.name).join(", ")}`);
-  
   const session = cookieStore.get("session")?.value;
-  console.log(`[Middleware] Session cookie found: ${!!session}`);
 
   const payload = await decrypt(session);
   let normalizedRole: "guest" | "user" | "admin" | "moderator" = "guest";
@@ -33,22 +27,15 @@ export async function middleware(req: NextRequest) {
   if (payload?.role) {
     normalizedRole = payload.role;
   }
-  console.log(`[Middleware] Role determined: ${normalizedRole}`);
 
-  // 2. Check Access Rules
   for (const route in accessRules) {
-    // Exact match OR sub-path match (e.g. /dashboard/settings)
     if (pathname === route || pathname.startsWith(`${route}/`)) {
       const allowed = accessRules[route];
-      console.log(`[Middleware] Route ${pathname} matches rule for ${route}. Allowed roles: ${allowed.join(", ")}`);
 
       if (!allowed.includes(normalizedRole)) {
-        console.log(`[Middleware] ⛔ Access Denied: ${pathname} for ${normalizedRole}`);
         const url = req.nextUrl.clone();
-        url.pathname = "/"; // Redirect home or login
+        url.pathname = "/";
         return NextResponse.redirect(url);
-      } else {
-        console.log(`[Middleware] ✅ Access Granted for ${pathname}`);
       }
     }
   }

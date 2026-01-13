@@ -42,7 +42,6 @@ import {
 import AdminPostModerationPage from "@/components/dashboard/pendingpost";
 import { createAnnouncement, getAnnouncements, deleteAnnouncement } from "@/actions/announcements";
 import OverviewContent from "@/components/dashboard/overview";
-// import { addLog } from "@/actions/logs"; // Removed unused import
 import { moveUserToRecycleBin, updateUserPassword } from "@/actions/userManagement";
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -251,8 +250,6 @@ export default function DashboardContent() {
 			// Filter out soft-deleted users
 			const activeUsers = data.filter(u => u.status !== 'deleted' && !(u as any).isDeleted);
 			setUsers(activeUsers);
-		}, (error) => {
-			console.error("Error watching users:", error);
 		});
 		return () => unsub();
 	}, []);
@@ -271,8 +268,6 @@ export default function DashboardContent() {
 				updatedAt: doc.data().updatedAt?.toDate ? doc.data().updatedAt.toDate().toISOString() : doc.data().updatedAt,
 			})) as Announcement[];
 			setAnnouncements(data);
-		}, (err) => {
-			console.error("Announcement watch error:", err);
 		});
 		return () => unsub();
 	}, []);

@@ -539,15 +539,23 @@ function EvaluationList({ evaluations, loading, onCreate, onEdit, onDelete, onRe
                                                     className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                                                 />
                                             </PaginationItem>
-                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                                                <PaginationItem key={page}>
+                                            {(() => {
+                                                const maxVisible = 3;
+                                                let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                                                let end = Math.min(totalPages, start + maxVisible - 1);
+                                                if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                                                const pages = [];
+                                                for (let i = start; i <= end; i++) pages.push(i);
+                                                return pages;
+                                            })().map((pageNum) => (
+                                                <PaginationItem key={pageNum}>
                                                     <PaginationLink
                                                         href="#"
-                                                        onClick={(e) => { e.preventDefault(); setCurrentPage(page); }}
-                                                        isActive={page === currentPage}
-                                                        className={page === currentPage ? "bg-indigo-600 border-indigo-500" : ""}
+                                                        onClick={(e) => { e.preventDefault(); setCurrentPage(pageNum); }}
+                                                        isActive={pageNum === currentPage}
+                                                        className={pageNum === currentPage ? "bg-indigo-600 border-indigo-500" : ""}
                                                     >
-                                                        {page}
+                                                        {pageNum}
                                                     </PaginationLink>
                                                 </PaginationItem>
                                             ))}

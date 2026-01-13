@@ -24,7 +24,7 @@ interface OverviewStats {
 
 
 
-// --- MOCK CHART DATA (Used for platform distribution, as it requires a different query) ---
+// --- MOCK CHART DATA  ---
 const platformData = [
     { name: 'Website', value: 540, color: '#8b5cf6' }, // Purple
     { name: 'Facebook', value: 780, color: '#3b82f6' }, // Blue

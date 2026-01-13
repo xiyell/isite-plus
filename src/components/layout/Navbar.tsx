@@ -132,14 +132,13 @@ export default function Navbar() {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleRegistrationSuccess = (user: any) => {
-        console.log('User successfully registered:', user);
+        // User registration complete
     }
 
     const handleSignOut = async () => {
         try {
-            console.log("Logout initiated...");
             await auth.signOut();
-            await logoutAction(); // Clear server cookie
+            await logoutAction();
             
             setUser(null);
             setIsLogoutConfirmOpen(false);

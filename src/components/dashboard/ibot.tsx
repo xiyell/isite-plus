@@ -541,7 +541,15 @@ export default function IBot() {
                                                     className={page === 1 ? "pointer-events-none opacity-50" : ""}
                                                 />
                                             </PaginationItem>
-                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                                            {(() => {
+                                                const maxVisible = 3;
+                                                let start = Math.max(1, page - Math.floor(maxVisible / 2));
+                                                let end = Math.min(totalPages, start + maxVisible - 1);
+                                                if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                                                const pages = [];
+                                                for (let i = start; i <= end; i++) pages.push(i);
+                                                return pages;
+                                            })().map((p) => (
                                                 <PaginationItem key={p}>
                                                     <PaginationLink
                                                         href="#"

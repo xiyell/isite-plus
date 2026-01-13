@@ -11,7 +11,6 @@ export type SessionPayload = {
 };
 
 /* -------------------- JWT HELPERS -------------------- */
-/* -------------------- JWT HELPERS -------------------- */
 
 export async function encrypt(payload: SessionPayload) {
     if (!secretKey) {
@@ -39,7 +38,6 @@ export async function decrypt(session?: string) {
 
         return payload as SessionPayload;
     } catch (err) {
-        console.log("⚠️ Failed to verify session:", err);
         return null;
     }
 }
@@ -55,19 +53,17 @@ export async function createSession(uid: string, rawRole: string) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const session = await encrypt({ uid, role, expiresAt });
 
-    const cookieStore = await cookies(); // 
-    const isProd = process.env.NODE_ENV === "production"; // 
+    const cookieStore = await cookies();
+    const isProd = process.env.NODE_ENV === "production";
 
     cookieStore.set("session", session, {
         httpOnly: true,
-        secure: isProd, // Secure in production
-
+        secure: isProd,
         sameSite: "lax",
         path: "/",
         expires: expiresAt,
     });
 
-    // Optional UI cookie - now using JWT
     const uiRoleSession = await encrypt({ role } as any);
     cookieStore.set("ui_role", uiRoleSession, {
         httpOnly: false,
@@ -76,8 +72,6 @@ export async function createSession(uid: string, rawRole: string) {
         path: "/",
         expires: expiresAt,
     });
-
-    console.log(`✅ Session created | UID: ${uid} | Role: ${role}`);
 }
 
 

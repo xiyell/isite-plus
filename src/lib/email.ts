@@ -1,13 +1,8 @@
 import nodemailer from 'nodemailer';
 
 export async function sendEmail(to: string, subject: string, html: string) {
-  // Use environment variables or fallback to a test account if mocking
-  // Since we cannot see .env, we assume variables exist or we log the clear limitation.
-  
-  // Choose transport based on EMAIL_SERVICE env var (default: Outlook)
   const transporter = (() => {
     const service = process.env.EMAIL_SERVICE?.toLowerCase();
-    
     // GMAIL (Recommended for Personal Accounts)
     if (service === 'gmail') {
       return nodemailer.createTransport({
@@ -56,11 +51,8 @@ export async function sendEmail(to: string, subject: string, html: string) {
 
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.error("❌ Email configuration missing (EMAIL_USER or EMAIL_PASS).");
-      throw new Error("Email configuration missing."); 
+      throw new Error("Email configuration missing.");
   }
-
-  console.log(`📧 Configured Service: ${process.env.EMAIL_SERVICE || 'Outlook/Default'}`);
-  
   // Verify connection configuration
   try {
     await new Promise((resolve, reject) => {
@@ -69,7 +61,6 @@ export async function sendEmail(to: string, subject: string, html: string) {
           console.error("❌ SMTP Connection Error:", error);
           reject(error);
         } else {
-          console.log("✅ SMTP Server is ready to take our messages");
           resolve(success);
         }
       });
@@ -78,8 +69,6 @@ export async function sendEmail(to: string, subject: string, html: string) {
     console.error("❌ ABORTING EMAIL: SMTP Check Failed.");
     throw err;
   }
-
-  console.log(`📧 Attempting to send email to ${to}...`);
 
   const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2)}@${process.env.EMAIL_USER?.split('@')[1] || 'isite-plus.com'}>`;
   
@@ -91,8 +80,5 @@ export async function sendEmail(to: string, subject: string, html: string) {
     text: html.replace(/<[^>]*>/g, ''), // Plain text fallback
     html,
     messageId,
-     // Removed High Priority headers as they can trigger spam filters on new accounts
   });
-  
-  console.log(`✅ Email sent successfully to ${to}`);
 }

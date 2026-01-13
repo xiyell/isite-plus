@@ -82,7 +82,7 @@ const sanitizeMessage = (message: string) => {
   return message.replace(/\(ID: [^)]+\)/g, "").replace(/\s{2,}/g, " ").trim();
 };
 
-const getPageNumbers = (current: number, total: number, max = 5) => {
+const getPageNumbers = (current: number, total: number, max = 3) => {
   const pages: number[] = [];
   let start = Math.max(1, current - Math.floor(max / 2));
   let end = Math.min(total, start + max - 1);

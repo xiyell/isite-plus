@@ -355,17 +355,25 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                                     />
                                 </PaginationItem>
                                 
-                                {Array.from({ length: totalPages }).map((_, i) => (
-                                    <PaginationItem key={i}>
+                                {(() => {
+                                    const maxVisible = 3;
+                                    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                                    let end = Math.min(totalPages, start + maxVisible - 1);
+                                    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+                                    const pages = [];
+                                    for (let i = start; i <= end; i++) pages.push(i);
+                                    return pages;
+                                })().map((pageNum) => (
+                                    <PaginationItem key={pageNum}>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             className={`h-8 w-8 p-0 rounded-lg text-xs font-bold transition-all ${
-                                                currentPage === i + 1 ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-600/20' : 'text-zinc-500 hover:text-white'
+                                                currentPage === pageNum ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-600/20' : 'text-zinc-500 hover:text-white'
                                             }`}
-                                            onClick={() => setCurrentPage(i + 1)}
+                                            onClick={() => setCurrentPage(pageNum)}
                                         >
-                                            {i + 1}
+                                            {pageNum}
                                         </Button>
                                     </PaginationItem>
                                 ))}

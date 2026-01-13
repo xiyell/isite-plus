@@ -34,7 +34,7 @@ const getIconConfig = (type: TrashedItem['type']) => {
     }
 };
 
-const getPageNumbers = (current: number, total: number, max = 5) => {
+const getPageNumbers = (current: number, total: number, max = 3) => {
     const pages: number[] = [];
     let start = Math.max(1, current - Math.floor(max / 2));
     let end = Math.min(total, start + max - 1);
@@ -245,7 +245,7 @@ const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => 
                                 />
                             </PaginationItem>
                             
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                            {getPageNumbers(page, totalPages).map((p) => (
                                 <PaginationItem key={p}>
                                     <PaginationLink
                                         href="#"

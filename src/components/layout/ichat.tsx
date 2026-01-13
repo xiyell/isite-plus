@@ -71,6 +71,7 @@ export default function IChat() {
         if (!botEnabled) return { reply: "iBot is currently disabled 🟥" };
 
         const normalizedInput = normalize(text);
+        const tokens = tokenize(text);
         
         // 1. Check Custom Responses first
         const customMatch = responses.find(r => 
@@ -92,7 +93,56 @@ export default function IChat() {
             return { reply: customMatch.reply, attachment };
         }
 
-        // 2. SMART CHECK: "LATEST ANNOUNCEMENTS"
+        // 2. NAVIGATION DETECTION
+        const navigationKeywords = ['go', 'navigate', 'take', 'bring', 'show', 'open', 'visit', 'direct', 'redirect', 'where'];
+        const isNavigationQuery = navigationKeywords.some(keyword => tokens.includes(keyword));
+        
+        // Check for specific page requests
+        if (tokens.includes('home') || normalizedInput.includes('homepage') || normalizedInput.includes('main page')) {
+            return {
+                reply: "I can take you to the homepage!",
+                attachment: {
+                    type: "link",
+                    title: "🏠 Home Page",
+                    url: "/"
+                }
+            };
+        }
+
+        if (tokens.includes('about') || normalizedInput.includes('about us') || normalizedInput.includes('about page')) {
+            return {
+                reply: "Here's the About page where you can learn more about iSITE+!",
+                attachment: {
+                    type: "link",
+                    title: "ℹ️ About iSITE+",
+                    url: "/about"
+                }
+            };
+        }
+
+        if (tokens.includes('community') || normalizedInput.includes('forum') || normalizedInput.includes('posts')) {
+            return {
+                reply: "Check out the Community page to connect with fellow students!",
+                attachment: {
+                    type: "link",
+                    title: "👥 Community Forum",
+                    url: "/community"
+                }
+            };
+        }
+
+        if (tokens.includes('announcement') || tokens.includes('announcements') || normalizedInput.includes('news')) {
+            return {
+                reply: "Visit the Announcements page for the latest updates!",
+                attachment: {
+                    type: "link",
+                    title: "📢 Announcements",
+                    url: "/announcement"
+                }
+            };
+        }
+
+        // 3. SMART CHECK: "LATEST ANNOUNCEMENTS"
         const isAnnouncementQuery = 
             (normalizedInput.includes("latest") || normalizedInput.includes("recent") || normalizedInput.includes("new") || normalizedInput.includes("what")) && 
             (normalizedInput.includes("announcement") || normalizedInput.includes("event") || normalizedInput.includes("news"));
@@ -122,7 +172,7 @@ export default function IChat() {
              }
         }
         
-        return { reply: "I'm sorry, I don't have information on that yet. Try asking about 'latest announcements'!" };
+        return { reply: "I'm sorry, I don't have information on that yet. Try asking about 'latest announcements' or navigating to pages like 'home', 'about', 'community', or 'announcements'!" };
     };
 
     const sendMessage = async (textOverride?: string) => {
@@ -385,7 +435,9 @@ export default function IChat() {
                                                 <div className="flex flex-wrap gap-2">
                                                     {[
                                                         "📢 Latest Announcements",
-                                                        "📅 School Events",
+                                                        "🏠 Go to Home",
+                                                        "👥 Community",
+                                                        "ℹ️ About iSITE+",
                                                     ].map((text, idx) => (
                                                         <button
                                                             key={idx}
