@@ -76,8 +76,14 @@ export default function IChat() {
         const inputTokens = tokenize(text);
         
         // 0. QUICK CHECK: "LATEST"
-        if ((normalizedInput.includes("latest") || normalizedInput.includes("recent")) && 
-            (normalizedInput.includes("announcement") || normalizedInput.includes("event") || normalizedInput.includes("news"))) {
+        // 0. QUICK CHECK: "LATEST" OR KEYWORDS
+        const isAnnouncementQuery = 
+            (normalizedInput.includes("latest") || normalizedInput.includes("recent") || normalizedInput.includes("new") || normalizedInput.includes("what")) && 
+            (normalizedInput.includes("announcement") || normalizedInput.includes("event") || normalizedInput.includes("news"));
+            
+        const isDirectKeyword = normalizedInput === "announcement" || normalizedInput === "announcements" || normalizedInput === "event" || normalizedInput === "events";
+
+        if (isAnnouncementQuery || isDirectKeyword) {
              if (announcements.length > 0) {
                  // FILTER: Only show active announcements
                  const activeAnnouncements = announcements.filter(a => a.status === 'active');

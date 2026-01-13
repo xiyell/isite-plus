@@ -114,6 +114,7 @@ export async function deleteEvaluation(id: string, actorRole?: string, actorName
                 action: "DELETE_EVALUATION",
                 severity: "medium",
                 actorRole: actorRole || "admin",
+                actorName: actorName,
                 message: `Evaluation "${id}" was moved to trash bin by ${actorName || "an administrator"}`
             });
         } catch (logErr) {

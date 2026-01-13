@@ -41,6 +41,7 @@ export async function updateUserPassword(userId: string, newPassword: string, ac
       action: "UPDATE_PASSWORD",
       severity: "high",
       actorRole: actor?.role,
+      actorName: actor?.name,
       message: `Password updated for user "${targetName}" by ${actor?.name}`,
     });
     return { success: true, message: `Password updated for user ${targetName}` };
@@ -78,6 +79,7 @@ export async function moveUserToRecycleBin(userId: string, actorUid: string) {
       action: "MOVE_TO_RECYCLE_BIN",
       severity: "high",
       actorRole: actor?.role,
+      actorName: actor?.name,
       message: `User "${userName}" was moved to recycle bin by ${actor?.name}`,
     });
   } catch (error) {
@@ -114,6 +116,7 @@ export async function restoreUserFromRecycleBin(userId: string, actorUid: string
       action: "RESTORE_FROM_RECYCLE_BIN",
       severity: "medium",
       actorRole: actor?.role,
+      actorName: actor?.name,
       message: `User "${userName}" was restored from recycle bin by ${actor?.name}`,
     });
   } catch (error) {
@@ -144,11 +147,55 @@ export async function permanentlyDeleteUser(userId: string, actorUid: string) {
       action: "PERMANENT_DELETE",
       severity: "high",
       actorRole: actor?.role,
+      actorName: actor?.name,
       message: `User "${userName}" was permanently deleted by ${actor?.name}`,
     });
 
   } catch (error) {
     console.error("Failed to permanently delete user:", error);
     throw error;
+  }
+}
+
+// ---------------- UPDATE USER PROFILE ----------------
+export async function updateUserProfile(userId: string, data: any, actorUid: string) {
+  try {
+    const adminDb = getAdminDb();
+    const userRef = adminDb.collection("users").doc(userId);
+    const actorRef = adminDb.collection("users").doc(actorUid);
+
+    // Get current data to check for name change
+    const [userSnap, actorSnap] = await Promise.all([
+      userRef.get(),
+      actorRef.get()
+    ]);
+
+    const oldData = userSnap.data();
+    const actor = actorSnap.data();
+    const oldName = oldData?.name;
+    const newName = data.name;
+
+    // Update the user document
+    await userRef.update({
+      ...data,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    // Log if name changed
+    if (oldName && newName && oldName !== newName) {
+      await addLog({
+        category: "users",
+        action: "UPDATE_PROFILE",
+        severity: "medium",
+        actorRole: actor?.role,
+        actorName: actor?.name,
+        message: `User name changed from "${oldName}" to "${newName}" by ${actor?.name || 'Unknown'}`,
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    throw new Error("Failed to update profile");
   }
 }

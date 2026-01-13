@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
 // ----------------------------
 
 
@@ -134,40 +135,65 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
         setIsSubmitting(true);
 
         // --- Validation Checks ---
+        // --- Validation Checks ---
         if (!email.endsWith("@iskolarngbayan.pup.edu.ph")) {
             setIsSubmitting(false);
-            return setError("Only PUP Webmail accounts are allowed.");
+            const msg = "Only PUP Webmail accounts are allowed.";
+            setError(msg);
+            toast({ title: "Validation Error", description: msg, variant: "destructive" });
+            return;
         }
         if (!student_id.trim()) {
             setIsSubmitting(false);
-            return setError("Please enter your Student ID.");
+            const msg = "Please enter your Student ID.";
+            setError(msg);
+            toast({ title: "Missing Field", description: msg, variant: "destructive" });
+            return;
         }
         if (!studentIdPattern.test(student_id)) {
             setIsSubmitting(false);
-            return setError("Invalid Student ID format. Use format like 2023-00097-SM-0.");
+            const msg = "Invalid Student ID format. Use format like 2023-00097-SM-0.";
+            setError(msg);
+            toast({ title: "Validation Error", description: msg, variant: "destructive" });
+            return;
         }
         if (!inputName.trim()) {
             setIsSubmitting(false);
-            return setError("Please enter your Full Name.");
+            const msg = "Please enter your Full Name.";
+            setError(msg);
+            toast({ title: "Missing Field", description: msg, variant: "destructive" });
+            return;
         }
-        if (!yearLevel || !section) {
+        if (!yearLevel) {
             setIsSubmitting(false);
-            return setError("Please select your Year Level and Section.");
+            const msg = "Please select your Year Level.";
+            setError(msg);
+            toast({ title: "Missing Field", description: msg, variant: "destructive" });
+            return;
+        }
+        if (!section) {
+            setIsSubmitting(false);
+            const msg = "Please select your Section.";
+            setError(msg);
+            toast({ title: "Missing Field", description: msg, variant: "destructive" });
+            return;
         }
 
         // Check password complexity again (redundant but safe)
         if (!validatePassword(password)) {
             setIsSubmitting(false);
-            return setError("Password does not meet complexity requirements.");
+            const msg = "Password does not meet complexity requirements.";
+            setError(msg);
+            toast({ title: "Weak Password", description: msg, variant: "destructive" });
+            return;
         }
 
         if (password !== confirmPassword) {
             setIsSubmitting(false);
-            return setError("Passwords do not match!");
-        }
-        if (!email || !password || !student_id) {
-            setIsSubmitting(false);
-            return setError("All fields are required.");
+            const msg = "Passwords do not match!";
+            setError(msg);
+            toast({ title: "Validation Error", description: msg, variant: "destructive" });
+            return;
         }
         // --- End Validation Checks ---
 

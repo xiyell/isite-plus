@@ -81,29 +81,50 @@ export default function OverviewContent() {
             let pending = 0;
 
             // For Chart Aggregation
-            const rawPosts: { timestamp: Timestamp, title: string }[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const rawPosts: { timestamp: any, title: string }[] = [];
 
             snapshot.docs.forEach(doc => {
                 const data = doc.data();
                 if (data.title) {
+                    // Include pending posts in the total count logic, or adjust as needed
                     total++;
                     if (data.status === "pending") pending++;
-                    if (data.createdAt) {
+                    
+                    // Allow posts with status 'approved' OR 'pending' (if you want to track submission trends)
+                    // If you only want live approved posts: if (data.createdAt && data.status === 'approved')
+                    if (data.createdAt && (data.status === 'approved' || data.status === 'pending')) {
                         rawPosts.push({ timestamp: data.createdAt, title: data.title });
                     }
                 }
             });
 
-            // Update Aggregated Chart Data
-            // 1. Sort by date
-            rawPosts.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds);
-            // 2. Aggregate
+            // 1. Filter & Standardize
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const validPosts = rawPosts.map(p => {
+                let date: Date | null = null;
+                try {
+                    if (p.timestamp?.toDate) {
+                        date = p.timestamp.toDate(); 
+                    } else if (p.timestamp) {
+                        date = new Date(p.timestamp);
+                    }
+                } catch (e) {
+                    date = null;
+                }
+                return { ...p, date };
+            }).filter(p => p.date && !isNaN(p.date.getTime())) as { title: string; date: Date }[];
+
+            // 2. Sort
+            validPosts.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+            // 3. Aggregate
             const counts: { [key: string]: number } = {};
-            rawPosts.forEach(p => {
-                const date = p.timestamp ? p.timestamp.toDate() : new Date(); // Safety fallback
-                const key = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            validPosts.forEach(p => {
+                const key = p.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
                 counts[key] = (counts[key] || 0) + 1;
             });
+            
             const chartData: MonthlyData[] = Object.keys(counts).map(key => ({
                 monthYear: key,
                 posts: counts[key]
@@ -266,7 +287,7 @@ export default function OverviewContent() {
                 {/* Post Analytics (Line Chart) - DYNAMIC */}
                 <Card className={GLASSY_CARD_CLASS}>
                     <CardHeader>
-                        <CardTitle className="text-xl font-semibold text-gray-200">Post Analytics (Monthly Trend)</CardTitle>
+                        <CardTitle className="text-xl font-semibold text-gray-200">Community Posts Analytics (Monthly Trend)</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px] w-full p-0">
                         {monthlyPostData.length > 0 ? (
@@ -286,7 +307,10 @@ export default function OverviewContent() {
                                 </LineChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="text-center text-gray-500 pt-12">No posts with timestamps found for monthly trend.</div>
+                            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 space-y-2">
+                                <p>No community posts found.</p>
+                                <p className="text-sm text-gray-600">Start engaging in the Community tab to see trends!</p>
+                            </div>
                         )}
                     </CardContent>
                 </Card>

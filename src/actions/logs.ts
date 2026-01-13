@@ -66,12 +66,14 @@ export async function addLog({
   severity,
   message,
   actorRole = "system",
+  actorName,
 }: {
   category: "posts" | "users" | "system";
   action: string;
   severity: SeverityLevel;
   message: string;
   actorRole?: string;
+  actorName?: string;
 }) {
   try {
     const db = getAdminDb();
@@ -81,6 +83,7 @@ export async function addLog({
       severity,
       message,
       actorRole,
+      actorName: actorName || "System",
       timestamp: FieldValue.serverTimestamp(),
       time: new Date().toLocaleString(),
     });

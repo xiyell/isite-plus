@@ -85,6 +85,7 @@ export default function Navbar() {
                      
                      setUser({
                         ...authUser as unknown as User,
+                        name: userData?.name || authUser.displayName,
                         role: realRole
                      });
                 } catch (e) {
@@ -422,7 +423,10 @@ export default function Navbar() {
                                     <Link
                                         key={index}
                                         href={link.href}
-                                        onClick={(e) => handleLinkClick(e, link)}
+                                        onClick={(e) => {
+                                            handleLinkClick(e, link);
+                                            setIsMobileMenuOpen(false);
+                                        }}
                                         className={cn(
                                             "w-full text-center py-3 backdrop-blur-2xl rounded-xl text-lg font-medium transition-all duration-200",
                                             link.active

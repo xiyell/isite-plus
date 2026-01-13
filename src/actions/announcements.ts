@@ -8,7 +8,10 @@ import { revalidatePath } from "next/cache";
 
 export async function getAnnouncements(): Promise<Announcement[]> {
   const db = getAdminDb();
-  const snapshot = await db.collection("announcements").where("status", "!=", "deleted").get();
+  const snapshot = await db.collection("announcements")
+    .where("status", "==", "active")
+    .orderBy("createdAt", "desc")
+    .get();
   
   return snapshot.docs.map((doc) => {
     const data = doc.data();
@@ -52,18 +55,33 @@ export async function deleteAnnouncement(id: string, deletedBy?: string) {
         deletedAt: FieldValue.serverTimestamp(),
     };
 
+    let actorName = "System";
+    let actorRole = "system";
+
     if (deletedBy) {
+        const userDoc = await db.collection('users').doc(deletedBy).get();
+        const userData = userDoc.data();
+        if (userData) {
+             actorName = userData.name || "Unknown";
+             actorRole = userData.role || "unknown";
+        }
         updateData.deletedBy = deletedBy; 
     }
 
+    // Fetch title for logging
+    const annDoc = await db.collection("announcements").doc(id).get();
+    const title = annDoc.data()?.title || "Unknown Announcement";
+
+    // Perform Logical Delete
     await db.collection("announcements").doc(id).update(updateData);
 
     await addLog({
         category: "posts",
         action: "DISABLE_ANNOUNCEMENT",
         severity: "medium",
-        message: `Announcement ID "${id}" was disabled (moved to trash)`,
-        actorRole: "system", // We ideally want the real role here, but keeping system for safety or updating logs signature
+        message: `Announcement "${title}" (ID: ${id}) was disabled (moved to trash) by ${actorName}`,
+        actorRole: actorRole,
+        actorName: actorName,
     });
 
 

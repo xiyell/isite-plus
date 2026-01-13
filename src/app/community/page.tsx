@@ -9,6 +9,7 @@ import {
   updatePostStatus,
   NewPostData,
   NewCommentData,
+  deleteCommunityComment,
 } from "@/actions/community";
 import { movePostToRecycleBin } from "@/actions/community";
 import { Button } from "@/components/ui/Button";
@@ -601,6 +602,45 @@ export default function CommunityPage() {
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!currentUser || !openPost) return;
+
+    // Optimistic UI update could be complex with subcollections, so we will use the standard toast confirmation pattern
+    toast({
+        title: "Delete Comment?",
+        description: "This action cannot be undone.",
+        variant: "destructive",
+        action: (
+            <ToastAction
+                altText="Delete"
+                className="bg-red-600 text-white hover:bg-red-700 border-none"
+                onClick={async () => {
+                    try {
+                        await deleteCommunityComment(openPost.id, commentId, currentUser.uid);
+                        
+                        // Update UI
+                        const updatedPosts = await fetchPosts();
+                        updateOpenPostData(updatedPosts);
+
+                        toast({
+                            title: "Deleted",
+                            description: "Comment removed.",
+                        });
+                    } catch (e: any) {
+                        toast({
+                            title: "Error",
+                            description: e.message || "Failed to delete comment.",
+                            variant: "destructive"
+                        });
+                    }
+                }}
+            >
+                Delete
+            </ToastAction>
+        )
+    });
+  };
+
   // --- UI Helpers (unchanged) ---
   const handleOpenPost = (post: Post) => {
     if (post.status === "deleted") return;
@@ -610,6 +650,7 @@ export default function CommunityPage() {
       setOpenPost(post);
       setIsPostLoading(false);
       setCommentPage(1);
+      setNewComment(""); // Clear comment input
     }, 300);
   };
   const handlePostPageChange = (page: number) => {
@@ -972,7 +1013,15 @@ export default function CommunityPage() {
         {/* ---------------- VIEW POST MODAL (Glassy Dialog) (unchanged) ---------------- */}
         <Dialog
           open={!!openPost || isPostLoading}
-          onOpenChange={() => setOpenPost(null)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setOpenPost(null);
+              setNewComment(""); // Clear comment when closing
+            } else {
+               // In case it's opened via other means not going through handleOpenPost (unlikely but safe)
+               setOpenPost(null);
+            }
+          }}
         >
           <DialogContent className={GLASSY_MODAL_CLASSES}>
             {isPostLoading && (
@@ -1162,6 +1211,17 @@ export default function CommunityPage() {
                                   <span className="text-xs text-white/50 ml-auto">
                                     {formatDate(c.createdAt)}
                                   </span>
+                                  {/* Delete Button for Comment Owner or Admin */}
+                                  {(currentUser?.uid === (c.commentedBy as any)?.uid || currentUser?.uid === c.commentedBy?.id || isAdmin) && (
+                                      <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-white/30 hover:text-red-400 hover:bg-transparent ml-2"
+                                          onClick={() => handleDeleteComment(c.id)}
+                                      >
+                                          <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                  )}
                                 </div>
                                 <p className="text-sm text-white/90 pl-7 mt-1">
                                   {c.text}
@@ -1229,7 +1289,18 @@ export default function CommunityPage() {
         </Dialog>
 
         {/* ---------------- CREATE POST MODAL ---------------- */}
-        <Dialog open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
+        <Dialog 
+          open={createOpen} 
+          onOpenChange={(open) => {
+            setCreateOpen(open);
+            if (!open) {
+              // Clear fields when closing create modal
+              setNewTitle("");
+              setNewDescription("");
+              setNewCategory(categories[1] || "Tech");
+            }
+          }}
+        >
           <DialogContent className={GLASSY_MODAL_CLASSES}>
             <DialogHeader className="pb-4 border-b border-white/10 mb-6">
               <DialogTitle className="font-extrabold text-xl">

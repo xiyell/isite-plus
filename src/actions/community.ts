@@ -209,6 +209,7 @@ export async function createCommunityPost(data: NewPostData) {
       action: "AUTO_DELETE_POST",
       severity: "medium",
       actorRole: "system",
+      actorName: "System",
       message: `System auto-deleted post from ${user?.name}: "${data.title}". Reason: ${moderationReason}`,
     });
     return { success: false, message: moderationReason };
@@ -219,6 +220,7 @@ export async function createCommunityPost(data: NewPostData) {
     action: "CREATE_POST",
     severity: "low",
     actorRole: user?.role,
+    actorName: user?.name,
     message: `User ${user?.name} created a new post: "${data.title}"`,
   });
 
@@ -334,6 +336,7 @@ export async function addCommunityComment(data: NewCommentData) {
     action: "CREATE_COMMENT",
     severity: "low",
     actorRole: user?.role,
+    actorName: user?.name,
     message: `User ${user?.name} commented on "${postTitle}"`,
   });
 }
@@ -375,6 +378,7 @@ export async function movePostToRecycleBin(postId: string, actorUid: string) {
     action: "MOVE_TO_RECYCLE_BIN",
     severity: "medium",
     actorRole: user?.role,
+    actorName: user?.name,
     message: `Post "${postTitle}" was moved to recycle bin by ${user?.name}`,
   });
 }
@@ -484,4 +488,47 @@ export async function getUserActivity(userId: string): Promise<{ posts: Post[], 
       });
 
   return { posts, comments, indexError };
+}
+
+export async function deleteCommunityComment(postId: string, commentId: string, userId: string) {
+  const db = getAdminDb();
+  const postRef = db.collection("community").doc(postId);
+  const commentRef = postRef.collection("comments").doc(commentId);
+
+  const commentSnap = await commentRef.get();
+  if (!commentSnap.exists) {
+    throw new Error("Comment not found.");
+  }
+
+  const commentData = commentSnap.data();
+  // Check if user is the author or an admin
+  // For simplicity, we check equality of ID.
+  // Comment author handling:
+  let authorId = "";
+  if (commentData?.commentedBy) {
+     if (typeof commentData.commentedBy === 'string') {
+         authorId = commentData.commentedBy;
+     } else if (typeof commentData.commentedBy.id === 'string') {
+          // DocumentReference
+         authorId = commentData.commentedBy.id;
+     }
+  }
+
+  // Also allow admins (fetch user role if needed, but for now strict ownership)
+  // If we need admin override, we'd need to fetch the requesting user's role.
+  // Assuming the UI prevents non-owners from calling this unless we want strong security here.
+  // Let's add basic ownership check.
+  
+  if (authorId !== userId) {
+      // Check if user is admin
+      const userDoc = await db.collection("users").doc(userId).get();
+      const role = userDoc.data()?.role;
+      if (role !== 'admin' && role !== 'superadmin' && role !== 'moderator') {
+          throw new Error("Unauthorized to delete this comment.");
+      }
+  }
+
+  await commentRef.delete();
+  
+  return { success: true };
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, updateDoc, Timestamp } from "firebase/firestore";
-import { db } from "@/services/firebase";
+import { auth } from "@/services/firebase";
+import { updateUserProfile } from "@/actions/userManagement";
 import {
     Dialog,
     DialogContent,
@@ -55,17 +55,12 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
     const [formData, setFormData] = useState<ProfileData>(currentData);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Sync state when opening with different data
     useEffect(() => {
-        // Normalize data for the form (handle legacy formats)
         const normalizedData = { ...currentData };
 
-        // Fix Section: "Section 1" -> "1"
         if (normalizedData.section && normalizedData.section.startsWith("Section ")) {
             normalizedData.section = normalizedData.section.replace("Section ", "");
         }
-        // Fix Section: "N/A" or missing -> "None" (so it shows in Select if specific option exists, otherwise handle appropriately)
-        // Note: Our select has "None" as an option.
         if (normalizedData.section === "N/A") {
              normalizedData.section = "None";
         }
@@ -85,9 +80,7 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
 
         setIsSaving(true);
         try {
-            const userRef = doc(db, "users", formData.uid);
-            
-            await updateDoc(userRef, {
+            const dataToUpdate = {
                 name: formData.name,
                 bio: formData.bio,
                 yearLevel: formData.yearLevel,
@@ -95,9 +88,10 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
                 theme: formData.theme,
                 showOnlineStatus: formData.showOnlineStatus,
                 photoURL: formData.photoURL,
-                studentId: formData.studentId, // Allow updating student ID if needed, or remove this line
-                updatedAt: Timestamp.now(),
-            });
+                studentId: formData.studentId,
+            };
+
+            await updateUserProfile(formData.uid, dataToUpdate, auth.currentUser?.uid || formData.uid);
 
             toast({ title: "Success", description: "Profile updated successfully!", className: "bg-green-500/10 text-green-400 border-green-500/20" });
             onClose();
@@ -123,7 +117,6 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
-                    {/* AVATAR & BASIC INFO */}
                     <div className="space-y-4">
                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
                             <div className="relative group shrink-0 w-24 h-24 rounded-full overflow-hidden border-2 border-white/20 bg-white/5 mx-auto sm:mx-0">
@@ -192,7 +185,6 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
 
                     <Separator className="bg-white/10" />
 
-                    {/* ACADEMIC INFO */}
                     <div className="space-y-4">
                         <div className="mb-4">
                             <div className="flex items-center gap-2 mb-1">
@@ -240,7 +232,6 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
 
                     <Separator className="bg-white/10" />
 
-                    {/* APPEARANCE */}
                     <div className="space-y-4">
                         
                         <div className="flex items-center justify-between">

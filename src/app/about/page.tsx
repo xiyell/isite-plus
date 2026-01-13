@@ -41,20 +41,23 @@ export default function AboutPage() {
     { name: "Ciel Angelo Mendoza", role: "Backend Developer", imageSrc: "/images/contributors/ciel.jpg" },
     { name: "Carl Andrei Espino", role: "Backend Developer", imageSrc: "" },
     { name: "Joshua Aniban", role: "Frontend Developer", imageSrc: "" },
-    { name: "Levie Jeans Panese", role: "Frontend Developer", imageSrc: "/images/contributors/levie.jpg" },
+    { name: "Levie Jean Panesa", role: "Frontend Developer", imageSrc: "/images/contributors/levie.jpg" },
   ]);
 
   useEffect(() => {
     const fetchContributorProfiles = async () => {
       try {
-        const names = contributors.map(c => c.name);
-        // Use Server Action to fetch images (bypasses client-side auth requirements)
+        // Fetch using lookupName if available, else standard name
+        const names = contributors.map(c => (c as any).lookupName || c.name);
         const fetchedData = await getContributorImages(names);
 
-        setContributors(prev => prev.map(c => ({
-          ...c,
-          imageSrc: fetchedData[c.name] || c.imageSrc 
-        })));
+        setContributors(prev => prev.map(c => {
+          const searchKey = (c as any).lookupName || c.name;
+          return {
+            ...c,
+            imageSrc: fetchedData[searchKey] || c.imageSrc 
+          };
+        }));
       } catch (error) {
         console.error("Failed to fetch contributor profiles:", error);
       }

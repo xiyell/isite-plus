@@ -620,6 +620,7 @@ function EvaluationResponder({ evaluation, userEmail, onSubmit, onCancel }: any)
     const [submitting, setSubmitting] = useState(false);
     const [hasResponded, setHasResponded] = useState(false);
     const [checking, setChecking] = useState(true);
+    const [confirmOpen, setConfirmOpen] = useState(false);
 
     useEffect(() => {
         const check = async () => {
@@ -653,9 +654,15 @@ function EvaluationResponder({ evaluation, userEmail, onSubmit, onCancel }: any)
                 return;
             }
         }
+        // Validation Passed: Ask for Confirmation
+        setConfirmOpen(true);
+    };
+
+    const executeSubmit = async () => {
         setSubmitting(true);
         await onSubmit(answers);
         setSubmitting(false);
+        setConfirmOpen(false);
     };
 
     if (checking) return <LoadingSpinner />;
@@ -751,6 +758,16 @@ function EvaluationResponder({ evaluation, userEmail, onSubmit, onCancel }: any)
                     </Button>
                 </CardFooter>
             </Card>
+
+            <ConfirmDialog
+                isOpen={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={executeSubmit}
+                isLoading={submitting}
+                title="Submit Evaluation?"
+                description="Are you sure you want to submit your responses? You cannot edit them afterwards."
+                confirmText="Yes, Submit"
+            />
         </motion.div>
     );
 }

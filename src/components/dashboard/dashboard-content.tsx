@@ -42,7 +42,7 @@ import {
 import AdminPostModerationPage from "@/components/dashboard/pendingpost";
 import { createAnnouncement, getAnnouncements, deleteAnnouncement } from "@/actions/announcements";
 import OverviewContent from "@/components/dashboard/overview";
-import { addLog } from "@/actions/logs";
+// import { addLog } from "@/actions/logs"; // Removed unused import
 import { moveUserToRecycleBin, updateUserPassword } from "@/actions/userManagement";
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -253,7 +253,9 @@ export default function DashboardContent() {
 		const unsub = onSnapshot(q, (snapshot) => {
 			const data = snapshot.docs.map(doc => ({
 				id: doc.id,
-				...doc.data()
+				...doc.data(),
+				createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate().toISOString() : doc.data().createdAt,
+				updatedAt: doc.data().updatedAt?.toDate ? doc.data().updatedAt.toDate().toISOString() : doc.data().updatedAt,
 			})) as Announcement[];
 			setAnnouncements(data);
 		}, (err) => {
@@ -307,12 +309,6 @@ export default function DashboardContent() {
 				await deleteAnnouncement(confirmState.id, auth.currentUser?.uid);
 				
 				setMessageState({ message: "Announcement moved to trash bin", type: 'success' });
-				await addLog({
-					category: "system",
-					action: "Announcement Deleted",
-					severity: "medium",
-					message: `Announcement "${confirmState.title || 'Unknown'}" was moved to trash by ${auth.currentUser?.email || 'unknown user'}.`
-				});
 			} catch (error) {
 				console.error(error);
 				setMessageState({ message: "Failed to delete announcement", type: 'error' });
