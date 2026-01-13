@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/services/firebase";
-import { useParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { useParams, useRouter } from "next/navigation";
 import {
     doc,
     onSnapshot,
@@ -13,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit2, Loader2, Calendar, GraduationCap, Trophy, MessageSquare, FileText, UserCircle } from "lucide-react";
+import { Edit2, Loader2, Calendar, GraduationCap, Trophy, MessageSquare, FileText, UserCircle, ArrowLeft } from "lucide-react";
 import { EditProfileModal, ProfileData, ThemeColor } from "@/components/profile/EditProfileModal";
 
 // --- Types ---
@@ -41,6 +42,7 @@ const THEME_STYLES: Record<ThemeColor, { gradient: string, text: string, border:
 
 export default function ProfilePage() {
     const params = useParams();
+    const router = useRouter();
     const targetUid = params?.uid as string; // Get UID from URL
 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -170,7 +172,23 @@ export default function ProfilePage() {
             {/* Background Ambience */}
             <div className={`absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b ${theme.gradient} opacity-10 blur-3xl pointer-events-none`} />
 
-            <div className="max-w-5xl mx-auto relative z-10 space-y-8">
+            <div className="max-w-5xl mx-auto relative z-10 space-y-6">
+                
+                {/* Back Button */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <Button 
+                        onClick={() => router.push('/community')}
+                        variant="ghost" 
+                        className="text-gray-400 hover:text-white hover:bg-white/5 group transition-all"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                        Back to Community
+                    </Button>
+                </motion.div>
                 
                 {/* 1. HERO SECTION */}
                 <div className="relative group">

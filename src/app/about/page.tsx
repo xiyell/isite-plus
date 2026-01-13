@@ -37,7 +37,7 @@ import { getContributorImages } from "@/actions/about";
 export default function AboutPage() {
 
   const [contributors, setContributors] = useState([
-    { name: "Gabriel Suarez", role: "Quality Assurance", imageSrc: "/images/contributors/gabriel.jpg" },
+    { name: "Luis Gabriel Suarez", role: "Quality Assurance", imageSrc: "/images/contributors/gabriel.jpg" },
     { name: "Ciel Angelo Mendoza", role: "Backend Developer", imageSrc: "/images/contributors/ciel.jpg" },
     { name: "Carl Andrei Espino", role: "Backend Developer", imageSrc: "" },
     { name: "Joshua Aniban", role: "Frontend Developer", imageSrc: "" },

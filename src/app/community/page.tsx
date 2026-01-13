@@ -57,6 +57,7 @@ import {
   MoreVertical,
   Search,
   Edit,
+  ArrowLeft,
 } from "lucide-react";
 
 // Firebase/Data Imports
@@ -1283,6 +1284,18 @@ export default function CommunityPage() {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.3 }}
                 >
+                  {/* Back Button */}
+                  <div className="mb-4">
+                    <Button 
+                      onClick={() => setOpenPost(null)}
+                      variant="ghost" 
+                      className="text-white/40 hover:text-white hover:bg-white/5 group transition-all p-0 h-auto"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                      Back to Community
+                    </Button>
+                  </div>
+
                   <DialogHeader className="flex flex-row justify-between items-center space-y-0 pb-4 border-b border-white/20 mb-6">
                     <div className="flex items-center gap-3">
                       {openPost.postedBy?.uid ? (
@@ -1544,7 +1557,17 @@ export default function CommunityPage() {
           }}
         >
           <DialogContent className={GLASSY_MODAL_CLASSES}>
-            <DialogHeader className="p-8 pb-0">
+            <div className="px-8 pt-6 pb-0">
+               <Button 
+                onClick={() => setCreateOpen(false)}
+                variant="ghost" 
+                className="text-white/40 hover:text-white hover:bg-white/5 group transition-all p-0 h-auto"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                Back to Community
+              </Button>
+            </div>
+            <DialogHeader className="p-8 pb-0 pt-2">
             <DialogTitle className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/50 tracking-tight">
               {isEditMode ? "Edit Post" : "Create Post"}
             </DialogTitle>

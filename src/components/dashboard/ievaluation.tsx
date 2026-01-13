@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Save, ArrowLeft, CheckCircle, FileText, BarChart2, Send, MoreVertical, Calendar, Users, Search } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, CheckCircle, FileText, BarChart2, Send, MoreVertical, Calendar, Users, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -108,11 +108,15 @@ export default function IEvaluationContent({ publicOnly = false }: { publicOnly?
     const loadEvaluations = async () => {
         setLoading(true);
         try {
-            const filter = isAdmin ? undefined : { status: 'active' };
-            const data = await getEvaluations(filter);
-            // Even admins should not see "deleted" items in the main list
-            const activeItems = data.filter((e: Evaluation) => e.status !== 'deleted');
-            setEvaluations(activeItems);
+            // Get all non-deleted evaluations
+            const data = await getEvaluations();
+            
+            // For non-admins, filter out drafts
+            const visibleItems = isAdmin 
+                ? data 
+                : data.filter((e: Evaluation) => e.status !== 'draft');
+                
+            setEvaluations(visibleItems);
         } catch (error) {
             console.error("Failed to load evaluations", error);
         } finally {
@@ -387,7 +391,7 @@ function EvaluationList({ evaluations, loading, onCreate, onEdit, onDelete, onRe
                             <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
                                 <SelectItem value="all">All Status</SelectItem>
                                 <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="draft">Draft</SelectItem>
+                                {isAdmin && <SelectItem value="draft">Draft</SelectItem>}
                                 <SelectItem value="closed">Closed</SelectItem>
                             </SelectContent>
                         </Select>
@@ -400,8 +404,8 @@ function EvaluationList({ evaluations, loading, onCreate, onEdit, onDelete, onRe
                                 <Table>
                                     <TableHeader className="bg-white/5">
                                         <TableRow className="border-b border-white/5 hover:bg-transparent">
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Status</TableHead>
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Evaluation Details</TableHead>
+                                            {isAdmin && <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Status</TableHead>}
+                                            <TableHead className={isAdmin ? "text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4" : "text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6"}>Evaluation Details</TableHead>
                                             <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Event</TableHead>
                                             <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Date Created</TableHead>
                                             <TableHead className="text-right text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6">Actions</TableHead>
@@ -410,15 +414,19 @@ function EvaluationList({ evaluations, loading, onCreate, onEdit, onDelete, onRe
                                     <TableBody>
                                         {paginatedItems.map((evaluation: Evaluation) => (
                                             <TableRow key={evaluation.id} className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0 h-20">
-                                                <TableCell className="pl-6">
-                                                    <Badge variant={evaluation.status === 'active' ? 'default' : 'secondary'} 
-                                                           className={evaluation.status === 'active' 
-                                                               ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                                                               : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}>
-                                                        {evaluation.status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
+                                                {isAdmin && (
+                                                    <TableCell className="pl-6">
+                                                        <Badge variant={evaluation.status === 'active' ? 'default' : 'secondary'} 
+                                                               className={evaluation.status === 'active' 
+                                                                   ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                                                                   : evaluation.status === 'draft'
+                                                                   ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                                                   : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}>
+                                                            {evaluation.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                )}
+                                                <TableCell className={isAdmin ? "" : "pl-6"}>
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors line-clamp-1">{evaluation.title}</span>
                                                         <span className="text-[11px] text-zinc-500 line-clamp-1">{evaluation.description || 'No description'}</span>
@@ -467,11 +475,15 @@ function EvaluationList({ evaluations, loading, onCreate, onEdit, onDelete, onRe
                                         <div className="flex justify-between items-start">
                                             <div className="space-y-1 min-w-0 flex-1">
                                                 <div className="flex items-center gap-2">
-                                                    <Badge className={evaluation.status === 'active' 
-                                                        ? 'bg-green-500/20 text-green-400 text-[9px] uppercase font-black px-2' 
-                                                        : 'bg-zinc-500/20 text-zinc-400 text-[9px] uppercase font-black px-2'}>
-                                                        {evaluation.status}
-                                                    </Badge>
+                                                    {isAdmin && (
+                                                        <Badge className={evaluation.status === 'active' 
+                                                            ? 'bg-green-500/20 text-green-400 text-[9px] uppercase font-black px-2' 
+                                                            : evaluation.status === 'draft'
+                                                            ? 'bg-amber-500/20 text-amber-400 text-[9px] uppercase font-black px-2'
+                                                            : 'bg-zinc-500/20 text-zinc-400 text-[9px] uppercase font-black px-2'}>
+                                                            {evaluation.status}
+                                                        </Badge>
+                                                    )}
                                                     <span className="text-[10px] text-zinc-500 font-mono">
                                                         {new Date(evaluation.createdAt).toLocaleDateString()}
                                                     </span>
@@ -877,7 +889,20 @@ function EvaluationStats({ evaluation, onBack }: any) {
     const [loading, setLoading] = useState(true);
     const [filterText, setFilterText] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [expandedResponses, setExpandedResponses] = useState<Set<string>>(new Set());
     const ITEMS_PER_PAGE = 5;
+
+    const toggleResponse = (id: string) => {
+        setExpandedResponses(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
 
     useEffect(() => {
         getEvaluationResponses(evaluation.id).then(data => {
@@ -971,101 +996,177 @@ function EvaluationStats({ evaluation, onBack }: any) {
 
                         <div className="p-0">
                             {/* DESKTOP VIEW */}
-                            <div className="hidden lg:block">
-                                <Table>
-                                    <TableHeader className="bg-white/5">
-                                        <TableRow className="border-b border-white/5 hover:bg-transparent">
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Respondent</TableHead>
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Identification</TableHead>
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Date</TableHead>
-                                            {evaluation.questions.map((q: EvaluationQuestion) => (
-                                                <TableHead key={q.id} className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 min-w-[120px]">
-                                                    {q.text}
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredResponses
-                                            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                                            .map((r) => {
-                                                const section = r.section || '';
-                                                const sectionDisplay = ['1', '2', '3', '4'].includes(section) ? `Section ${section}` : (section || '-');
-                                                const fullDisplay = r.yearLevel ? `${r.yearLevel} - ${sectionDisplay}` : sectionDisplay;
+                            <div className="hidden lg:block p-6 space-y-3">
+                                {filteredResponses
+                                    .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                                    .map((r) => {
+                                        const section = r.section || '';
+                                        const sectionDisplay = ['1', '2', '3', '4'].includes(section) ? `Section ${section}` : (section || '-');
+                                        const fullDisplay = r.yearLevel ? `${r.yearLevel} - ${sectionDisplay}` : sectionDisplay;
+                                        const isExpanded = expandedResponses.has(r.id);
+                                        
+                                        // Calculate summary for collapsed state
+                                        const firstQuestion = evaluation.questions[0];
+                                        const firstAnswer = firstQuestion ? r.answers[firstQuestion.id] : null;
+                                        const answerSummary = firstAnswer ? String(firstAnswer).substring(0, 80) + (String(firstAnswer).length > 80 ? '...' : '') : 'No response';
 
-                                                return (
-                                                    <TableRow key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
-                                                        <TableCell className="pl-6 py-4">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-bold text-white">{r.userName || 'Unknown'}</span>
-                                                                <span className="text-[10px] text-zinc-500">{r.userEmail}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[11px] font-mono text-indigo-300">{r.studentId || 'N/A'}</span>
-                                                                <span className="text-[10px] text-zinc-500 uppercase font-black tracking-tighter">{fullDisplay}</span>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell className="text-zinc-400 text-xs">
-                                                            {new Date(r.submittedAt).toLocaleDateString()}
-                                                        </TableCell>
-                                                        {evaluation.questions.map((q: EvaluationQuestion) => (
-                                                            <TableCell key={q.id} className="text-zinc-300 text-xs py-4">
-                                                                <div className="max-w-[200px] line-clamp-2" title={String(r.answers[q.id])}>
-                                                                    {r.answers[q.id]}
+                                        return (
+                                            <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-indigo-500/30 transition-all">
+                                                {/* Collapsed Header - Always Visible */}
+                                                <div 
+                                                    onClick={() => toggleResponse(r.id)}
+                                                    className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-white/5 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        {/* Chevron Icon */}
+                                                        <div className="flex-shrink-0">
+                                                            {isExpanded ? (
+                                                                <ChevronDown className="h-5 w-5 text-indigo-400" />
+                                                            ) : (
+                                                                <ChevronRight className="h-5 w-5 text-zinc-500" />
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {/* User Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20 flex-shrink-0">
+                                                                    <FileText size={18} className="text-indigo-400" />
                                                                 </div>
-                                                            </TableCell>
-                                                        ))}
-                                                    </TableRow>
-                                                );
-                                            })}
-                                    </TableBody>
-                                </Table>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <h4 className="text-sm font-bold text-white truncate">{r.userName || 'Unknown'}</h4>
+                                                                    <p className="text-[10px] text-zinc-500 truncate">{r.userEmail}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Summary - Only when collapsed */}
+                                                        {!isExpanded && (
+                                                            <div className="flex-1 min-w-0 px-4">
+                                                                <p className="text-xs text-zinc-400 italic truncate">{answerSummary}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Metadata */}
+                                                        <div className="flex items-center gap-4 flex-shrink-0">
+                                                            <div className="text-right">
+                                                                <p className="text-[11px] text-indigo-300 font-mono font-bold">{r.studentId || 'N/A'}</p>
+                                                                <p className="text-[10px] text-zinc-500 uppercase font-black tracking-tighter">{fullDisplay}</p>
+                                                            </div>
+                                                            <span className="text-[10px] text-zinc-500 font-mono">
+                                                                {new Date(r.submittedAt).toLocaleDateString()}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Expanded Content */}
+                                                <AnimatePresence>
+                                                    {isExpanded && (
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: 'auto', opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            transition={{ duration: 0.3 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="px-6 pb-4 pt-2 space-y-3 border-t border-white/5">
+                                                                {evaluation.questions.map((q: EvaluationQuestion) => (
+                                                                    <div key={q.id} className="bg-black/20 p-4 rounded-xl border border-white/5">
+                                                                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">{q.text}</span>
+                                                                        <p className="text-sm text-zinc-300 leading-relaxed break-words">{r.answers[q.id] || 'No answer'}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
+                                            </div>
+                                        );
+                                    })}
                             </div>
 
                             {/* MOBILE VIEW */}
                             <div className="lg:hidden p-4 space-y-4">
                                 {filteredResponses
                                     .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                                    .map((r) => (
-                                        <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20">
-                                                        <FileText size={18} className="text-indigo-400" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <h4 className="text-sm font-bold text-white break-words">{r.userName || 'Unknown'}</h4>
-                                                        <p className="text-[10px] text-zinc-500 break-all">{r.userEmail}</p>
-                                                    </div>
-                                                </div>
-                                                <span className="text-[10px] text-zinc-500 font-mono">
-                                                    {new Date(r.submittedAt).toLocaleDateString()}
-                                                </span>
-                                            </div>
+                                    .map((r) => {
+                                        const isExpanded = expandedResponses.has(r.id);
+                                        const firstQuestion = evaluation.questions[0];
+                                        const firstAnswer = firstQuestion ? r.answers[firstQuestion.id] : null;
+                                        const answerSummary = firstAnswer ? String(firstAnswer).substring(0, 60) + (String(firstAnswer).length > 60 ? '...' : '') : 'No response';
 
-                                            <div className="grid grid-cols-2 gap-3 bg-black/20 p-3 rounded-xl border border-white/5 text-[10px]">
-                                                <div className="space-y-1">
-                                                    <span className="text-zinc-500 uppercase font-black tracking-widest block">Student ID</span>
-                                                    <span className="text-indigo-300 font-mono font-bold">{r.studentId || 'N/A'}</span>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <span className="text-zinc-500 uppercase font-black tracking-widest block">Year & Section</span>
-                                                    <span className="text-white font-bold">{r.yearLevel ? `${r.yearLevel}-${r.section}` : (r.section || 'N/A')}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-3 pt-2">
-                                                {evaluation.questions.map((q: EvaluationQuestion) => (
-                                                    <div key={q.id} className="space-y-1">
-                                                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{q.text}</span>
-                                                        <p className="text-xs text-zinc-300 bg-white/5 p-2.5 rounded-lg border border-white/5 leading-relaxed break-words">{r.answers[q.id]}</p>
+                                        return (
+                                            <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-indigo-500/30 transition-all">
+                                                {/* Collapsed Header */}
+                                                <div 
+                                                    onClick={() => toggleResponse(r.id)}
+                                                    className="flex items-start gap-3 p-4 cursor-pointer hover:bg-white/5 transition-colors"
+                                                >
+                                                    <div className="flex-shrink-0 mt-1">
+                                                        {isExpanded ? (
+                                                            <ChevronDown className="h-5 w-5 text-indigo-400" />
+                                                        ) : (
+                                                            <ChevronRight className="h-5 w-5 text-zinc-500" />
+                                                        )}
                                                     </div>
-                                                ))}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20 flex-shrink-0">
+                                                                <FileText size={18} className="text-indigo-400" />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h4 className="text-sm font-bold text-white truncate">{r.userName || 'Unknown'}</h4>
+                                                                <p className="text-[10px] text-zinc-500 truncate">{r.userEmail}</p>
+                                                            </div>
+                                                        </div>
+                                                        {!isExpanded && (
+                                                            <p className="text-xs text-zinc-400 italic line-clamp-2">{answerSummary}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Expanded Content */}
+                                                <AnimatePresence>
+                                                    {isExpanded && (
+                                                        <motion.div
+                                                            initial={{ height: 0, opacity: 0 }}
+                                                            animate={{ height: 'auto', opacity: 1 }}
+                                                            exit={{ height: 0, opacity: 0 }}
+                                                            transition={{ duration: 0.3 }}
+                                                            className="overflow-hidden"
+                                                        >
+                                                            <div className="px-4 pb-4 space-y-4 border-t border-white/5 pt-4">
+                                                                <div className="grid grid-cols-2 gap-3 bg-black/20 p-3 rounded-xl border border-white/5 text-[10px]">
+                                                                    <div className="space-y-1">
+                                                                        <span className="text-zinc-500 uppercase font-black tracking-widest block">Student ID</span>
+                                                                        <span className="text-indigo-300 font-mono font-bold">{r.studentId || 'N/A'}</span>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <span className="text-zinc-500 uppercase font-black tracking-widest block">Year & Section</span>
+                                                                        <span className="text-white font-bold">{r.yearLevel ? `${r.yearLevel}-${r.section}` : (r.section || 'N/A')}</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="space-y-3">
+                                                                    {evaluation.questions.map((q: EvaluationQuestion) => (
+                                                                        <div key={q.id} className="bg-black/20 p-3 rounded-xl border border-white/5">
+                                                                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">{q.text}</span>
+                                                                            <p className="text-xs text-zinc-300 leading-relaxed break-words">{r.answers[q.id]}</p>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+
+                                                                <div className="text-[10px] text-zinc-500 font-mono text-right">
+                                                                    {new Date(r.submittedAt).toLocaleDateString()}
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    )}
+                                                </AnimatePresence>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                             </div>
 
                             {filteredResponses.length === 0 && (

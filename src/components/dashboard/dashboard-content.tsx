@@ -36,7 +36,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
 	Upload, Send, AlertTriangle, Users, Activity, Calendar, Bot,
-	ChevronDown, ChevronUp, Recycle, FileText, Trash2, Edit, KeyRound, Eye, EyeOff
+	ChevronDown, ChevronUp, ChevronRight, Recycle, FileText, Trash2, Edit, KeyRound, Eye, EyeOff
 } from "lucide-react";
 
 import AdminPostModerationPage from "@/components/dashboard/pendingpost";
@@ -101,7 +101,20 @@ export default function DashboardContent() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 	const [announcementPage, setAnnouncementPage] = useState(1);
+	const [expandedAnnouncements, setExpandedAnnouncements] = useState<Set<string>>(new Set());
 	const ITEMS_PER_PAGE = 5;
+
+	const toggleAnnouncement = (id: string) => {
+		setExpandedAnnouncements(prev => {
+			const newSet = new Set(prev);
+			if (newSet.has(id)) {
+				newSet.delete(id);
+			} else {
+				newSet.add(id);
+			}
+			return newSet;
+		});
+	};
 
 	const [users, setUsers] = useState<UserData[]>([]);
 	const [editingUser, setEditingUser] = useState<UserData | null>(null);
@@ -617,7 +630,7 @@ export default function DashboardContent() {
 					<div className="mb-6 pb-2 border-b border-white/10 flex flex-col sm:flex-row sm:justify-between sm:items-center relative gap-4 sm:gap-0">
 						<h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-gray-100">{activeTabName}</h1>
 
-						{/* Mobile Tab Dropdown FIX */}
+						{/* Mobile Tab Dropdown */}
 						<div className="pt-4 block md:hidden mt-4 sm:mt-0">
 							<Button
 								variant="secondary"
@@ -721,34 +734,85 @@ export default function DashboardContent() {
 								</Card>
 								<div className="mt-8">
 									<h2 className="text-xl font-bold mb-4 text-gray-200 flex items-center gap-2"><Activity className="text-indigo-400" /> Recent Announcements</h2>
-									<div className="grid gap-4">
-										{announcements.slice((announcementPage - 1) * ITEMS_PER_PAGE, announcementPage * ITEMS_PER_PAGE).map((ann) => (
-											<Card key={ann.id} className="bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-colors">
-												<CardHeader className="pb-2">
-													<div className="flex justify-between items-start">
-														<div className="min-w-0 flex-1 pr-4">
-															<CardTitle className="text-lg text-white break-words" title={ann.title}>{ann.title}</CardTitle>
-															<CardDescription className="text-gray-400 text-xs mt-1">
-																Posted on {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : 'Unknown Date'}
-															</CardDescription>
+									<div className="space-y-3">
+										{announcements.slice((announcementPage - 1) * ITEMS_PER_PAGE, announcementPage * ITEMS_PER_PAGE).map((ann) => {
+											const isExpanded = expandedAnnouncements.has(ann.id!);
+											const descSummary = ann.description.substring(0, 100) + (ann.description.length > 100 ? '...' : '');
+
+											return (
+												<div key={ann.id} className="bg-black/20 backdrop-blur-lg border border-white/10 rounded-2xl overflow-hidden hover:border-indigo-500/30 transition-all">
+													{/* Collapsed Header */}
+													<div 
+														onClick={() => toggleAnnouncement(ann.id!)}
+														className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-white/5 transition-colors"
+													>
+														<div className="flex items-center gap-4 flex-1 min-w-0">
+															{/* Chevron Icon */}
+															<div className="flex-shrink-0">
+																{isExpanded ? (
+																	<ChevronDown className="h-5 w-5 text-indigo-400" />
+																) : (
+																	<ChevronRight className="h-5 w-5 text-zinc-500" />
+																)}
+															</div>
+															
+															{/* Title & Date */}
+															<div className="flex-1 min-w-0">
+																<div className="flex items-center gap-3">
+																	<FileText size={18} className="text-indigo-400 flex-shrink-0" />
+																	<div className="min-w-0 flex-1">
+																		<h4 className="text-base font-bold text-white truncate" title={ann.title}>{ann.title}</h4>
+																		<p className="text-[10px] text-gray-400">Posted on {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : 'Unknown Date'}</p>
+																	</div>
+																</div>
+															</div>
+
+															{/* Description Summary - Only when collapsed */}
+															{!isExpanded && (
+																<div className="flex-1 min-w-0 px-4">
+																	<p className="text-xs text-gray-400 italic truncate">{descSummary}</p>
+																</div>
+															)}
+
+															{/* Delete Button */}
+															<Button
+																variant="ghost" size="icon" className="text-gray-400 hover:text-red-400 hover:bg-red-900/20 flex-shrink-0"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setConfirmState({ isOpen: true, type: 'announcement', id: ann.id!, title: ann.title });
+																}}
+															>
+																<Trash2 size={18} />
+															</Button>
 														</div>
-														<Button
-															variant="ghost" size="icon" className="text-gray-400 hover:text-red-400 hover:bg-red-900/20"
-															onClick={() => setConfirmState({ isOpen: true, type: 'announcement', id: ann.id!, title: ann.title })}
-														>
-															<Trash2 size={18} />
-														</Button>
 													</div>
-												</CardHeader>
-												<CardContent>
-													<p className="text-gray-400 text-xs mb-2 break-words leading-relaxed">{ann.description}</p>
-													<div className="flex gap-2">
-														{ann.platforms?.websitePost && <Badge variant="secondary" className="bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30">Website</Badge>}
-														{ann.platforms?.facebook && <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">Facebook</Badge>}
-													</div>
-												</CardContent>
-											</Card>
-										))}
+
+													{/* Expanded Content */}
+													<AnimatePresence>
+														{isExpanded && (
+															<motion.div
+																initial={{ height: 0, opacity: 0 }}
+																animate={{ height: 'auto', opacity: 1 }}
+																exit={{ height: 0, opacity: 0 }}
+																transition={{ duration: 0.3 }}
+																className="overflow-hidden"
+															>
+																<div className="px-6 pb-4 pt-2 space-y-3 border-t border-white/5">
+																	<div className="bg-black/20 p-4 rounded-xl border border-white/5">
+																		<span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Description</span>
+																		<p className="text-sm text-gray-400 leading-relaxed break-words">{ann.description}</p>
+																	</div>
+																	<div className="flex gap-2">
+																		{ann.platforms?.websitePost && <Badge variant="secondary" className="bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30">Website</Badge>}
+																		{ann.platforms?.facebook && <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">Facebook</Badge>}
+																	</div>
+																</div>
+															</motion.div>
+														)}
+													</AnimatePresence>
+												</div>
+											);
+										})}
 									</div>
 									<div className="mt-4">
 										<Pagination>

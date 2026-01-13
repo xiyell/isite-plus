@@ -244,19 +244,21 @@ export default function IChat() {
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95, filter: "blur(10px)" }}
-                        animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-                        exit={{ opacity: 0, y: 20, scale: 0.95, filter: "blur(10px)" }}
-                        transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 25 }}
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
                         className="absolute bottom-24 right-0 w-[90vw] sm:w-[380px] md:w-[420px] h-[600px] max-h-[80vh] flex flex-col origin-bottom-right pointer-events-auto"
                     >
-                        <Card className={`flex flex-col h-full rounded-2xl overflow-hidden ${GLASS_PANEL} border-0 ring-1 ring-white/10`}>
+                        {/* Restored Glassy Aesthetic: Slate tint with heavy backdrop-blur */}
+                        <Card className="flex flex-col h-full rounded-2xl overflow-hidden bg-slate-950/90 backdrop-blur-2xl border border-white/10 shadow-2xl">
                             
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-md">
+                            {/* Header - Transparent to allow seamless fading */}
+                            <div className="flex items-center justify-between px-5 py-6 bg-transparent relative z-20">
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-3 rounded-xl ${PRIMARY_GRADIENT}`}>
-                                        <Bot className="h-8 w-8 text-white" />
+                                    <div className={`p-2.5 rounded-xl ${PRIMARY_GRADIENT} relative shadow-xl shadow-indigo-500/30`}>
+                                        <Bot className="h-6 w-6 text-white" />
+                                        <div className="absolute inset-0 bg-white/20 rounded-xl blur-sm animate-pulse" />
                                     </div>
                                     <div>
                                         <h2 className="font-bold text-white text-base tracking-tight">iChat AI</h2>
@@ -279,9 +281,15 @@ export default function IChat() {
                                 </Button>
                             </div>
 
-                            {/* Messages Area */}
+                            {/* Messages Area - Gradient Fade to remove 'sharp' cutting */}
                             <CardContent className="flex-grow p-0 overflow-hidden relative">
-                                <ScrollArea className="h-full px-5 py-6">
+                                <ScrollArea 
+                                    className="h-full px-5 py-2"
+                                    style={{
+                                        maskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)',
+                                        WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)'
+                                    }}
+                                >
                                     <div className="space-y-6 pb-4">
                                         {messages.map((msg, i) => (
                                             <motion.div
@@ -299,35 +307,47 @@ export default function IChat() {
                                                         {isUser(msg.sender) ? "You" : "iBot"}
                                                     </span>
 
-                                                    {/* Bubble */}
-                                                    <div className={`px-4 py-3 text-sm leading-relaxed shadow-sm relative group break-words min-w-[60px]
+                                                    {/* Bubble - Removed border for a more organic feel */}
+                                                    <div className={`px-4 py-2.5 text-sm leading-relaxed relative group break-words min-w-[40px] shadow-2xl
                                                         ${isUser(msg.sender)
-                                                            ? `${PRIMARY_GRADIENT} text-white rounded-2xl rounded-tr-sm` 
-                                                            : "bg-white/10 border border-white/5 text-gray-100 rounded-2xl rounded-tl-sm backdrop-blur-sm shadow-black/20"
+                                                            ? `${PRIMARY_GRADIENT} text-white rounded-[1.25rem] rounded-tr-none shadow-indigo-500/20` 
+                                                            : "bg-white/10 text-zinc-100 rounded-[1.25rem] rounded-tl-none backdrop-blur-md shadow-black/40"
                                                         }
                                                     `}>
                                                         {msg.text}
                                                     </div>
 
-                                                    {/* Attachment */}
+                                                    {/* Attachment - Use shadow instead of border for glass depth */}
                                                     {msg.attachment && (
                                                         <motion.div
-                                                            initial={{ opacity: 0, height: 0 }}
-                                                            animate={{ opacity: 1, height: "auto" }}
-                                                            className="mt-2 w-full max-w-full"
+                                                            initial={{ opacity: 0, scale: 0.95 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            className="mt-3 w-full"
                                                         >
-                                                            <Link href={msg.attachment.url} className="block group/link w-full text-decoration-none" prefetch={false}>
-                                                                <div className="flex items-start gap-3 p-3 rounded-xl bg-indigo-900/50 border border-indigo-500/30 hover:bg-indigo-800/60 hover:border-indigo-400 transition-all cursor-pointer shadow-md">
-                                                                    <div className="h-10 w-10 shrink-0 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300 group-hover/link:text-indigo-200 transition-colors mt-0.5">
-                                                                        {msg.attachment.type === 'announcement' ? <FileText size={20} /> : <LinkIcon size={20} />}
-                                                                    </div>
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest mb-0.5">
-                                                                            {msg.attachment.type}
-                                                                        </p>
-                                                                        <p className="text-sm font-semibold text-white group-hover/link:text-indigo-100 transition-colors break-words leading-snug">
-                                                                            {msg.attachment.title}
-                                                                        </p>
+                                                            <Link href={msg.attachment.url} className="block group w-full no-underline" prefetch={false}>
+                                                                <div className="relative overflow-hidden rounded-2xl bg-white/[0.06] p-4 transition-all duration-300 hover:bg-white/[0.1] shadow-xl shadow-black/20 active:scale-[0.98]">
+                                                                    {/* Subtle Glow Overlay */}
+                                                                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                    
+                                                                    <div className="flex items-center gap-4 relative z-10">
+                                                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+                                                                            {msg.attachment.type === 'announcement' ? <FileText size={20} className="transition-transform group-hover:scale-110" /> : <LinkIcon size={20} className="transition-transform group-hover:scale-110" />}
+                                                                        </div>
+                                                                        
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400/80 group-hover:text-indigo-300 transition-colors">
+                                                                                    {msg.attachment.type}
+                                                                                </span>
+                                                                                <div className="h-1 w-1 rounded-full bg-white/20" />
+                                                                                <span className="text-[10px] font-bold text-white/30 group-hover:text-white/50 transition-colors">
+                                                                                    Click to view
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-sm font-bold text-white leading-tight line-clamp-2 group-hover:text-indigo-50 transition-colors">
+                                                                                {msg.attachment.title}
+                                                                            </p>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </Link>
@@ -361,21 +381,22 @@ export default function IChat() {
                                                 transition={{ delay: 0.5 }}
                                                 className="grid grid-cols-1 gap-2 mt-2 px-1"
                                             >
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1 pl-1">Suggested</p>
-                                                {[
-                                                    "📢 Latest Announcements",
-                                                    "📅 School Events",
-                                                ].map((text, idx) => (
-                                                    <button
-                                                        key={idx}
-                                                        onClick={() => { setUserHasTyped(true); sendMessage(text); }}
-                                                        disabled={isTyping || !botEnabled}
-                                                        className={`text-left text-xs text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-xl px-4 py-3 transition-all active:scale-[0.98] flex items-center justify-between group ${(isTyping || !botEnabled) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    >
-                                                        {text}
-                                                        <Send className="h-3 w-3 opacity-0 group-hover:opacity-50 -translate-x-2 group-hover:translate-x-0 transition-all text-indigo-400" />
-                                                    </button>
-                                                ))}
+                                                <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-black mb-2 pl-2">Quick Actions</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {[
+                                                        "📢 Latest Announcements",
+                                                        "📅 School Events",
+                                                    ].map((text, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => { setUserHasTyped(true); sendMessage(text); }}
+                                                            disabled={isTyping || !botEnabled}
+                                                            className={`text-[11px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-full px-4 py-2 transition-all active:scale-[0.95] ${(isTyping || !botEnabled) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            {text}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </motion.div>
                                         )}
                                         <div ref={messagesEndRef} />
@@ -383,9 +404,9 @@ export default function IChat() {
                                 </ScrollArea>
                             </CardContent>
 
-                            {/* Input Footer */}
-                            <CardFooter className="p-4 bg-transparent border-t border-white/5 backdrop-blur-md">
-                                <div className="flex items-end gap-2 w-full bg-black/40 p-1.5 rounded-3xl border border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+                            {/* Input Footer - Transparent with no sharp lines */}
+                            <CardFooter className="p-4 bg-transparent relative z-20">
+                                <div className="flex items-end gap-2 w-full bg-white/[0.03] p-1.5 rounded-[1.5rem] border border-white/5 focus-within:bg-white/[0.07] focus-within:border-indigo-500/30 transition-all shadow-2xl">
                                     
                                     <Input
                                         className="flex-grow bg-transparent border-0 focus-visible:ring-0 text-white placeholder:text-gray-500 h-9 py-2 px-1"

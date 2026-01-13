@@ -28,7 +28,7 @@ import {
 
 // Third-party imports
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Trash2, Edit, Bot, X, Search } from "lucide-react";
+import { Send, Trash2, Edit, Bot, X, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 // Firebase imports
@@ -105,7 +105,20 @@ export default function IBot() {
     // Pagination State
     const [page, setPage] = useState(1);
     const [searchReplies, setSearchReplies] = useState("");
+    const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
     const ITEMS_PER_PAGE = 5;
+
+    const toggleReply = (id: string) => {
+        setExpandedReplies(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
 
     // Derived filtered and paginated responses
     const filteredResponses = responses.filter(r => 
@@ -376,60 +389,104 @@ export default function IBot() {
                     ) : (
                         <>
                             {/* DESKTOP VIEW */}
-                            <div className="hidden lg:block">
-                                <Table>
-                                    <TableHeader className="bg-white/5">
-                                        <TableRow className="border-b border-white/5 hover:bg-transparent">
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6 w-[25%]">Trigger Keywords</TableHead>
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 w-[45%]">Auto-Reply Content</TableHead>
-                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 w-[15%]">Attachment</TableHead>
-                                            <TableHead className="text-right text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6 w-[15%]">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {paginatedResponses.map((r) => (
-                                            <TableRow key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors group">
-                                                <TableCell className="pl-6 py-5">
-                                                    <span className="text-sm font-bold text-purple-400 break-words">{r.trigger}</span>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <p className="text-xs text-zinc-300 leading-relaxed max-w-md line-clamp-2" title={r.reply}>{r.reply}</p>
-                                                </TableCell>
-                                                <TableCell>
-                                                    {r.linkedAnnouncementId && announcements.some(a => a.id === r.linkedAnnouncementId) ? (
-                                                        <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[9px] uppercase font-black truncate max-w-[120px]">
-                                                            Linked Doc
-                                                        </Badge>
-                                                    ) : (
-                                                        <span className="text-[10px] text-zinc-600 font-bold uppercase italic">None</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right pr-6">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button
-                                                            variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:text-white hover:bg-blue-500/20 rounded-lg"
-                                                            onClick={() => {
-                                                                setEditing(r);
-                                                                setTrigger(r.trigger);
-                                                                setReply(r.reply);
-                                                                setLinkedAnnouncementId(r.linkedAnnouncementId || "none");
-                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                            }}
-                                                        >
-                                                            <Edit size={16} />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg"
-                                                            onClick={() => handleDelete(r.id)}
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </Button>
+                            <div className="hidden lg:block p-6 space-y-3">
+                                {paginatedResponses.map((r) => {
+                                    const isExpanded = expandedReplies.has(r.id);
+                                    const replySummary = r.reply.substring(0, 100) + (r.reply.length > 100 ? '...' : '');
+
+                                    return (
+                                        <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all">
+                                            {/* Collapsed Header */}
+                                            <div 
+                                                onClick={() => toggleReply(r.id)}
+                                                className="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-white/5 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                    {/* Chevron Icon */}
+                                                    <div className="flex-shrink-0">
+                                                        {isExpanded ? (
+                                                            <ChevronDown className="h-5 w-5 text-purple-400" />
+                                                        ) : (
+                                                            <ChevronRight className="h-5 w-5 text-zinc-500" />
+                                                        )}
                                                     </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                                    
+                                                    {/* Trigger Keyword */}
+                                                    <div className="flex-shrink-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <Bot size={18} className="text-purple-400" />
+                                                            <span className="text-sm font-bold text-purple-400 break-words">{r.trigger}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Reply Summary - Only when collapsed */}
+                                                    {!isExpanded && (
+                                                        <div className="flex-1 min-w-0 px-4">
+                                                            <p className="text-xs text-zinc-400 italic truncate">{replySummary}</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Metadata */}
+                                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                                        {r.linkedAnnouncementId && announcements.some(a => a.id === r.linkedAnnouncementId) ? (
+                                                            <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[9px] uppercase font-black">
+                                                                Linked Doc
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-[10px] text-zinc-600 font-bold uppercase italic">No Link</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Expanded Content */}
+                                            <AnimatePresence>
+                                                {isExpanded && (
+                                                    <motion.div
+                                                        initial={{ height: 0, opacity: 0 }}
+                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                        exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.3 }}
+                                                        className="overflow-hidden"
+                                                    >
+                                                        <div className="px-6 pb-4 pt-2 space-y-3 border-t border-white/5">
+                                                            <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                                                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-2">Auto-Reply Content</span>
+                                                                <p className="text-sm text-zinc-300 leading-relaxed break-words">{r.reply}</p>
+                                                            </div>
+                                                            
+                                                            {/* Action Buttons */}
+                                                            <div className="flex justify-end gap-2 pt-2">
+                                                                <Button
+                                                                    variant="ghost" size="sm" className="text-blue-400 hover:text-white hover:bg-blue-500/20 rounded-lg"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditing(r);
+                                                                        setTrigger(r.trigger);
+                                                                        setReply(r.reply);
+                                                                        setLinkedAnnouncementId(r.linkedAnnouncementId || "none");
+                                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                    }}
+                                                                >
+                                                                    <Edit size={16} className="mr-2" /> Edit
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost" size="sm" className="text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDelete(r.id);
+                                                                    }}
+                                                                >
+                                                                    <Trash2 size={16} className="mr-2" /> Delete
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                    );
+                                })}
                             </div>
 
                             {/* MOBILE VIEW */}
