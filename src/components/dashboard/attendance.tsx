@@ -12,6 +12,13 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 
 
@@ -206,23 +213,30 @@ export default function AttendanceTracker() {
                                 Loading events...
                             </div>
                         ) : (
-                            <select
-                                id="event-select"
+                            <Select
                                 value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className={"w-full h-11 rounded-lg border border-slate-700 bg-black/30 px-4 text-base appearance-none text-slate-100 cursor-pointer"}
+                                onValueChange={(value) => setSelectedDate(value)}
                                 disabled={eventList.length === 0}
                             >
-                                {eventList.length === 0 ? (
-                                    <option value="">No events available</option>
-                                ) : (
-                                    eventList.map((sheetTitle) => (
-                                        <option key={sheetTitle} value={sheetTitle}>
-                                            {formatSheetTitle(sheetTitle)}
-                                        </option>
-                                    ))
-                                )}
-                            </select>
+                                <SelectTrigger className="w-full h-11 bg-black/30 border-slate-700 text-slate-100 rounded-lg">
+                                    <SelectValue placeholder="Select Event" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                                    {eventList.length === 0 ? (
+                                        <SelectItem value="none" disabled>No events available</SelectItem>
+                                    ) : (
+                                        eventList.map((sheetTitle) => (
+                                            <SelectItem 
+                                                key={sheetTitle} 
+                                                value={sheetTitle}
+                                                className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0"
+                                            >
+                                                {formatSheetTitle(sheetTitle)}
+                                            </SelectItem>
+                                        ))
+                                    )}
+                                </SelectContent>
+                            </Select>
                         )}
                     </div>
 
@@ -290,10 +304,10 @@ export default function AttendanceTracker() {
                                     <th scope="col" className="px-4 py-3">
                                         ID Number
                                     </th>
-                                    <th scope="col" className="px-4 py-3 hidden sm:table-cell">
+                                    <th scope="col" className="px-4 py-3">
                                         Level
                                     </th>
-                                    <th scope="col" className="px-4 py-3 hidden md:table-cell">
+                                    <th scope="col" className="px-4 py-3">
                                         Section
                                     </th>
                                 </tr>
@@ -320,10 +334,10 @@ export default function AttendanceTracker() {
                                                 <td className="px-4 py-3 whitespace-nowrap text-slate-400"> {/* Secondary color for ID */}
                                                     {record.idNumber}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                                                <td className="px-4 py-3 whitespace-nowrap">
                                                     {record.yearLevel}
                                                 </td>
-                                                <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
+                                                <td className="px-4 py-3 whitespace-nowrap">
                                                     {['1','2','3','4'].includes(record.section) ? `Section ${record.section}` : record.section}
                                                 </td>
                                             </motion.tr>

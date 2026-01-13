@@ -21,9 +21,41 @@ export interface LogEntry {
 
 }
 
+/* ---------------- CLEANUP LOGS (30-Day Retention) ---------------- */
+
+async function cleanupOldLogs() {
+  try {
+    const db = getAdminDb();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Convert to Firestore Timestamp for comparison if needed, or Date object usually works with Admin SDK
+    const threshold = Timestamp.fromDate(thirtyDaysAgo);
+
+    const snapshot = await db.collection("activitylogs")
+      .where("timestamp", "<", threshold)
+      .get();
+
+    if (snapshot.empty) return;
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    console.log(`Cleaned up ${snapshot.size} old logs.`);
+  } catch (error) {
+    console.error("Error cleaning up old logs:", error);
+  }
+}
+
 /* ---------------- GET LOGS ---------------- */
 
 export async function getLogs(): Promise<LogEntry[]> {
+  // Trigger cleanup asynchronously (fire and forget) so it doesn't block the UI load
+  cleanupOldLogs(); 
+
   try {
     const db = getAdminDb();
     const snapshot = await db.collection("activitylogs").orderBy("timestamp", "desc").get();

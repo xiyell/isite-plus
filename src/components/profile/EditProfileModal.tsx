@@ -202,12 +202,12 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
                                     <SelectTrigger className="bg-white/5 border-white/10">
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="1st Year">1st Year</SelectItem>
-                                        <SelectItem value="2nd Year">2nd Year</SelectItem>
-                                        <SelectItem value="3rd Year">3rd Year</SelectItem>
-                                        <SelectItem value="4th Year">4th Year</SelectItem>
-                                        <SelectItem value="Alumni">Alumni</SelectItem>
+                                    <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                                        <SelectItem value="1st Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">1st Year</SelectItem>
+                                        <SelectItem value="2nd Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">2nd Year</SelectItem>
+                                        <SelectItem value="3rd Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">3rd Year</SelectItem>
+                                        <SelectItem value="4th Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">4th Year</SelectItem>
+                                        <SelectItem value="Alumni" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Alumni</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -217,13 +217,13 @@ export function EditProfileModal({ isOpen, onClose, currentData }: EditProfileMo
                                     <SelectTrigger className="bg-white/5 border-white/10">
                                         <SelectValue placeholder="Select" />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="1">Section 1</SelectItem>
-                                        <SelectItem value="2">Section 2</SelectItem>
-                                        <SelectItem value="3">Section 3</SelectItem>
-                                        <SelectItem value="4">Section 4</SelectItem>
-                                        <SelectItem value="None">None</SelectItem>
-                                        <SelectItem value="Irregular">Irregular</SelectItem>
+                                    <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                                        <SelectItem value="1" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Section 1</SelectItem>
+                                        <SelectItem value="2" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Section 2</SelectItem>
+                                        <SelectItem value="3" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Section 3</SelectItem>
+                                        <SelectItem value="4" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Section 4</SelectItem>
+                                        <SelectItem value="None" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">None</SelectItem>
+                                        <SelectItem value="Irregular" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Irregular</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

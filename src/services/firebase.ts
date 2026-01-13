@@ -18,4 +18,6 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+import { getStorage } from "firebase/storage";
+export const storage = getStorage(app);
 export const analyticsPromise = isSupported().then((yes) => (yes ? getAnalytics(app) : null));

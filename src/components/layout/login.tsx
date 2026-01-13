@@ -8,7 +8,7 @@ import { Loader2, MailWarning, Eye, EyeOff } from "lucide-react"; // Import a lo
 
 import { auth } from "@/services/firebase";
 import { User } from "@/types/user";
-import { sendVerificationCode, verifyTwoFactorCode, loginAction } from "@/actions/auth"; // Import actions
+import { sendVerificationCode, verifyTwoFactorCode, loginAction, initiatePasswordReset, completePasswordReset } from "@/actions/auth"; // Import actions
 
 // --- Shadcn UI Components ---
 import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
@@ -38,9 +38,45 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     
     // 2FA State
-    const [step, setStep] = useState<'credentials' | 'verification' | 'unverified'>('credentials');
+    const [step, setStep] = useState<'credentials' | 'verification' | 'unverified' | 'forgot_request' | 'forgot_reset'>('credentials');
     const [verificationCode, setVerificationCode] = useState("");
     const [tempUser, setTempUser] = useState<any>(null); // Store user data temporarily between steps
+    
+    // Forgot Password State
+    const [forgotEmail, setForgotEmail] = useState("");
+    const [forgotCode, setForgotCode] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+
+    /**
+     * Client-side validation for strong password requirements.
+     */
+    const validatePassword = (pass: string): boolean => {
+        const errors = [];
+        if (pass.length < 8) errors.push("at least 8 characters");
+        if (!/[A-Z]/.test(pass)) errors.push("one uppercase letter");
+        if (!/[a-z]/.test(pass)) errors.push("one lowercase letter");
+        if (!/[0-9]/.test(pass)) errors.push("one digit");
+        if (!/[^A-Za-z0-9]/.test(pass)) errors.push("one special character");
+
+        if (errors.length > 0) {
+            setPasswordError(`Password requires: ${errors.join(', ')}.`);
+            return false;
+        }
+
+        setPasswordError(null);
+        return true;
+    };
+
+    // Update password validation feedback whenever the new password changes
+    useEffect(() => {
+        if (newPassword && step === 'forgot_reset') {
+            validatePassword(newPassword);
+        } else {
+            setPasswordError(null);
+        }
+    }, [newPassword, step]);
+
 
     const handleCloseDialog = () => {
         setIsDialogOpen(false);
@@ -241,6 +277,62 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
         }
     };
 
+    const handleForgotRequest = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!forgotEmail.endsWith("@iskolarngbayan.pup.edu.ph")) {
+            return toast({ variant: "destructive", title: "Invalid Email", description: "Use your PUP Webmail." });
+        }
+        setIsSubmitting(true);
+        try {
+            const result = await initiatePasswordReset(forgotEmail);
+            if (!result.success) {
+                toast({ variant: "destructive", title: "Error", description: result.message });
+            } else {
+                toast({ title: "Code Sent", description: "Check your email for the verification code.", className: "bg-green-600 text-white" });
+                setStep('forgot_reset');
+            }
+        } catch (e) {
+            console.error(e);
+            toast({ variant: "destructive", title: "Error", description: "Something went wrong." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleForgotReset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!forgotCode || !newPassword) return toast({ variant: "destructive", title: "Missing Fields", description: "Fill all fields." });
+        
+        // Validate Password Strength
+        if (!validatePassword(newPassword)) {
+            return toast({ variant: "destructive", title: "Weak Password", description: "Please meet the password requirements." });
+        }
+        
+        setIsSubmitting(true);
+        try {
+            const result = await completePasswordReset(forgotEmail, forgotCode, newPassword);
+            if (!result.success) {
+                 toast({ variant: "destructive", title: "Reset Failed", description: result.message });
+            } else {
+                 toast({ title: "Success", description: "Password reset! Please log in.", className: "bg-green-600 text-white" });
+                 setStep('credentials');
+                 setEmail(forgotEmail); // Pre-fill login
+                 setForgotPasswordFields(); // Reset fields
+            }
+        } catch (e) {
+             console.error(e);
+             toast({ variant: "destructive", title: "Error", description: "Failed to reset password." });
+        } finally {
+             setIsSubmitting(false);
+        }
+    };
+
+    const setForgotPasswordFields = () => {
+        setForgotEmail("");
+        setForgotCode("");
+        setNewPassword("");
+    }
+
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             {/* DIALOG TRIGGER (The button on the Navbar) */}
@@ -338,11 +430,14 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                                         </Button>
                                     </div>
                                     
-                                     {/* Forgot Password */}
                                     <div className="text-center text-xs pt-1 pb-4">
-                                        <a href="#" className="text-fuchsia-300 hover:text-fuchsia-100 transition-colors">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setStep('forgot_request')} 
+                                            className="text-fuchsia-300 hover:text-fuchsia-100 transition-colors underline-offset-4 hover:underline"
+                                        >
                                             Forgot Password?
-                                        </a>
+                                        </button>
                                     </div>
                                 </form>
                             )}
@@ -433,6 +528,121 @@ export default function LoginModal({ onLogin }: LoginModalProps) {
                                             ) : (
                                                 "Verify Code"
                                             )}
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {step === 'forgot_request' && (
+                                <form onSubmit={handleForgotRequest} className="space-y-6 pt-2">
+                                    <div className="text-center space-y-2">
+                                        <h3 className="text-lg font-semibold text-white">Reset Password</h3>
+                                        <p className="text-xs text-fuchsia-200 px-4">
+                                            Enter your email to receive a verification code.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-semibold text-fuchsia-200">Email Address</Label>
+                                        <Input
+                                            type="email"
+                                            placeholder="isitemember@iskolarngbayan.pup.edu.ph"
+                                            value={forgotEmail}
+                                            onChange={(e) => setForgotEmail(e.target.value)}
+                                            className="bg-fuchsia-900/40 border border-fuchsia-700/50 text-white placeholder-fuchsia-400/60"
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-3 pt-2">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="text-fuchsia-300 hover:text-white"
+                                            onClick={() => setStep('credentials')}
+                                            disabled={isSubmitting}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            className="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 text-white"
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Send Code"}
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {step === 'forgot_reset' && (
+                                <form onSubmit={handleForgotReset} className="space-y-6 pt-2">
+                                    <div className="text-center space-y-2">
+                                        <h3 className="text-lg font-semibold text-white">Create New Password</h3>
+                                        <p className="text-xs text-fuchsia-200">
+                                            Code sent to <span className="font-mono text-fuchsia-100">{forgotEmail}</span>
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-semibold text-fuchsia-200">Verification Code</Label>
+                                            <Input
+                                                placeholder="123456"
+                                                value={forgotCode}
+                                                onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                                className="bg-fuchsia-900/40 border border-fuchsia-700/50 text-white placeholder-fuchsia-400/60 text-center tracking-widest text-lg"
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-semibold text-fuchsia-200">New Password</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    type={showPassword ? "text" : "password"}
+                                                    placeholder="New Password"
+                                                    value={newPassword}
+                                                    onChange={(e) => setNewPassword(e.target.value)}
+                                                    className="bg-fuchsia-900/40 border border-fuchsia-700/50 text-white placeholder-fuchsia-400/60 pr-10"
+                                                    required
+                                                    disabled={isSubmitting}
+                                                />
+                                                 <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-fuchsia-400 hover:text-fuchsia-200 transition-colors"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
+                                            {/* Password complexity feedback */}
+                                            {passwordError && (
+                                                <p className={`text-xs ${passwordError.includes('requires') ? 'text-yellow-400' : 'text-red-400'}`}>
+                                                    🚨 {passwordError}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 pt-4">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="text-fuchsia-300 hover:text-white"
+                                            onClick={() => setStep('forgot_request')}
+                                            disabled={isSubmitting}
+                                        >
+                                            Back
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            className="flex-1 bg-fuchsia-700 hover:bg-fuchsia-600 text-white"
+                                            disabled={isSubmitting}
+                                        >
+                                            {isSubmitting ? <Loader2 className="animate-spin mr-2" /> : "Reset Password"}
                                         </Button>
                                     </div>
                                 </form>

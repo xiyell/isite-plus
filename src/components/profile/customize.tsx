@@ -199,11 +199,11 @@ function CustomizeProfile() {
                             <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
                                 <SelectValue placeholder="Select Year Level" />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                                <SelectItem value="1st Year">1st Year</SelectItem>
-                                <SelectItem value="2nd Year">2nd Year</SelectItem>
-                                <SelectItem value="3rd Year">3rd Year</SelectItem>
-                                <SelectItem value="4th Year">4th Year</SelectItem>
+                            <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                                <SelectItem value="1st Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">1st Year</SelectItem>
+                                <SelectItem value="2nd Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">2nd Year</SelectItem>
+                                <SelectItem value="3rd Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">3rd Year</SelectItem>
+                                <SelectItem value="4th Year" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">4th Year</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

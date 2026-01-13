@@ -63,23 +63,25 @@ const AnnouncementSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => {
     return (
         <>
             {Array.from({ length: count }).map((_, i) => (
-                <Card key={i} className={`flex flex-col h-500 ${GLASSY_CARD_CLASSES}`}>
-                    <div className="w-full">
-                        <AspectRatio ratio={16 / 9}>
-                            <Skeleton className="h-full w-full rounded-t-xl bg-fuchsia-900/50" />
-                        </AspectRatio>
-                    </div>
-                    <CardHeader className="p-3 sm:p-6">
-                        <Skeleton className="h-4 w-3/4 mb-2 bg-fuchsia-800/50" />
-                    </CardHeader>
-                    <CardContent className="flex-grow p-3 pt-0 sm:p-6 sm:pt-0">
-                        <Skeleton className="h-12 w-full mb-4 bg-fuchsia-800/50" />
-                        <Skeleton className="h-4 w-1/2 bg-fuchsia-800/50" />
-                    </CardContent>
-                    <CardFooter className="p-3 sm:p-6 pt-0">
-                        <Skeleton className="h-10 w-full bg-fuchsia-700/50" />
-                    </CardFooter>
-                </Card>
+                <div key={i} className="w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.333%-1.667rem)]">
+                    <Card className={`flex flex-col h-full ${GLASSY_CARD_CLASSES}`}>
+                        <div className="w-full">
+                            <AspectRatio ratio={16 / 9}>
+                                <Skeleton className="h-full w-full rounded-t-xl bg-fuchsia-900/50" />
+                            </AspectRatio>
+                        </div>
+                        <CardHeader className="p-3 sm:p-6">
+                            <Skeleton className="h-4 w-3/4 mb-2 bg-fuchsia-800/50" />
+                        </CardHeader>
+                        <CardContent className="flex-grow p-3 pt-0 sm:p-6 sm:pt-0">
+                            <Skeleton className="h-12 w-full mb-4 bg-fuchsia-800/50" />
+                            <Skeleton className="h-4 w-1/2 bg-fuchsia-800/50" />
+                        </CardContent>
+                        <CardFooter className="p-3 sm:p-6 pt-0">
+                            <Skeleton className="h-10 w-full bg-fuchsia-700/50" />
+                        </CardFooter>
+                    </Card>
+                </div>
             ))}
         </>
     );
@@ -90,10 +92,16 @@ const AnnouncementCard: React.FC<{
     onSelect: (a: Announcement) => void;
     fallbackImage: string;
 }> = React.memo(({ item, onSelect, fallbackImage }) => {
-    const imageSource = sanitizeImageSource(item.image, fallbackImage);
+    const [imgSrc, setImgSrc] = useState(sanitizeImageSource(item.image, fallbackImage));
 
     return (
-        <motion.div variants={cardVariants} initial="hidden" animate="visible" whileHover={{ y: -6, scale: 1.01 }} className="h-full">
+        <motion.div 
+            variants={cardVariants} 
+            initial="hidden" 
+            animate="visible" 
+            whileHover={{ y: -6, scale: 1.01 }} 
+            className="h-full w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.333%-1.667rem)]"
+        >
    <Card
                 onClick={() => onSelect(item)}
                 // Removed h-full to allow the content constraints to determine size
@@ -108,12 +116,13 @@ const AnnouncementCard: React.FC<{
                 <div className="relative w-full">
                     <AspectRatio ratio={16 / 9}>
                         <Image
-                            src={imageSource}
+                            src={imgSrc}
                             alt={item.title ?? "announcement image"}
                             fill
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 350px"
                             className="rounded-t-xl object-cover"
                             loading="lazy"
+                            onError={() => setImgSrc(fallbackImage)}
                         />
                     </AspectRatio>
                 </div>
@@ -157,7 +166,7 @@ const FeaturedAnnouncement: React.FC<{
     onSelect: (a: Announcement) => void;
     fallbackImage: string;
 }> = ({ item, onSelect, fallbackImage }) => {
-    const imageSource = sanitizeImageSource(item.image, fallbackImage);
+    const [imgSrc, setImgSrc] = useState(sanitizeImageSource(item.image, fallbackImage));
 
     return (
         <motion.section
@@ -167,26 +176,32 @@ const FeaturedAnnouncement: React.FC<{
             className="relative w-full max-w-6xl mx-auto overflow-hidden transition-shadow cursor-pointer"
             onClick={() => onSelect(item)}
         >
-<div 
-                className="relative w-full rounded-xl overflow-hidden shadow-2xl shadow-fuchsia-500/50 border border-fuchsia-500/40 
-                           bg-cover bg-center transition-transform duration-500" // Added bg-cover/bg-center
-                style={{ backgroundImage: `url(${imageSource})` }} // Using background image for better overlay handling
-                >
-                {/* Fixed Height to simulate AspectRatio (h-64 sm:h-96 is a good starting point) */}
-                <div className="w-full h-64 sm:h-96" aria-hidden="true" /> 
+            <div 
+                className="relative w-full rounded-xl overflow-hidden shadow-2xl shadow-fuchsia-500/50 border border-fuchsia-500/40"
+            >
+                {/* Fixed Height */}
+                <div className="w-full h-56 sm:h-96 relative">
+                     <Image
+                        src={imgSrc}
+                        alt={item.title || "Featured Announcement"}
+                        fill
+                        className="object-cover transition-transform duration-500 hover:scale-105"
+                        priority
+                        onError={() => setImgSrc(fallbackImage)}
+                     />
+                     {/* Gradient Overlay */}
+                     <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/48 to-transparent" />
+                     {/* Brightness/Color Overlay */}
+                     <div className="absolute inset-0 bg-black/40" /> 
+                </div>
 
-                {/* Gradient Overlay: Now ensures full coverage of the div */}
-                <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-background/48 to-transparent" />
-                
-                {/* Brightness/Color Overlay: Add a layer to dim the image */}
-                <div className="absolute inset-0 bg-black/40" /> 
                 
                 {/* Content Layer (z-index is implicitly handled as it's the last child) */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 z-10"> 
-                    <span className="inline-block px-3 py-1 text-xs font-medium text-white bg-fuchsia-600 rounded-full mb-3 shadow-md">⭐ Featured</span>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-3 drop-shadow-lg">{item.title}</h2>
-                    <p className="text-sm md:text-lg text-fuchsia-100/90 max-w-2xl line-clamp-2">{item.description}</p>
-                    <Button className="mt-4 sm:mt-6 bg-fuchsia-600 hover:bg-fuchsia-700">Read More →</Button>
+                    <span className="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-medium text-white bg-fuchsia-600 rounded-full mb-2 sm:mb-3 shadow-md">⭐ Featured</span>
+                    <h2 className="text-xl sm:text-4xl md:text-5xl font-extrabold text-white mb-2 sm:mb-3 drop-shadow-lg line-clamp-2">{item.title}</h2>
+                    <p className="text-xs sm:text-sm md:text-lg text-fuchsia-100/90 max-w-2xl line-clamp-2 hidden sm:block">{item.description}</p>
+                    <Button size="sm" className="mt-2 sm:mt-6 bg-fuchsia-600 hover:bg-fuchsia-700 h-8 sm:h-10 text-xs sm:text-sm">Read More →</Button>
                 </div>
             </div>
         </motion.section>
@@ -328,7 +343,7 @@ function AnnouncementContent() {
 
             <motion.div
                 animate="visible"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 pb-10 sm:pb-20 max-w-6xl mx-auto w-full"
+                className="flex flex-wrap justify-center gap-6 sm:gap-10 pb-10 sm:pb-20 max-w-6xl mx-auto w-full"
                 initial="hidden"
                 variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
             >

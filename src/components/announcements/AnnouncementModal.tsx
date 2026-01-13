@@ -29,10 +29,10 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
   return (
     <Dialog open={!!selected} onOpenChange={(open) => !open && onClose()}>
       {/* [&>button]:hidden hides the default shadcn close button so we only have our custom premium one */}
-      <DialogContent className="max-w-3xl p-0 overflow-hidden bg-zinc-950/95 backdrop-blur-3xl border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] rounded-[2rem] [&>button]:hidden max-h-[90vh]">
-        <ScrollArea className="h-[90vh] w-full">
+      <DialogContent className="w-full max-w-[90vw] sm:max-w-3xl p-0 overflow-hidden bg-zinc-950/95 backdrop-blur-3xl border-white/10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] rounded-xl sm:rounded-[2rem] [&>button]:hidden max-h-[75vh] sm:h-auto sm:max-h-[90vh] flex flex-col">
+        <div className="overflow-y-auto flex-1 w-full overscroll-y-contain">
           <div className="relative group shrink-0">
-            <AspectRatio ratio={21 / 9} className="overflow-hidden">
+            <AspectRatio ratio={16 / 9} className="overflow-hidden">
               <Image
                 src={imgSrc}
                 alt={selected.title}
@@ -54,7 +54,7 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
             </button>
           </div>
 
-          <div className="p-10 sm:p-14 sm:pt-10 pb-24 space-y-8">
+          <div className="p-6 sm:p-14 sm:pt-10 pb-20 space-y-6 sm:space-y-8">
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-400 text-xs font-medium">
                 <CalendarIcon size={14} />
@@ -68,12 +68,12 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
               )}
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-6 tracking-tight leading-tight bg-gradient-to-br from-white to-white/60 bg-clip-text">
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-white mb-4 sm:mb-6 tracking-tight leading-tight bg-gradient-to-br from-white to-white/60 bg-clip-text break-words">
               {selected.title}
             </h2>
 
             <div className="space-y-4 text-zinc-300 leading-relaxed text-lg font-normal">
-              <p className="whitespace-pre-line">
+              <p className="whitespace-pre-line text-base sm:text-lg break-words">
                 {selected.description}
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function AnnouncementModal({ selected, onClose, fallbackImage }: 
                 </button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -160,22 +160,22 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                         <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
                             <SelectValue placeholder="Filter by Role" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700 text-white z-[200]">
-                            <SelectItem value="all">All Roles</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="moderator">Moderator</SelectItem>
-                            <SelectItem value="user">User</SelectItem>
+                        <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                            <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Roles</SelectItem>
+                            <SelectItem value="admin" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Admin</SelectItem>
+                            <SelectItem value="moderator" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Moderator</SelectItem>
+                            <SelectItem value="user" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">User</SelectItem>
                         </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
                         <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
                             <SelectValue placeholder="Filter by Status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700 text-white z-[200]">
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="restricted">Restricted</SelectItem>
-                            <SelectItem value="suspended">Suspended</SelectItem>
+                        <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                            <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Statuses</SelectItem>
+                            <SelectItem value="active" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Active</SelectItem>
+                            <SelectItem value="restricted" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Restricted</SelectItem>
+                            <SelectItem value="suspended" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Suspended</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

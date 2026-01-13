@@ -116,14 +116,48 @@ export default function IBot() {
 
         const loadAnnouncements = async () => {
             try {
-                const data = await getAnnouncements();
+                // Fetch directly from client SDK to avoid server-side index issues or strict filtering
+                // tailored for the admin view which might need to see all valid announcements
+                const { getDocs, query, orderBy, limit } = await import("firebase/firestore");
+                const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
+                
+                const snap = await getDocs(q);
+                const data = snap.docs.map(doc => ({
+                    id: doc.id,
+                    title: doc.data().title || "Untitled Announcement",
+                    // We can include other fields if needed
+                }));
                 setAnnouncements(data);
             } catch (e) {
                 console.error("Failed to load announcements", e);
+                // Fallback: try fetching without sort if index is missing
+                try {
+                     const { getDocs } = await import("firebase/firestore");
+                     const snap = await getDocs(collection(db, "announcements"));
+                     const data = snap.docs.map(doc => ({
+                        id: doc.id,
+                        title: doc.data().title || "Untitled Announcement",
+                    }));
+                    setAnnouncements(data);
+                } catch (e2) {
+                    console.error("Fallback fetch failed", e2);
+                }
             }
         };
 
-        const loadSettings = async () => { /* Logic would go here if we were fetching settings separately */ };
+        const loadSettings = async () => { 
+            try {
+                // Dynamically import to ensure client-side execution if needed, though we are in useEffect
+                const { getDoc, doc } = await import("firebase/firestore");
+                const ref = doc(db, "settings", "ibot_settings");
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    setBotEnabled(snap.data().enabled ?? true);
+                }
+            } catch (e) {
+                console.error("Failed to load settings", e);
+            }
+        };
 
         loadAnnouncements();
         loadSettings();
@@ -198,7 +232,7 @@ export default function IBot() {
             });
         } catch (error) {
             console.error("Error toggling bot status:", error);
-            toast({ title: "Error", description: "Together failed", variant: "destructive" });
+            toast({ title: "Error", description: "Toggle failed", variant: "destructive" });
         }
     };
 
@@ -256,11 +290,13 @@ export default function IBot() {
                         <SelectTrigger className="w-full bg-white/5 border-purple-500/50 text-white">
                             <SelectValue placeholder="Select an announcement to link..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-slate-900 border-slate-700 text-white">
-                            <SelectItem value="none">-- No Attachment --</SelectItem>
+                        <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-h-[300px] overflow-y-auto">
+                            <SelectItem value="none" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 font-medium text-amber-500">
+                                -- No Attachment --
+                            </SelectItem>
                             {announcements.map((ann) => (
-                                <SelectItem key={ann.id} value={ann.id}>
-                                    {ann.title}
+                                <SelectItem key={ann.id} value={ann.id} className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">
+                                    <span className="truncate block max-w-[300px] md:max-w-md">{ann.title}</span>
                                 </SelectItem>
                             ))}
                         </SelectContent>

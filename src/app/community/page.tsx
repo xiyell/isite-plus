@@ -68,7 +68,7 @@ import { User } from "@/types/user";
 
 // --- Configuration Constants ---
 const categories = ["All", "Tech", "Gaming", "Art", "Science", "Fun", "Other"];
-const ADMIN_UIDS: string[] = []; // Replace with actual admin UIDs
+const ADMIN_UIDS: string[] = []; 
 const postsPerPage = 8;
 const commentsPerPage = 5;
 
@@ -157,7 +157,7 @@ export default function CommunityPage() {
     "text-white/80 hover:bg-white/10 hover:text-white rounded-full";
   // Updated Inputs to be cleaner
   const GLASSY_INPUT_CLASSES =
-    "flex-1 rounded-full px-4 py-2 border-white/20 bg-white/5 text-white placeholder:text-gray-500 focus-visible:ring-fuchsia-500 focus-visible:border-fuchsia-500 transition-all";
+    "flex-1 rounded-full px-4 py-2 border-white/20 bg-white/5 text-white placeholder:text-white/50 focus-visible:ring-fuchsia-500 focus-visible:border-fuchsia-500 transition-all";
   const GLASSY_TEXTAREA_CLASSES =
     "w-full min-h-[120px] rounded-xl p-4 bg-white/5 border border-white/20 text-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:border-transparent transition-all";
   const GLASSY_COMMENT_BG = "bg-white/5 border border-white/10";
@@ -407,6 +407,22 @@ export default function CommunityPage() {
   const handleAddComment = async (postId: string) => {
     if (!newComment.trim() || !currentUser) return;
 
+    // --- COOLDOWN CHECK ---
+    const lastCommentTime = localStorage.getItem(`lastCommentTime_${currentUser.uid}`);
+    if (lastCommentTime) {
+      const timeSince = Date.now() - parseInt(lastCommentTime);
+      const COOLDOWN = 60000; // 60 seconds
+      if (timeSince < COOLDOWN) {
+        const remaining = Math.ceil((COOLDOWN - timeSince) / 1000);
+        toast({
+          title: "Slow Down",
+          description: `Please wait ${remaining}s before commenting again.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const text = newComment.trim();
     const tempComment: Comment = {
       id: `temp-${Date.now()}`,
@@ -437,6 +453,9 @@ export default function CommunityPage() {
       };
 
       await addCommunityComment(payload);
+      
+      // --- SET COOLDOWN ---
+      localStorage.setItem(`lastCommentTime_${currentUser.uid}`, Date.now().toString());
 
       // Refresh posts to get actual comment ID/timestamp and update all views
       const updatedPosts = await fetchPosts();
@@ -462,7 +481,6 @@ export default function CommunityPage() {
   // 3. Handle Create Post
   const handleCreatePost = async () => {
     if (!currentUser) {
-      // REPLACEMENT 6/10
       toast({
         title: "Login Required",
         description: "You must be logged in to create a post.",
@@ -470,8 +488,24 @@ export default function CommunityPage() {
       });
       return;
     }
+
+    // --- COOLDOWN CHECK ---
+    const lastPostTime = localStorage.getItem(`lastPostTime_${currentUser.uid}`);
+    if (lastPostTime) {
+      const timeSince = Date.now() - parseInt(lastPostTime);
+      const COOLDOWN = 60000; // 60 seconds
+      if (timeSince < COOLDOWN) {
+        const remaining = Math.ceil((COOLDOWN - timeSince) / 1000);
+        toast({
+          title: "Slow Down",
+          description: `Please wait ${remaining}s before posting again.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     if (!newTitle.trim() || !newDescription.trim()) {
-      // REPLACEMENT 7/10
       toast({
         title: "Missing Fields",
         description: "Please enter a title and description.",
@@ -482,16 +516,16 @@ export default function CommunityPage() {
 
     setCreating(true);
 
-    const payload: NewPostData = {
-      title: newTitle.trim(),
-      description: newDescription.trim(),
-      category: newCategory,
-      image: "", // Image uploads disabled
-      postedBy: currentUser.uid,
-      status: "pending",
-    };
-
     try {
+        const payload: NewPostData = {
+          title: newTitle.trim(),
+          description: newDescription.trim(),
+          category: newCategory,
+          image: "", 
+          postedBy: currentUser.uid,
+          status: "pending",
+        };
+
       const result = await createCommunityPost(payload);
 
       if (result && (result as any).success === false) {
@@ -500,17 +534,17 @@ export default function CommunityPage() {
           description: (result as any).message,
           variant: "destructive",
         });
-        setCreateOpen(false);
-        setNewTitle("");
-        setNewDescription("");
-        return;
+        // Don't close modal if flagged/failed so they can edit
+        return; 
       }
+      
+      // --- SET COOLDOWN ---
+      localStorage.setItem(`lastPostTime_${currentUser.uid}`, Date.now().toString());
 
       setCreateOpen(false);
       setNewTitle("");
       setNewDescription("");
       setNewCategory(categories[1] || "Tech");
-      // Image reset removed
 
       await fetchPosts();
 
@@ -522,7 +556,6 @@ export default function CommunityPage() {
 
     } catch (err) {
       console.error("Error creating post:", err);
-      // REPLACEMENT 9/10
       toast({
         title: "Creation Failed",
         description: "Failed to create post — please try again.",
@@ -796,30 +829,32 @@ export default function CommunityPage() {
         {isLoading || loadingPagePosts ? (
           <motion.div
             animate={{ opacity: 1 }}
-            className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 items-start"
+            className="w-full max-w-7xl flex flex-wrap justify-center gap-10 items-start container mx-auto"
             initial={{ opacity: 0 }}
           >
             {/* Render 10 skeletons */}
             {Array.from({ length: 10 }).map((_, i) => (
-              <SkeletonCard keyIndex={i} key={i} />
+              <div key={i} className="w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.333%-1.667rem)] xl:w-[calc(25%-1.875rem)]">
+                <SkeletonCard keyIndex={i} />
+              </div>
             ))}
           </motion.div>
         ) : (
           <>
             <motion.section
               layout
-              className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 items-stretch"
+              className="w-full max-w-7xl flex flex-wrap justify-center gap-10 items-stretch container mx-auto"
             >
               <AnimatePresence>
                 {paginatedPosts.length === 0 ? (
-                  <div className="col-span-full text-center text-xl text-white/70 py-16">
+                  <div className="col-span-full text-center text-xl text-white/70 py-16 w-full">
                     No posts found in this category or sorting view.
                   </div>
                 ) : (
                   paginatedPosts.map((c) => (
                     <motion.div
                       key={c.id}
-                      className={`cursor-pointer ${GLASSY_CARD_CLASSES}`}
+                      className={`cursor-pointer ${GLASSY_CARD_CLASSES} w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.333%-1.667rem)] xl:w-[calc(25%-1.875rem)]`}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
                       whileHover={{ y: -8, scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -1274,7 +1309,7 @@ export default function CommunityPage() {
                         disabled={!currentUser}
                       />
                       <Button
-                        className="rounded-full bg-primary hover:bg-primary/90 text-white font-semibold"
+                        className="rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-semibold shadow-lg shadow-fuchsia-900/20 disabled:opacity-50 disabled:shadow-none border-0"
                         onClick={() => handleAddComment(openPost.id)}
                         disabled={!currentUser || !newComment.trim()}
                       >
@@ -1346,7 +1381,6 @@ export default function CommunityPage() {
                       </option>
                     ))}
                 </select>
-                {/* Image input removed as requested */}
               </div>
 
               <div className="flex justify-end gap-3 mt-4">

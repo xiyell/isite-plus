@@ -141,8 +141,8 @@ const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => 
                     </Button>
                 </div>
             )}
-            <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
-                <Table className="border-collapse w-full table-fixed">
+            <div className="border border-white/20 rounded-lg bg-black/20 overflow-x-auto">
+                <Table className="border-collapse w-full min-w-[500px] table-fixed">
                     <TableHeader className="bg-white/10">
                         <TableRow className="border-b border-white/20">
                             <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Type</TableHead>
@@ -338,14 +338,16 @@ export default function TrashBinDashboard() {
 
             <Card className="bg-black/10 backdrop-blur-xl border border-white/10 shadow-2xl">
                 <Tabs defaultValue="posts">
-                    <CardHeader className="p-4 md:p-6 pb-0 overflow-x-auto">
-                        <TabsList className="bg-white/10 backdrop-blur-sm border border-white/20 w-full justify-start md:justify-center">
-                            <TabsTrigger value="posts" className="data-[state=active]:bg-indigo-600/30 data-[state=active]:text-white whitespace-nowrap">Posts ({posts.length})</TabsTrigger>
-                            <TabsTrigger value="announcements" className="data-[state=active]:bg-green-600/30 data-[state=active]:text-white whitespace-nowrap">Announcements ({announcements.length})</TabsTrigger>
-                            <TabsTrigger value="users" className="data-[state=active]:bg-red-600/30 data-[state=active]:text-white whitespace-nowrap">Users ({users.length})</TabsTrigger>
-                            <TabsTrigger value="evaluations" className="data-[state=active]:bg-purple-600/30 data-[state=active]:text-white whitespace-nowrap">Evaluations ({evaluations.length})</TabsTrigger>
-                            <TabsTrigger value="ibot" className="data-[state=active]:bg-blue-600/30 data-[state=active]:text-white whitespace-nowrap">iBot ({ibotItems.length})</TabsTrigger>
-                        </TabsList>
+                    <CardHeader className="p-4 pb-0">
+                        <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
+                            <TabsList className="bg-transparent border-0 w-max flex gap-2 h-auto p-0">
+                                <TabsTrigger value="posts" className="bg-indigo-900/20 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-indigo-200 border border-indigo-500/30 px-4 py-2 rounded-full whitespace-nowrap">Posts ({posts.length})</TabsTrigger>
+                                <TabsTrigger value="announcements" className="bg-green-900/20 data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-200 border border-green-500/30 px-4 py-2 rounded-full whitespace-nowrap">Announcements ({announcements.length})</TabsTrigger>
+                                <TabsTrigger value="users" className="bg-red-900/20 data-[state=active]:bg-red-600 data-[state=active]:text-white text-red-200 border border-red-500/30 px-4 py-2 rounded-full whitespace-nowrap">Users ({users.length})</TabsTrigger>
+                                <TabsTrigger value="evaluations" className="bg-purple-900/20 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-purple-200 border border-purple-500/30 px-4 py-2 rounded-full whitespace-nowrap">Evaluations ({evaluations.length})</TabsTrigger>
+                                <TabsTrigger value="ibot" className="bg-blue-900/20 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-200 border border-blue-500/30 px-4 py-2 rounded-full whitespace-nowrap">iBot ({ibotItems.length})</TabsTrigger>
+                            </TabsList>
+                        </div>
                     </CardHeader>
                     <CardContent className="pt-6">
                         {loading ? (

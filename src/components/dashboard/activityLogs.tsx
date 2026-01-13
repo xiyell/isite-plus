@@ -230,11 +230,11 @@ export default function ActivityLogsContent() {
               <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="posts">Posts</SelectItem>
-                <SelectItem value="users">Users</SelectItem>
-                <SelectItem value="system">System</SelectItem>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Categories</SelectItem>
+                <SelectItem value="posts" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Posts</SelectItem>
+                <SelectItem value="users" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Users</SelectItem>
+                <SelectItem value="system" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">System</SelectItem>
               </SelectContent>
             </Select>
 
@@ -242,11 +242,11 @@ export default function ActivityLogsContent() {
               <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
                 <SelectValue placeholder="Severity" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                <SelectItem value="all">All Severities</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Severities</SelectItem>
+                <SelectItem value="low" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Low</SelectItem>
+                <SelectItem value="medium" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Medium</SelectItem>
+                <SelectItem value="high" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">High</SelectItem>
               </SelectContent>
             </Select>
 
@@ -254,11 +254,11 @@ export default function ActivityLogsContent() {
               <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
                 <SelectValue placeholder="Time Range" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700 text-white">
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="24h">Last 24 Hours</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Time</SelectItem>
+                <SelectItem value="24h" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Last 24 Hours</SelectItem>
+                <SelectItem value="7d" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Last 7 Days</SelectItem>
+                <SelectItem value="30d" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Last 30 Days</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -363,7 +363,7 @@ export default function ActivityLogsContent() {
           {totalPages > 1 && (
             <div className="mt-4">
               <Pagination>
-                <PaginationContent>
+                <PaginationContent className="flex-wrap justify-center gap-2">
                   <PaginationItem>
                     <PaginationPrevious // Replaced button with PaginationPrevious
                       href="#"

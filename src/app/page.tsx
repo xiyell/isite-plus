@@ -5,13 +5,16 @@ import { Button as Button } from "@/components/ui/Button";
 import Divider from "@/components/ui/Divider";
 import { AnnouncementsFeed } from "@/components/announcements/AnnouncementFeeds";
 import LoadingTransition from "@/components/ui/LoadingTransition";
+import { useAuth } from "@/services/auth";
 
 
 
 export default function Home() {
+  const { user } = useAuth();
 
-  const handleScrollToAnnouncements = () => {
-    console.log("Scroll to Announcements clicked");
+  const handleGetStarted = () => {
+    // Dispatch a custom event to open the registration modal
+    window.dispatchEvent(new Event('open-register-modal'));
   }
 
   return (
@@ -46,12 +49,14 @@ export default function Home() {
           A next-generation digital platform for PUP SMB-BSIT Students, Faculty,
           and the iSITE Organization. Seamless. Secure. Smart.
         </p>
-        <Button
-          onClick={handleScrollToAnnouncements}
-          className="z-10 bg-fuchsia-500 text-white text-lg sm:text-xl px-6 sm:px-10 py-3 sm:py-5 rounded-3xl shadow-lg hover:bg-purple-700 hover:shadow-fuchsia-400/40 transition-all duration-300"
-        >
-          Get Started
-        </Button>
+        {!user && (
+          <Button
+            onClick={handleGetStarted}
+            className="z-10 bg-fuchsia-500 text-white text-lg sm:text-xl px-6 sm:px-10 py-3 sm:py-5 rounded-3xl shadow-lg hover:bg-purple-700 hover:shadow-fuchsia-400/40 transition-all duration-300"
+          >
+            Get Started
+          </Button>
+        )}
       </section>
       {/* -----------------------------------------------------------------
 

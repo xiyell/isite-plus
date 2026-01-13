@@ -1,39 +1,42 @@
 'use client';
 import * as React from 'react';
-import { Button as Button } from '@/components/ui/Button';
 import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Menu, X, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import clsx from 'clsx';
+
+import { Button as Button } from '@/components/ui/Button';
 import {
     NavigationMenu,
     NavigationMenuItem,
     NavigationMenuList,
 } from '@/components/ui/NavigationMenu';
 import { cn } from '@/lib/utils';
-import clsx from 'clsx';
-import Link from 'next/link';
-import { Menu, X, ChevronDown } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { User } from '@/types/user';
 import { useIsScrolled, useScrollProgress } from '@/hooks/use-scroll';
-import { motion, AnimatePresence } from 'framer-motion';
-import { UserRole } from '@/types/user-role';
+import { useToast } from "@/components/ui/use-toast";
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+
 import { auth } from '@/services/firebase';
 import { logoutAction } from "@/actions/auth";
 import { useAuth } from '@/services/auth';
-import { useToast } from "@/components/ui/use-toast";
+import { User } from '@/types/user';
+import { UserRole } from '@/types/user-role';
 
-import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-
-// 🚀 IMPORT MODALS (Ensure correct paths: e.g., './login' or './LoginModal')
+// 🚀 IMPORT MODALS
 import LoginModal from './login';
-import RegisterModal from './register'; // Assuming the new file name is RegisterModal.tsx
+import RegisterModal from './register';
 
 export interface NavbarNavLink {
     href: string;
     label: string;
-    active?: boolean;
+    // active?: boolean; // Removed hardcoded active property
     rolesAllowed: UserRole[];
     group?: 'tools';
 }
+
 export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
     logo?: React.ReactNode;
     logoHref?: string;
@@ -41,10 +44,10 @@ export interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 // ------------------------------------------------------------------------
-// UPDATED mainNavLinks ARRAY - Structured as requested
+// UPDATED mainNavLinks ARRAY - Without hardcoded active state
 // ------------------------------------------------------------------------
 const mainNavLinks: NavbarNavLink[] = [
-    { href: '/', label: 'Home', active: true, rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
+    { href: '/', label: 'Home', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
     { href: '/announcement', label: 'Announcement', rolesAllowed: ['guest', 'user', 'admin', 'moderator'] },
     { href: '/community', label: 'Community', rolesAllowed: ['user', 'admin', 'moderator'] },
 
@@ -55,11 +58,18 @@ const mainNavLinks: NavbarNavLink[] = [
     { href: '/iReader', label: 'iReader', rolesAllowed: ['admin', 'moderator'], group: 'tools' },
     { href: '/ievaluation', label: 'iEvaluation', rolesAllowed: ['user', 'admin', 'moderator'], group: 'tools' },
     { href: '/about', label: 'About', rolesAllowed: ['guest', 'user', 'admin', 'moderator'], group: 'tools' },
-
 ];
 // ------------------------------------------------------------------------
 
 export default function Navbar() {
+    const pathname = usePathname();
+
+    // Helper to check if link is active
+    const isLinkActive = (href: string) => {
+        if (href === '/') return pathname === '/';
+        return pathname.startsWith(href);
+    };
+
     /*
     ------------------------------------------------------------------------
         USE STATES 
@@ -74,8 +84,6 @@ export default function Navbar() {
         const fetchUserRole = async () => {
             if (!authLoading && authUser && authUser.emailVerified) {
                 try {
-                     // Dynamically import needed functions to avoid top-level SSR issues if any, 
-                     // though standard import is fine. adhering to previous patterns.
                      const { doc, getDoc } = await import("firebase/firestore"); 
                      const { db } = await import("@/services/firebase");
                      
@@ -90,7 +98,6 @@ export default function Navbar() {
                      });
                 } catch (e) {
                      console.error("Error fetching navbar role", e);
-                     // Fallback
                      setUser({
                         ...authUser as unknown as User,
                         role: 'user'
@@ -115,7 +122,6 @@ export default function Navbar() {
         HANDLERS
     ------------------------------------------------------------------------
     */
-    // Handles successful login from the LoginModal
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleLogin = (loggedUser: any) => {
         setUser({
@@ -124,33 +130,23 @@ export default function Navbar() {
         });
     };
 
-    // Handles successful registration (usually used to trigger a toast/feedback in the parent)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleRegistrationSuccess = (user: any) => {
         console.log('User successfully registered:', user);
-        // We typically don't log in immediately after registration; 
-        // the user must verify their email first (as implemented in your modal logic).
     }
 
-    // Updated logout handler to clear both Firebase auth and server cookies
     const handleSignOut = async () => {
         try {
             console.log("Logout initiated...");
-            // 1. Sign out from Firebase
             await auth.signOut();
-            console.log("Firebase signOut complete");
-
-            // 2. Clear server-side admin cookie
-            await logoutAction();
-            console.log("Server logout complete");
-
+            await logoutAction(); // Clear server cookie
+            
             setUser(null);
-            setIsLogoutConfirmOpen(false); // Close dialog on success
+            setIsLogoutConfirmOpen(false);
             toast({
                 title: "Logged out",
                 description: "You have been successfully logged out.",
             });
-            // 3. Force redirect to home
             window.location.href = "/";
         } catch (error) {
             console.error("Logout failed", error);
@@ -159,9 +155,10 @@ export default function Navbar() {
                 description: (error as Error).message,
                 variant: "destructive",
             });
-            setIsLogoutConfirmOpen(false); // Close dialog on error too
+            setIsLogoutConfirmOpen(false);
         }
     }
+
     const toggleToolsDropdown = (e: React.MouseEvent) => {
         e.preventDefault();
         setIsToolsDropdownOpen(prev => !prev);
@@ -191,6 +188,9 @@ export default function Navbar() {
     const groupedLinks = filteredNavLinks.filter(link => link.group === 'tools');
     const isGroupVisible = groupedLinks.length > 0;
 
+    // Check if any grouped link is active to highlight the "Menu" trigger
+    const isMenuSectionActive = groupedLinks.some(link => isLinkActive(link.href));
+
     // Close the dropdown when the mobile menu is opened/closed
     React.useEffect(() => {
         if (isMobileMenuOpen) {
@@ -213,7 +213,6 @@ export default function Navbar() {
         }
     }, [isMobile]);
 
-
     return (
         <>
             <motion.nav
@@ -230,8 +229,7 @@ export default function Navbar() {
                 <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10 py-5 sm:py-6">
 
                     <div className="flex items-center gap-2">
-
-                        {isMobile && (
+                         {isMobile && (
                             <Button
                                 className="text-fuchsia-200 hover:text-fuchsia-400 transition-colors p-2 z-[110] relative"
                                 variant="ghost"
@@ -241,10 +239,8 @@ export default function Navbar() {
                                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                             </Button>
                         )}
-                        {/* Main nav */}
 
                         <div className="flex items-center gap-6">
-                            {/* Logo  */}
                             <button
                                 onClick={(e) => e.preventDefault()}
                                 className="flex items-center space-x-2 text-primary hover:text-primary/90 transition-colors cursor-pointer"
@@ -252,32 +248,36 @@ export default function Navbar() {
                                 <span className="hidden font-bold text-xl sm:inline-block">
                                     <h1 className="text-2xl font-bold tracking-wide text-white select-none">
                                         iSITE<span className="text-fuchsia-400">+</span>
-                                    </h1></span>
+                                    </h1>
+                                </span>
                             </button>
-                            {/* Navigation menu */}
                         </div>
                     </div>
+
                     <div className="flex items-center gap-6">
                         {!isMobile && (
                             <NavigationMenu className="flex">
                                 <NavigationMenuList className="space-x-8">
-                                    {/* Regular Links (Home, Announcement, Community, Feedback, About) */}
-                                    {mainLinks.map((link, index) => (
-                                        <NavigationMenuItem key={index}>
-                                            <Link
-                                                href={link.href}
-                                                onClick={(e) => handleLinkClick(e, link)}
-                                                className={cn(
-                                                    "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase transition-colors",
-                                                    link.active ? "text-fuchsia-400" : ""
-                                                )}
-                                            >
-                                                {link.label}
-                                            </Link>
-                                        </NavigationMenuItem>
-                                    ))}
+                                    {/* Regular Links */}
+                                    {mainLinks.map((link, index) => {
+                                        const isActive = isLinkActive(link.href);
+                                        return (
+                                            <NavigationMenuItem key={index}>
+                                                <Link
+                                                    href={link.href}
+                                                    onClick={(e) => handleLinkClick(e, link)}
+                                                    className={cn(
+                                                        "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase transition-colors",
+                                                        isActive ? "text-fuchsia-400" : ""
+                                                    )}
+                                                >
+                                                    {link.label}
+                                                </Link>
+                                            </NavigationMenuItem>
+                                        );
+                                    })}
 
-                                    {/* 🚀 Grouped Links Section - Click-to-Open Logic */}
+                                    {/* Grouped Links Section */}
                                     {isGroupVisible && (
                                         <NavigationMenuItem id="tools-nav-item" className="relative">
                                             <Button
@@ -285,7 +285,7 @@ export default function Navbar() {
                                                 onClick={toggleToolsDropdown}
                                                 className={cn(
                                                     "text-gray-200 hover:text-fuchsia-300 text-sm font-semibold uppercase px-3 py-2 h-auto flex items-center transition-colors",
-                                                    isToolsDropdownOpen && "text-fuchsia-300"
+                                                    (isToolsDropdownOpen || isMenuSectionActive) && "text-fuchsia-300"
                                                 )}
                                             >
                                                 Menu
@@ -297,7 +297,7 @@ export default function Navbar() {
                                                 />
                                             </Button>
 
-                                            {/* Submenu for grouped links */}
+                                            {/* Submenu */}
                                             <AnimatePresence>
                                                 {isToolsDropdownOpen && (
                                                     <motion.div
@@ -308,27 +308,30 @@ export default function Navbar() {
                                                         className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-50 origin-top"
                                                     >
                                                         <ul className="w-48 p-1.5 rounded-xl shadow-2xl backdrop-blur-4xl  border border-white/30 bg-black/80">
-                                                            {groupedLinks.map((link, index) => (
-                                                                <li key={index}>
-                                                                    <Link
-                                                                        href={link.href}
-                                                                        onClick={(e) => {
-                                                                            handleLinkClick(e, link);
-                                                                            if (link.rolesAllowed.includes(currentUserRole)) {
-                                                                                setIsToolsDropdownOpen(false);
-                                                                            }
-                                                                        }}
-                                                                        className={cn(
-                                                                            "block p-2 text-sm text-fuchsia-100 rounded-lg transition-colors",
-                                                                            link.active
-                                                                                ? "bg-fuchsia-700/50 text-white font-semibold"
-                                                                                : "text-white/80 hover:bg-fuchsia-600/30 hover:text-white"
-                                                                        )}
-                                                                    >
-                                                                        {link.label}
-                                                                    </Link>
-                                                                </li>
-                                                            ))}
+                                                            {groupedLinks.map((link, index) => {
+                                                                const isActive = isLinkActive(link.href);
+                                                                return (
+                                                                    <li key={index}>
+                                                                        <Link
+                                                                            href={link.href}
+                                                                            onClick={(e) => {
+                                                                                handleLinkClick(e, link);
+                                                                                if (link.rolesAllowed.includes(currentUserRole)) {
+                                                                                    setIsToolsDropdownOpen(false);
+                                                                                }
+                                                                            }}
+                                                                            className={cn(
+                                                                                "block p-2 text-sm text-fuchsia-100 rounded-lg transition-colors",
+                                                                                isActive
+                                                                                    ? "bg-fuchsia-700/50 text-white font-semibold"
+                                                                                    : "text-white/80 hover:bg-fuchsia-600/30 hover:text-white"
+                                                                            )}
+                                                                        >
+                                                                            {link.label}
+                                                                        </Link>
+                                                                    </li>
+                                                                );
+                                                            })}
                                                         </ul>
                                                     </motion.div>
                                                 )}
@@ -340,19 +343,14 @@ export default function Navbar() {
                             </NavigationMenu>
                         )}
                     </div>
-                    {/* Right side */}
-                    {!user ? <div className=" flex items-center gap-2">
-                            {/* Login Modal Integration */}
-                            <LoginModal
-                                onLogin={handleLogin}
-                            />
 
-                            {/* Register Modal Integration */}
-                            <RegisterModal
-                                onRegister={handleRegistrationSuccess}
-                            />
-
-                        </div> :
+                    <div className="flex items-center gap-6">
+                        {!user ? (
+                            <div className="flex items-center gap-2">
+                                <LoginModal onLogin={handleLogin} />
+                                <RegisterModal onRegister={handleRegistrationSuccess} />
+                            </div>
+                        ) : (
                             <>
                                 <Button
                                     className="text-sm bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-xl px-4 py-1.5 transition-colors"
@@ -374,8 +372,10 @@ export default function Navbar() {
                                     variant="destructive" 
                                 />
                             </>
-                        }
+                        )}
                     </div>
+                </div>
+
                 <div
                     className="h-[3px] bg-gradient-to-r from-fuchsia-400 to-fuchsia-700"
                     style={{ width: `${progress}%` }}
@@ -386,24 +386,20 @@ export default function Navbar() {
             <AnimatePresence>
                 {isMobile && isMobileMenuOpen && (
                     <>
-                        {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.3 }}
-                            // 🚀 CHANGED: Increased blur to backdrop-blur-3xl
                             className="fixed inset-0 z-[105] bg-black/70 backdrop-blur-3xl"
                             onClick={() => setIsMobileMenuOpen(false)}
                         />
 
-                        {/* Popup Card */}
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9, y: "-50%", x: "-50%" }}
                             animate={{ opacity: 1, scale: 1, y: "-50%", x: "-50%" }}
                             exit={{ opacity: 0, scale: 0.9, y: "-50%", x: "-50%" }}
                             transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
-                            // 🚀 CHANGED: Updated background opacity to make it stand out against the heavy blur
                             className="fixed top-1/2 left-1/2 z-[110] w-[90%] max-w-md bg-fuchsia-950/70 backdrop-blur-2xl border border-fuchsia-500/30 rounded-2xl shadow-2xl p-6 flex flex-col items-center pt-10 gap-6"
                         >
                             <div className="flex justify-between items-center w-full border-b border-white/10 pb-4">
@@ -419,24 +415,27 @@ export default function Navbar() {
                             </div>
 
                             <div className="flex flex-col items-center gap-4 w-full">
-                                {filteredNavLinks.map((link, index) => (
-                                    <Link
-                                        key={index}
-                                        href={link.href}
-                                        onClick={(e) => {
-                                            handleLinkClick(e, link);
-                                            setIsMobileMenuOpen(false);
-                                        }}
-                                        className={cn(
-                                            "w-full text-center py-3 backdrop-blur-2xl rounded-xl text-lg font-medium transition-all duration-200",
-                                            link.active
-                                                ? "bg-fuchsia-600/40 text-fuchsia-100 border border-fuchsia-500/30"
-                                                : "text-white/80 hover:bg-fuchsia-600/30 hover:text-white"
-                                        )}
-                                    >
-                                        {link.label}
-                                    </Link>
-                                ))}
+                                {filteredNavLinks.map((link, index) => {
+                                    const isActive = isLinkActive(link.href);
+                                    return (
+                                        <Link
+                                            key={index}
+                                            href={link.href}
+                                            onClick={(e) => {
+                                                handleLinkClick(e, link);
+                                                setIsMobileMenuOpen(false);
+                                            }}
+                                            className={cn(
+                                                "w-full text-center py-3 backdrop-blur-2xl rounded-xl text-lg font-medium transition-all duration-200",
+                                                isActive
+                                                    ? "bg-fuchsia-600/40 text-fuchsia-100 border border-fuchsia-500/30"
+                                                    : "text-white/80 hover:bg-fuchsia-600/30 hover:text-white"
+                                            )}
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     </>

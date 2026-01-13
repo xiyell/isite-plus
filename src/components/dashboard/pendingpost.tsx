@@ -23,6 +23,13 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   CheckCircle,
   XCircle,
   Loader2,
@@ -83,7 +90,7 @@ export default function AdminPostModerationPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const CATEGORIES = ["All", "General", "News", "Events", "Questions", "Feedback"];
+  const CATEGORIES = ["All", "Tech", "Gaming", "Art", "Science", "Fun", "Other"];
 
   /* ─────────── FETCH POSTS (SERVER ACTION) ─────────── */
   const fetchPosts = useCallback(async () => {
@@ -267,22 +274,35 @@ export default function AdminPostModerationPage() {
             />
           </div>
           <div className="flex gap-4">
-            <select
+            <Select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value as any)}
-              className="bg-black/20 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+              onValueChange={(val: any) => setStatusFilter(val)}
             >
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
+              <SelectTrigger className="w-[140px] bg-black/20 border-white/10 text-white focus:ring-indigo-500">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                <SelectItem value="pending" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Pending</SelectItem>
+                <SelectItem value="approved" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Approved</SelectItem>
+                <SelectItem value="rejected" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
               value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value)}
-              className="bg-black/20 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+              onValueChange={(val) => setCategoryFilter(val)}
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+              <SelectTrigger className="w-[140px] bg-black/20 border-white/10 text-white focus:ring-indigo-500">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                {CATEGORIES.map(c => (
+                  <SelectItem key={c} value={c} className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -317,8 +337,8 @@ export default function AdminPostModerationPage() {
       </div>
 
       {/* BOXY GRID TABLE */}
-      <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
-        <Table className="border-collapse w-full table-fixed">
+      <div className="border border-white/20 rounded-none bg-black/20 overflow-visible">
+        <Table className="border-collapse w-full">
           <TableHeader className="bg-white/10">
             <TableRow className="border-b border-white/20">
               <TableHead className="w-[50px] border-r border-white/10 text-center p-0">
@@ -331,9 +351,9 @@ export default function AdminPostModerationPage() {
                 </div>
               </TableHead>
               <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Author</TableHead>
-              <TableHead className="w-[120px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Category</TableHead>
+              <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Category</TableHead>
               <TableHead className="border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Post Content</TableHead>
-              <TableHead className="w-[100px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Spam Analysis</TableHead>
+              <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Spam Analysis</TableHead>
               <TableHead className="w-[120px] text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>

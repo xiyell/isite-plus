@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/Card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Send, X, Mic, Bot, Link as LinkIcon, FileText } from "lucide-react";
+import { Send, X, Bot, Link as LinkIcon, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link"; // For smart navigation
@@ -49,13 +49,11 @@ export default function IChat() {
         { sender: "bot", text: "Hi! I'm iBot. How can I help you today?" }
     ]);
     const [isTyping, setIsTyping] = useState(false);
-    const [isListening, setIsListening] = useState(false);
     const [userHasTyped, setUserHasTyped] = useState(false);
     const [announcements, setAnnouncements] = useState<AnnouncementDoc[]>([]);
     const [botEnabled, setBotEnabled] = useState(true);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<any>(null);
 
     const normalize = (text: string) => text.toLowerCase().trim();
     const tokenize = (text: string) => normalize(text).split(/\s+/);
@@ -151,47 +149,22 @@ export default function IChat() {
             (error) => { console.warn("SmartBot: Real-time announcements failed", error); }
         );
 
-        const loadSettings = async () => {
-            const snap = await getDoc(doc(db, "settings", "ibot_settings"));
-            if (snap.exists()) setBotEnabled(snap.data().enabled);
-        };
-
-        loadSettings();
+        // C. Listen for Settings (Real-time)
+        const unsubSettings = onSnapshot(doc(db, "settings", "ibot_settings"), (snap) => {
+            if (snap.exists()) {
+                setBotEnabled(snap.data().enabled ?? true);
+            }
+        });
         
         // Cleanup all listeners
         return () => {
              // unsubResponses(); 
              unsubAnnouncements();
+             unsubSettings();
         };
     }, []);
 
-    // Effect 3: Voice setup
-    useEffect(() => {
-        if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const recognition = new SpeechRecognition();
 
-            recognition.lang = "en-PH"; // Optimize for Filipino accents
-            recognition.interimResults = true; // Show text while speaking
-            recognition.onstart = () => setIsListening(true);
-            recognition.onend = () => setIsListening(false);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            recognition.onresult = (e: any) => {
-                const result = e.results[e.resultIndex];
-                const transcript = result[0].transcript;
-
-                if (result.isFinal) {
-                    sendMessage(transcript);
-                } else {
-                    setInput(transcript); // Show real-time preview
-                }
-            };
-
-            recognitionRef.current = recognition;
-        }
-    }, []);
 
     // Effect 4: External Open Trigger
     useEffect(() => {
@@ -200,14 +173,7 @@ export default function IChat() {
         return () => window.removeEventListener('open-ichat', handleOpenChat);
     }, []);
 
-    const startListening = () => {
-        if (recognitionRef.current) recognitionRef.current.start();
-        else toast({
-            title: "Not Supported",
-            description: "Your browser does not support voice recognition 😢",
-            variant: "destructive",
-        });
-    };
+
 
 
 
@@ -224,13 +190,12 @@ export default function IChat() {
     const GLASS_PANEL = "bg-slate-950/95 backdrop-blur-xl border border-white/10 shadow-2xl";
     
     return (
-        <div className="fixed bottom-6 right-6 z-[9999] font-sans">
-            {/* 1. Toggle Button (Floating Orb) */}
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-4 pointer-events-none">
+            {/* 1. Toggle Button (Always visible) */}
             <motion.div
-                initial={{ scale: 0 }} 
-                animate={{ scale: 1 }} 
                 whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.9 }}
+                className="pointer-events-auto"
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
             >
                 <Button
@@ -269,12 +234,12 @@ export default function IChat() {
                                     </div>
                                     <div>
                                         <h2 className="font-bold text-white text-base tracking-tight">iChat AI</h2>
-                                        <p className="text-xs text-indigo-300/80 font-medium flex items-center gap-1.5">
+                                        <p className={`text-xs font-medium flex items-center gap-1.5 ${botEnabled ? "text-indigo-300/80" : "text-red-400"}`}>
                                             <span className="relative flex h-2 w-2">
-                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${botEnabled ? "bg-green-400" : "bg-red-400"}`}></span>
+                                              <span className={`relative inline-flex rounded-full h-2 w-2 ${botEnabled ? "bg-green-500" : "bg-red-500"}`}></span>
                                             </span>
-                                            Online & Ready
+                                            {botEnabled ? "Online & Ready" : "Currently Disabled"}
                                         </p>
                                     </div>
                                 </div>
@@ -394,24 +359,16 @@ export default function IChat() {
 
                             {/* Input Footer */}
                             <CardFooter className="p-4 bg-transparent border-t border-white/5 backdrop-blur-md">
-                                <div className="flex items-end gap-2 w-full bg-black/40 p-1.5 rounded-3xl border border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
+                                <div className={`flex items-end gap-2 w-full bg-black/40 p-1.5 rounded-3xl border border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all ${!botEnabled ? "opacity-50 pointer-events-none" : ""}`}>
                                     
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className={`h-9 w-9 rounded-full shrink-0 transition-colors ${isListening ? "text-red-400 bg-red-400/10 hover:bg-red-400/20" : "text-gray-400 hover:text-white hover:bg-white/10"}`}
-                                        onClick={startListening}
-                                    >
-                                        <Mic className={`h-4 w-4 ${isListening ? "animate-pulse" : ""}`} />
-                                    </Button>
-
                                     <Input
                                         className="flex-grow bg-transparent border-0 focus-visible:ring-0 text-white placeholder:text-gray-500 h-9 py-2 px-1"
-                                        placeholder="Ask a question..."
+                                        placeholder={botEnabled ? "Ask a question..." : "iBot is currently unavailable"}
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         onKeyDown={handleKeyDown}
                                         autoComplete="off"
+                                        disabled={!botEnabled}
                                     />
 
                                     <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
@@ -419,7 +376,7 @@ export default function IChat() {
                                             size="icon"
                                             className={`h-9 w-9 rounded-full shrink-0 transition-all ${input.trim() ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "bg-white/10 text-gray-500 cursor-not-allowed"}`}
                                             onClick={() => { setUserHasTyped(true); sendMessage(); }}
-                                            disabled={!input.trim()}
+                                            disabled={!input.trim() || !botEnabled}
                                         >
                                             <Send className="h-4 w-4 ml-0.5" />
                                         </Button>

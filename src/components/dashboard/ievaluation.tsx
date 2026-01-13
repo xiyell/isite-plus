@@ -543,10 +543,10 @@ function EvaluationBuilder({ initialData, mode, onSave, onCancel }: any) {
                                 <SelectTrigger className="bg-white/10 border-white/20 text-white mt-1">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-800 text-white border-gray-700">
-                                    <SelectItem value="draft">Draft</SelectItem>
-                                    <SelectItem value="active">Active</SelectItem>
-                                    <SelectItem value="closed">Closed</SelectItem>
+                                <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                                    <SelectItem value="draft" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Draft</SelectItem>
+                                    <SelectItem value="active" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Active</SelectItem>
+                                    <SelectItem value="closed" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Closed</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -571,9 +571,9 @@ function EvaluationBuilder({ initialData, mode, onSave, onCancel }: any) {
                                                 <SelectTrigger className="w-[140px] h-8 bg-white/5 border-white/10 text-gray-300">
                                                     <SelectValue />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-gray-800 text-white border-gray-700">
-                                                    <SelectItem value="rating">Star Rating</SelectItem>
-                                                    <SelectItem value="essay">Essay/Text</SelectItem>
+                                                <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                                                    <SelectItem value="rating" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Star Rating</SelectItem>
+                                                    <SelectItem value="essay" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Essay/Text</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <div className="flex items-center space-x-2">

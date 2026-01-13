@@ -4,8 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Users, Upload, Server, Loader2 } from "lucide-react";
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    PieChart, Pie, Cell, Legend
+    PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 
@@ -22,10 +21,7 @@ interface OverviewStats {
     serverUptime: string;
 }
 
-interface MonthlyData {
-    monthYear: string; // e.g., "Dec 2025"
-    posts: number;
-}
+
 
 // --- MOCK CHART DATA (Used for platform distribution, as it requires a different query) ---
 const platformData = [
@@ -43,7 +39,7 @@ export default function OverviewContent() {
     const [latestEventDate, setLatestEventDate] = useState<string>("");
 
     const [stats, setStats] = useState<OverviewStats | null>(null);
-    const [monthlyPostData, setMonthlyPostData] = useState<MonthlyData[]>([]);
+
     const [loading, setLoading] = useState(true);
 
     const formatTimestampToMonthYear = (timestamp: Timestamp): string => {
@@ -79,58 +75,6 @@ export default function OverviewContent() {
         const unsub = onSnapshot(collection(db, "community"), (snapshot) => {
             let total = 0;
             let pending = 0;
-
-            // For Chart Aggregation
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const rawPosts: { timestamp: any, title: string }[] = [];
-
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                if (data.title) {
-                    // Include pending posts in the total count logic, or adjust as needed
-                    total++;
-                    if (data.status === "pending") pending++;
-                    
-                    // Allow posts with status 'approved' OR 'pending' (if you want to track submission trends)
-                    // If you only want live approved posts: if (data.createdAt && data.status === 'approved')
-                    if (data.createdAt && (data.status === 'approved' || data.status === 'pending')) {
-                        rawPosts.push({ timestamp: data.createdAt, title: data.title });
-                    }
-                }
-            });
-
-            // 1. Filter & Standardize
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const validPosts = rawPosts.map(p => {
-                let date: Date | null = null;
-                try {
-                    if (p.timestamp?.toDate) {
-                        date = p.timestamp.toDate(); 
-                    } else if (p.timestamp) {
-                        date = new Date(p.timestamp);
-                    }
-                } catch (e) {
-                    date = null;
-                }
-                return { ...p, date };
-            }).filter(p => p.date && !isNaN(p.date.getTime())) as { title: string; date: Date }[];
-
-            // 2. Sort
-            validPosts.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-            // 3. Aggregate
-            const counts: { [key: string]: number } = {};
-            validPosts.forEach(p => {
-                const key = p.date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                counts[key] = (counts[key] || 0) + 1;
-            });
-            
-            const chartData: MonthlyData[] = Object.keys(counts).map(key => ({
-                monthYear: key,
-                posts: counts[key]
-            }));
-
-            setMonthlyPostData(chartData);
 
             setStats(prev => ({ 
                 ...prev!, 
@@ -284,36 +228,7 @@ export default function OverviewContent() {
 
             {/* 2. Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Post Analytics (Line Chart) - DYNAMIC */}
-                <Card className={GLASSY_CARD_CLASS}>
-                    <CardHeader>
-                        <CardTitle className="text-xl font-semibold text-gray-200">Community Posts Analytics (Monthly Trend)</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[300px] w-full p-0">
-                        {monthlyPostData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={monthlyPostData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                                    <XAxis dataKey="monthYear" stroke="#9ca3af" tick={{ fill: '#9ca3af' }} />
-                                    <YAxis stroke="#9ca3af" tick={{ fill: '#9ca3af' }} domain={[0, 'auto']} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px", color: "#fff" }}
-                                        itemStyle={{ color: "#fff" }}
-                                        labelStyle={{ color: "#9ca3af" }}
-                                        formatter={(value, name) => [`${value} posts`, '']}
-                                    />
-                                    <Legend />
-                                    <Line type="monotone" dataKey="posts" name="Posts" stroke="#8b5cf6" strokeWidth={3} activeDot={{ r: 8 }} dot={{ fill: '#8b5cf6', strokeWidth: 2 }} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 space-y-2">
-                                <p>No community posts found.</p>
-                                <p className="text-sm text-gray-600">Start engaging in the Community tab to see trends!</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Community Post Analytics Removed */}
 
                 {/* Attendance Distribution (Pie Chart) - REAL DATA */}
                 <Card className={GLASSY_CARD_CLASS}>
