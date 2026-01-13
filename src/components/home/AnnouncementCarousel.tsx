@@ -23,43 +23,39 @@ const CarouselCard = ({ item, onClick }: { item: Announcement; onClick: () => vo
   return (
     <Card
       onClick={onClick}
-      className="relative w-[300px] h-[400px] sm:w-[380px] sm:h-[380px] md:w-[600px] md:h-[420px] rounded-[2.5rem] overflow-hidden border border-white/10 group transition-all duration-500 shadow-2xl hover:border-fuchsia-500/50"
+      className="relative w-[88vw] h-[520px] sm:w-[480px] sm:h-[480px] md:w-[850px] md:h-[550px] rounded-[3rem] overflow-hidden border-2 border-white/20 group transition-all duration-500 shadow-2xl hover:border-fuchsia-400/60 cursor-pointer"
     >
       <div className="absolute inset-0 overflow-hidden">
         <Image
           src={imgSrc}
           alt={item.title}
           fill
-          className="object-cover transition-transform duration-700 group-hover:scale-110"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
           priority
           onError={() => setImgSrc(DEFAULT_IMAGE)}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-100" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
       </div>
 
       <CardContent className="absolute inset-0 flex flex-col justify-end items-start text-left text-white z-10 p-8 sm:p-12">
-        <div className="relative z-20 w-full drop-shadow-2xl">
+        <div className="relative z-20 w-full">
             <motion.div 
                initial={{ opacity: 0, y: 10 }}
                animate={{ opacity: 1, y: 0 }}
                className="mb-4"
             >
-                <span className="px-4 py-1.5 bg-fuchsia-600/40 border border-fuchsia-400/50 rounded-full text-[10px] uppercase tracking-[0.2em] font-black text-fuchsia-100 shadow-[0_0_20px_rgba(217,70,239,0.3)]">
-                    Featured News
+                <span className="inline-block px-4 py-1.5 bg-fuchsia-700/60 backdrop-blur-md border border-fuchsia-300/40 rounded-full text-[10px] sm:text-xs uppercase tracking-[0.2em] font-bold text-white shadow-lg">
+                    FEATURED NEWS
                 </span>
             </motion.div>
-            <h3 className="text-xl sm:text-3xl font-black mb-3 leading-tight tracking-tight group-hover:text-fuchsia-300 transition-colors [text-shadow:_0_4px_16px_rgba(0,0,0,1)] uppercase">
+            <h3 className="text-3xl sm:text-3xl md:text-5xl font-black leading-[1.1] tracking-tight text-white drop-shadow-2xl line-clamp-4">
                 {item.title}
             </h3>
-            <p className="text-xs sm:text-base text-zinc-100/90 line-clamp-2 font-semibold max-w-lg mb-2 [text-shadow:_0_2px_10px_rgba(0,0,0,1)]">
-                {item.description}
-            </p>
-            <div className="w-16 h-1.5 bg-fuchsia-500 rounded-full mt-6 transform origin-left transition-all duration-500 group-hover:w-40 shadow-[0_0_20px_rgba(217,70,239,0.6)]" />
         </div>
       </CardContent>
       
       {/* Decorative glass shine */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
     </Card>
   );
 };
@@ -117,7 +113,7 @@ export default function AnnouncementCarousel() {
 
       {/* Carousel */}
       <div
-        className="relative w-full max-w-[950px] h-[500px] flex items-center justify-center"
+        className="relative w-full max-w-[1200px] h-[650px] flex items-center justify-center px-4"
       >
         {featuredAnnouncements.map((item, i) => {
           const offset = (i - index + featuredAnnouncements.length) % featuredAnnouncements.length;
@@ -128,21 +124,21 @@ export default function AnnouncementCarousel() {
 
           if (offset === 0) {
             x = 0;
-            scale = 1.1;
+            scale = 1.05;
             opacity = 1;
             zIndex = 50;
           } else if (offset === 1) {
-            x = 300;
+            x = 450;
             scale = 0.85;
-            opacity = 0.5;
+            opacity = 0.6;
             zIndex = 30;
           } else if (offset === featuredAnnouncements.length - 1) {
-            x = -300;
+            x = -450;
             scale = 0.85;
-            opacity = 0.5;
+            opacity = 0.6;
             zIndex = 30;
           } else {
-            x = offset * 200;
+            x = offset * 300;
             scale = 0.7;
             opacity = 0;
             zIndex = 10;
@@ -176,15 +172,18 @@ export default function AnnouncementCarousel() {
         </button>
       </div>
 
-      <div className="flex gap-3 mt-10">
+      <div className="flex gap-2.5 mt-10">
         {featuredAnnouncements.map((_, i) => (
           <motion.button
             key={i}
             onClick={() => handleDotClick(i)}
-            className={`w-4 h-4 md:w-5 md:h-5 rounded-full transition-all duration-300 ${i === index
-              ? "bg-purple-500 scale-125 shadow-lg shadow-purple-500/50"
-              : "bg-white/20 hover:bg-white/40"
-              }`}
+            className={`h-2.5 rounded-full transition-all duration-300 ${
+              i === index
+                ? "w-8 bg-fuchsia-500 shadow-lg shadow-fuchsia-500/50"
+                : "w-2.5 bg-white/30 hover:bg-white/50"
+            }`}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           />
         ))}
       </div>

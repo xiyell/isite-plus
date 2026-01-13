@@ -77,6 +77,11 @@ const getCategoryIcon = (category: string) => {
   }
 };
 
+const sanitizeMessage = (message: string) => {
+  // Regex to remove patterns like (ID: xyz123)
+  return message.replace(/\(ID: [^)]+\)/g, "").replace(/\s{2,}/g, " ").trim();
+};
+
 const getPageNumbers = (current: number, total: number, max = 5) => {
   const pages: number[] = [];
   let start = Math.max(1, current - Math.floor(max / 2));
@@ -214,149 +219,165 @@ export default function ActivityLogsContent() {
         <CardContent>
 
           {/* Search & Filters */}
-          <div className="flex flex-wrap gap-4 mb-6">
-            <input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Search logs..."
-              // Placeholder and input text are now white
-              className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white"
-            />
+          <div className="flex flex-col md:flex-row flex-wrap gap-3 mb-6">
+            <div className="flex-1 min-w-[200px]">
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search logs..."
+                className="w-full px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              />
+            </div>
 
-            <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
-              <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
-                <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Categories</SelectItem>
-                <SelectItem value="posts" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Posts</SelectItem>
-                <SelectItem value="users" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Users</SelectItem>
-                <SelectItem value="system" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">System</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 md:gap-3">
+              <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
+                <SelectTrigger className="w-full sm:w-[140px] bg-white/10 border border-white/20 text-white rounded-xl">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="posts">Posts</SelectItem>
+                  <SelectItem value="users">Users</SelectItem>
+                  <SelectItem value="system">System</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={severityFilter} onValueChange={(v) => setSeverityFilter(v as any)}>
-              <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
-                <SelectValue placeholder="Severity" />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
-                <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Severities</SelectItem>
-                <SelectItem value="low" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Low</SelectItem>
-                <SelectItem value="medium" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Medium</SelectItem>
-                <SelectItem value="high" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">High</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={severityFilter} onValueChange={(v) => setSeverityFilter(v as any)}>
+                <SelectTrigger className="w-full sm:w-[140px] bg-white/10 border border-white/20 text-white rounded-xl">
+                  <SelectValue placeholder="Severity" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                  <SelectItem value="all">All Severities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
-              <SelectTrigger className="w-[160px] bg-white/10 border border-white/20 text-white">
-                <SelectValue placeholder="Time Range" />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
-                <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Time</SelectItem>
-                <SelectItem value="24h" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Last 24 Hours</SelectItem>
-                <SelectItem value="7d" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Last 7 Days</SelectItem>
-                <SelectItem value="30d" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Last 30 Days</SelectItem>
-              </SelectContent>
-            </Select>
+              <Select value={timeFilter} onValueChange={(v) => setTimeFilter(v as any)}>
+                <SelectTrigger className="w-full sm:w-[140px] bg-white/10 border border-white/20 text-white rounded-xl">
+                  <SelectValue placeholder="Time" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                  <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="24h">Last 24 Hours</SelectItem>
+                  <SelectItem value="7d">Last 7 Days</SelectItem>
+                  <SelectItem value="30d">Last 30 Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Table */}
+          {/* Table Container */}
           {loading ? (
-            <div className="py-10 text-center text-white">Loading logs…</div>
-          ) : (
-            <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
-              <Table className="border-collapse w-full table-fixed">
-                <TableHeader className="bg-white/10">
-                  <TableRow className="border-b border-white/20">
-                    <TableHead className="w-[150px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Time</TableHead>
-                    <TableHead className="w-[100px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Category</TableHead>
-                    <TableHead className="w-[150px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Actor</TableHead>
-                    <TableHead className="w-[150px] text-white font-bold uppercase tracking-wider text-[11px] p-3">Action</TableHead>
-                    <TableHead className="w-[100px] text-white font-bold uppercase tracking-wider text-[11px] p-3 text-center">Severity</TableHead>
-                    <TableHead className="text-white font-bold uppercase tracking-wider text-[11px] p-3">Message</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedLogs.map((log) => (
-                    <TableRow key={log.id} className="group hover:bg-white/5 transition-colors border-b border-white/10">
-                      
-                      {/* Time */}
-                      <TableCell className="p-3 font-mono text-[11px] text-gray-300 whitespace-nowrap align-middle">
-                        {log.time}
-                      </TableCell>
-
-                      {/* Category */}
-                      <TableCell className="p-3 text-white align-middle">
-                        <div className="flex items-center gap-2">
-                          {getCategoryIcon(log.category)}
-                          <span className="capitalize text-xs font-medium">{log.category}</span>
-                        </div>
-                      </TableCell>
-
-                      {/* Actor */}
-                      <TableCell className="p-3 text-white align-middle">
-                         <div className="w-[140px] truncate">
-                           <span className="font-semibold text-xs py-1" title={log.actorName}>{log.actorName}</span>
-                           <span className="block text-gray-400 text-[10px] uppercase">{log.actorRole}</span>
-                         </div>
-                      </TableCell>
-
-                      {/* Action */}
-                      <TableCell className="p-3 text-gray-300 align-middle">
-                        <div className="w-[140px] truncate text-xs font-medium" title={log.action}>
-                          {log.action}
-                        </div>
-                      </TableCell>
-
-                      {/* Severity */}
-                      <TableCell className="p-3 text-center align-middle">
-                        <div className="flex justify-center">
-                            <Badge className={`${severityColor[log.severity] || severityColor.low} rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0`}>
-                            {log.severity}
-                            </Badge>
-                        </div>
-                      </TableCell>
-
-                      {/* Message (Strict Truncation) */}
-                      <TableCell className="p-3 text-gray-300 align-middle relative group cursor-help">
-                        <div className="w-[280px] truncate text-xs">
-                            {log.message}
-                        </div>
-                        
-                        {/* Tooltip */}
-                        <div className="absolute right-full top-0 mr-2 w-[300px] p-3 bg-slate-900 border border-slate-700 rounded-md shadow-xl text-white text-xs z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-normal break-words text-left">
-                            {log.message}
-                        </div>
-                      </TableCell>
-
-                    </TableRow>
-                  ))}
-
-                  {/* Empty Rows Padding to maintain height */}
-                  {Array.from({ length: Math.max(0, POSTS_PER_PAGE - paginatedLogs.length) }).map((_, index) => (
-                    <TableRow key={`empty-${index}`} className="border-b border-white/10 pointer-events-none">
-                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                      <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                      <TableCell className="p-4">&nbsp;</TableCell>
-                    </TableRow>
-                  ))}
-
-                  {paginatedLogs.length === 0 && filteredLogs.length === 0 && (
-                    <TableRow className="absolute inset-x-0 mt-16 border-none pointer-events-none">
-                      <TableCell colSpan={6} className="text-center text-gray-500 border-none">
-                        No logs found matching your criteria.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+            <div className="py-20 text-center text-white/60">
+              <Activity className="h-8 w-8 animate-pulse mx-auto mb-3 opacity-20" />
+              Loading activity logs...
             </div>
+          ) : (
+            <>
+              {/* DESKTOP VIEW (Hidden on Mobile) */}
+              <div className="hidden lg:block border border-white/10 rounded-xl bg-black/40 overflow-hidden shadow-inner font-outfit">
+                <Table>
+                  <TableHeader className="bg-white/5 disabled:pointer-events-none">
+                    <TableRow className="border-b border-white/10 hover:bg-transparent">
+                      <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Timestamp</TableHead>
+                      <TableHead className="w-[120px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Category</TableHead>
+                      <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Actor</TableHead>
+                      <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Action</TableHead>
+                      <TableHead className="w-[100px] text-center text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Severity</TableHead>
+                      <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6">Message</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedLogs.map((log) => (
+                      <TableRow key={log.id} className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0 h-16">
+                        <TableCell className="pl-6 font-mono text-[11px] text-zinc-400">{log.time}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getCategoryIcon(log.category)}
+                            <span className="capitalize text-[11px] font-bold tracking-tight text-white/90">{log.category}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                           <div className="flex flex-col">
+                             <span className="text-[11px] font-bold text-white/90 truncate max-w-[150px]" title={log.actorName}>{log.actorName}</span>
+                             <span className="text-[9px] uppercase tracking-tighter text-indigo-400/70 font-black">{log.actorRole}</span>
+                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-[11px] font-medium text-white/70 block truncate max-w-[150px]" title={log.action}>{log.action}</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={`${severityColor[log.severity] || severityColor.low} rounded-full px-2 py-0.5 text-[9px] font-black uppercase shadow-lg shadow-black/40 border-0`}>
+                            {log.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="pr-6 relative group cursor-help overflow-visible">
+                          <div className="text-[11px] text-zinc-300 truncate max-w-[300px] leading-relaxed">
+                              {sanitizeMessage(log.message)}
+                          </div>
+                          
+                          <div className="absolute right-full bottom-0 mb-8 mr-2 w-[350px] p-4 bg-zinc-950 border border-white/10 rounded-2xl shadow-2xl text-white text-[11px] z-50 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-normal break-words backdrop-blur-3xl">
+                              <p className="font-bold text-indigo-400 mb-2 uppercase tracking-widest text-[9px]">Full Log Description</p>
+                              {sanitizeMessage(log.message)}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* MOBILE TABLET VIEW (Responsive Cards) */}
+              <div className="lg:hidden space-y-4">
+                {paginatedLogs.map((log) => (
+                  <div key={log.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 transition-all hover:border-indigo-500/30">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 shrink-0">
+                          {getCategoryIcon(log.category)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1 break-words">{log.category}</p>
+                          <h4 className="text-xs font-bold text-white break-all capitalize">{log.action.replace(/_/g, " ")}</h4>
+                        </div>
+                      </div>
+                      <Badge className={`${severityColor[log.severity] || severityColor.low} rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase border-0 shrink-0`}>
+                        {log.severity}
+                      </Badge>
+                    </div>
+
+                    <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+                      <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+                        {sanitizeMessage(log.message)}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end pt-2 border-t border-white/5 gap-3">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[9px] text-zinc-500 uppercase font-black tracking-tighter mb-0.5">Actor</span>
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                          <span className="text-[11px] font-bold text-white/90 break-all">{log.actorName}</span>
+                          <span className="text-[8px] px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black uppercase shrink-0">{log.actorRole}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono text-zinc-500 italic shrink-0">{log.time.split(',')[1].trim()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {paginatedLogs.length === 0 && (
+                <div className="py-20 text-center bg-white/5 rounded-3xl border border-white/5 border-dashed">
+                  <Activity className="h-10 w-10 text-white/10 mx-auto mb-4" />
+                  <p className="text-white/40 font-medium">No results found for your search criteria.</p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Pagination */}

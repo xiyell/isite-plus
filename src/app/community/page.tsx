@@ -7,6 +7,7 @@ import {
   updatePostLikeStatus,
   addCommunityComment,
   updatePostStatus,
+  updateCommunityPost,
   NewPostData,
   NewCommentData,
   deleteCommunityComment,
@@ -54,12 +55,14 @@ import {
   BarChart2,
   Trash2,
   MoreVertical,
+  Search,
+  Edit,
 } from "lucide-react";
 
 // Firebase/Data Imports
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/services/firebase";
-import { collection, query, where, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, doc, getDoc, getDocs, limit } from "firebase/firestore";
 
 // Type Imports
 import Post from "@/types/post";
@@ -145,10 +148,18 @@ export default function CommunityPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newCategory, setNewCategory] = useState(categories[1] || "Tech");
   const [creating, setCreating] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  // User Search State
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState<User[]>([]);
+  const [isUserSearching, setIsUserSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   // Dynamic Tailwind classes
   const GLASSY_CARD_CLASSES =
-    "rounded-xl border border-white/10 bg-black/40 backdrop-blur-md text-white p-6 overflow-hidden transition-all hover:border-fuchsia-500/50 shadow-2xl hover:shadow-fuchsia-500/10";
+    "rounded-[2rem] border border-white/10 bg-zinc-950/40 backdrop-blur-md text-white p-8 overflow-hidden transition-all hover:border-fuchsia-500/50 shadow-2xl hover:shadow-fuchsia-500/10";
   const GLASSY_MODAL_CLASSES =
     "max-w-xl p-8 sm:p-10 overflow-y-auto max-h-[90vh] rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl text-white shadow-2xl";
   const GLASSY_BUTTON_OUTLINE =
@@ -232,6 +243,58 @@ export default function CommunityPage() {
     });
     return () => unsub();
   }, []);
+
+  // User Search Logic (Debounced)
+  useEffect(() => {
+    if (!userSearchTerm.trim()) {
+      setUserSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsUserSearching(true);
+      setShowResults(true);
+      try {
+        const usersRef = collection(db, "users");
+        const term = userSearchTerm.trim();
+        
+        // Strategy: Multiple queries to cover different cases since Firestore is case-sensitive
+        // and doesn't support 'OR' easily without composite indexes or separate calls.
+        
+        const namePrefix = term;
+        const nameCapitalized = term.charAt(0).toUpperCase() + term.slice(1);
+        const nameAllUpper = term.toUpperCase();
+        
+        const queries = [
+          // Search by Name (Original)
+          query(usersRef, where("name", ">=", namePrefix), where("name", "<=", namePrefix + "\uf8ff"), limit(3)),
+          // Search by Name (Capitalized)
+          query(usersRef, where("name", ">=", nameCapitalized), where("name", "<=", nameCapitalized + "\uf8ff"), limit(3)),
+          // Search by Student ID
+          query(usersRef, where("studentId", ">=", term), where("studentId", "<=", term + "\uf8ff"), limit(5))
+        ];
+        
+        const snapshots = await Promise.all(queries.map(q => getDocs(q)));
+        const resultMap = new Map<string, User>();
+        
+        snapshots.forEach(snapshot => {
+          snapshot.forEach((doc) => {
+            const data = doc.data() as User;
+            resultMap.set(doc.id, { uid: doc.id, ...data });
+          });
+        });
+        
+        setUserSearchResults(Array.from(resultMap.values()).slice(0, 8));
+      } catch (err) {
+        console.error("Error searching users:", err);
+      } finally {
+        setIsUserSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [userSearchTerm]);
 
   const isAdmin = currentUser ? currentUser.role === 'admin' || currentUser.role === 'moderator' : false;
 
@@ -489,20 +552,22 @@ export default function CommunityPage() {
       return;
     }
 
-    // --- COOLDOWN CHECK ---
-    const lastPostTime = localStorage.getItem(`lastPostTime_${currentUser.uid}`);
-    if (lastPostTime) {
-      const timeSince = Date.now() - parseInt(lastPostTime);
-      const COOLDOWN = 60000; // 60 seconds
-      if (timeSince < COOLDOWN) {
-        const remaining = Math.ceil((COOLDOWN - timeSince) / 1000);
-        toast({
-          title: "Slow Down",
-          description: `Please wait ${remaining}s before posting again.`,
-          variant: "destructive",
-        });
-        return;
-      }
+    // --- COOLDOWN CHECK (Only for new posts) ---
+    if (!isEditMode) {
+        const lastPostTime = localStorage.getItem(`lastPostTime_${currentUser.uid}`);
+        if (lastPostTime) {
+          const timeSince = Date.now() - parseInt(lastPostTime);
+          const COOLDOWN = 60000; // 60 seconds
+          if (timeSince < COOLDOWN) {
+            const remaining = Math.ceil((COOLDOWN - timeSince) / 1000);
+            toast({
+              title: "Slow Down",
+              description: `Please wait ${remaining}s before posting again.`,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
     }
 
     if (!newTitle.trim() || !newDescription.trim()) {
@@ -517,48 +582,53 @@ export default function CommunityPage() {
     setCreating(true);
 
     try {
-        const payload: NewPostData = {
+        const payload: Partial<NewPostData> = {
           title: newTitle.trim(),
           description: newDescription.trim(),
           category: newCategory,
           image: "", 
           postedBy: currentUser.uid,
-          status: "pending",
+          status: "approved", 
         };
 
-      const result = await createCommunityPost(payload);
+      let result;
+      if (isEditMode && editingPostId) {
+        result = await updateCommunityPost(editingPostId, payload, currentUser.uid);
+      } else {
+        (payload as NewPostData).status = "pending";
+        result = await createCommunityPost(payload as NewPostData);
+      }
 
       if (result && (result as any).success === false) {
         toast({
-          title: "Post Flagged",
+          title: isEditMode ? "Update Flagged" : "Post Flagged",
           description: (result as any).message,
           variant: "destructive",
         });
-        // Don't close modal if flagged/failed so they can edit
         return; 
       }
       
-      // --- SET COOLDOWN ---
-      localStorage.setItem(`lastPostTime_${currentUser.uid}`, Date.now().toString());
-
-      setCreateOpen(false);
-      setNewTitle("");
-      setNewDescription("");
-      setNewCategory(categories[1] || "Tech");
-
-      await fetchPosts();
+      if (!isEditMode) {
+        localStorage.setItem(`lastPostTime_${currentUser.uid}`, Date.now().toString());
+      }
 
       toast({
-        title: "Post Submitted",
-        description: "Your post has been submitted for admin review.",
-        variant: "success",
+        title: isEditMode ? "Post Updated" : "Post Created",
+        description: isEditMode ? "Your changes have been saved." : "Your post has been submitted for review.",
       });
 
-    } catch (err) {
-      console.error("Error creating post:", err);
+      setCreateOpen(false);
+      setIsEditMode(false);
+      setEditingPostId(null);
+      setNewTitle("");
+      setNewDescription("");
+      
+      fetchPosts();
+    } catch (err: any) {
+      console.error("Error in post operation:", err);
       toast({
-        title: "Creation Failed",
-        description: "Failed to create post — please try again.",
+        title: "Operation Failed",
+        description: err.message || "Failed to process post — please try again.",
         variant: "destructive",
       });
     } finally {
@@ -751,9 +821,116 @@ export default function CommunityPage() {
           initial={{ y: -30, opacity: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-5xl md:text-6xl lg:text-7xl text-white font-extrabold leading-tight tracking-tighter">
-            Community
-          </h1>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl text-white font-extrabold leading-tight tracking-tighter">
+              Community
+            </h1>
+            <p className="text-white/40 text-sm font-medium ml-1">Connect, share, and grow with fellow iSITE students.</p>
+          </div>
+
+          <div className="flex flex-col gap-4 w-full sm:w-[500px] relative">
+            <div 
+              className={`group relative flex items-center bg-zinc-950/40 backdrop-blur-2xl border transition-all duration-500 overflow-hidden ${
+                showResults 
+                  ? 'rounded-t-[1.5rem] border-fuchsia-500/50 shadow-[0_0_30px_rgba(192,38,211,0.15)]' 
+                  : 'rounded-full border-white/10 hover:border-white/20'
+              }`}
+            >
+                <div className="absolute left-5 text-fuchsia-500/60 group-focus-within:text-fuchsia-400 transition-colors">
+                  <Search className="w-5 h-5" />
+                </div>
+                <input 
+                    type="text"
+                    placeholder="Search by name or student ID..."
+                    className="bg-transparent border-0 focus:ring-0 text-[15px] py-5 px-14 w-full text-white placeholder:text-white/20 font-medium"
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    onFocus={() => setShowResults(userSearchTerm.length > 0)}
+                />
+                <div className="absolute right-5 flex items-center">
+                  {isUserSearching ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-fuchsia-400" />
+                  ) : (
+                    userSearchTerm && (
+                      <button 
+                        onClick={() => setUserSearchTerm("")}
+                        className="text-white/20 hover:text-white transition-colors"
+                      >
+                        <span className="text-xs font-bold uppercase tracking-widest">Clear</span>
+                      </button>
+                    )
+                  )}
+                </div>
+            </div>
+
+            <AnimatePresence>
+                {showResults && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                        className="absolute top-full left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur-[40px] border border-t-0 border-white/10 rounded-b-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+                    >
+                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                          {userSearchResults.length > 0 ? (
+                              <div className="flex flex-col p-3 gap-1">
+                                  <div className="px-4 py-2">
+                                    <span className="text-[10px] font-black text-fuchsia-500/50 uppercase tracking-[0.2em]">People / IDs</span>
+                                  </div>
+                                  {userSearchResults.map((user) => (
+                                      <Link 
+                                          key={user.uid}
+                                          href={`/profile/${user.uid}`}
+                                          className="flex items-center justify-between p-4 hover:bg-white/5 rounded-2xl transition-all group"
+                                          onClick={() => setShowResults(false)}
+                                      >
+                                          <div className="flex items-center gap-4">
+                                            <Avatar className="w-11 h-11 border-2 border-white/5 group-hover:border-fuchsia-500/50 transition-all shadow-xl">
+                                                <AvatarImage src={user.photoURL} className="object-cover" />
+                                                <AvatarFallback className="bg-zinc-800 text-fuchsia-400 text-sm font-black">
+                                                    {user.name?.[0]}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[15px] font-bold text-white group-hover:text-fuchsia-300 transition-colors truncate">
+                                                    {user.name}
+                                                </span>
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                  <span className="text-[10px] text-white/30 uppercase tracking-widest font-black">
+                                                      {user.role}
+                                                  </span>
+                                                  {user.studentId && (
+                                                    <>
+                                                      <span className="w-1 h-1 rounded-full bg-white/10" />
+                                                      <span className="text-[10px] text-fuchsia-500/40 font-bold tracking-wider">
+                                                        #{user.studentId}
+                                                      </span>
+                                                    </>
+                                                  )}
+                                                </div>
+                                            </div>
+                                          </div>
+                                          <div className="opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 transition-transform duration-300">
+                                            <ChevronDown className="w-4 h-4 text-fuchsia-500 -rotate-90" />
+                                          </div>
+                                      </Link>
+                                  ))}
+                              </div>
+                          ) : (
+                              !isUserSearching && (
+                                  <div className="p-12 text-center flex flex-col items-center gap-3">
+                                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+                                        <Search className="w-6 h-6 text-white/10" />
+                                      </div>
+                                      <p className="text-white/20 text-sm font-bold uppercase tracking-widest">No matching results</p>
+                                  </div>
+                              )
+                          )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+          </div>
 
           <div className="flex flex-wrap gap-4 items-center">
             {/* Create Post Button */}
@@ -825,158 +1002,187 @@ export default function CommunityPage() {
 
         <Separator className="mb-12 w-full max-w-7xl mx-auto bg-white/20" />
 
-        {/* Posts Grid (unchanged) */}
+        {/* Posts Grid (Revamped) */}
         {isLoading || loadingPagePosts ? (
           <motion.div
             animate={{ opacity: 1 }}
-            className="w-full max-w-7xl flex flex-wrap justify-center gap-10 items-start container mx-auto"
+            className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 mx-auto px-6 py-12"
             initial={{ opacity: 0 }}
           >
-            {/* Render 10 skeletons */}
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.333%-1.667rem)] xl:w-[calc(25%-1.875rem)]">
-                <SkeletonCard keyIndex={i} />
-              </div>
+            {/* Render 8 skeletons */}
+            {Array.from({ length: 8 }).map((_, i) => (
+              <SkeletonCard keyIndex={i} />
             ))}
           </motion.div>
         ) : (
           <>
             <motion.section
               layout
-              className="w-full max-w-7xl flex flex-wrap justify-center gap-10 items-stretch container mx-auto"
+              className="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 mx-auto px-6 py-12 items-stretch"
             >
               <AnimatePresence>
                 {paginatedPosts.length === 0 ? (
-                  <div className="col-span-full text-center text-xl text-white/70 py-16 w-full">
+                  <div className="col-span-full text-center text-xl text-white/50 py-32 w-full">
                     No posts found in this category or sorting view.
                   </div>
                 ) : (
                   paginatedPosts.map((c) => (
                     <motion.div
                       key={c.id}
-                      className={`cursor-pointer ${GLASSY_CARD_CLASSES} w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.333%-1.667rem)] xl:w-[calc(25%-1.875rem)]`}
+                      className={`cursor-pointer ${GLASSY_CARD_CLASSES} w-full h-full flex flex-col`}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      whileHover={{ y: -8, scale: 1.02 }}
+                      whileHover={{ y: -6, scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleOpenPost(c)}
                       layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
                     >
                       <div className="flex flex-col h-full justify-between gap-6">
                         <div>
-                          {/* Post Header (unchanged) */}
-                          <div className="flex items-center gap-3 border-b border-white/10 pb-4 mb-4">
-                            {c.postedBy?.uid ? (
-                              <Link 
-                                href={`/profile/${c.postedBy.uid}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex items-center gap-3 group/author"
-                              >
-                                {c.postedBy.photoURL ? (
-                                    <Avatar className="w-8 h-8 cursor-pointer border-2 border-transparent group-hover/author:border-white/50 transition-colors">
-                                        <AvatarImage src={c.postedBy.photoURL} />
-                                        <AvatarFallback className="bg-primary/20 text-primary-200 text-xs">
-                                          {c.postedBy.name?.[0]}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                ) : (
-                                    <UserCircle className="w-8 h-8 text-primary/80 flex-shrink-0 group-hover/author:text-white transition-colors" />
-                                )}
-                                <div className="flex flex-col">
-                                  <h3 className="text-sm font-bold text-white leading-none group-hover/author:underline decoration-primary-400 underline-offset-2">
-                                    {c.postedBy?.name || "Anonymous"}
-                                  </h3>
-                                  <span className="text-xs text-white/60">
-                                    Posted on {formatDate(c.createdAt)}
-                                  </span>
-                                </div>
-                              </Link>
-                            ) : (
-                              <div className="flex items-center gap-3">
-                                <UserCircle className="w-8 h-8 text-primary/80 flex-shrink-0" />
-                                <div className="flex flex-col">
-                                  <h3 className="text-sm font-bold text-white leading-none">
-                                    {c.postedBy?.name || "Anonymous"}
-                                  </h3>
-                                  <span className="text-xs text-white/60">
-                                    Posted on {formatDate(c.createdAt)}
-                                  </span>
-                                </div>
+                          {/* Post Header */}
+                          <div className="flex flex-col gap-4 border-b border-white/5 pb-5 mb-5 relative">
+                            {c.status === "pending" && (
+                              <div className="flex items-center">
+                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 font-black uppercase tracking-[0.1em]">
+                                  Pending Review
+                                </span>
                               </div>
                             )}
 
-
-                            {/* Admin / Owner actions (unchanged) */}
-                            {canDeletePost(c) && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="ml-auto text-white/60 hover:text-white"
-                                    onClick={(e) => e.stopPropagation()} // prevent opening post
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="rounded-xl bg-black/70 border border-white/10 text-white"
+                            <div className="flex items-center justify-between gap-3 w-full">
+                              {c.postedBy?.uid ? (
+                                <Link 
+                                  href={`/profile/${c.postedBy.uid}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-3 group/author flex-1 min-w-0"
                                 >
-                                  <DropdownMenuItem
-                                    className="text-red-500 focus:text-red-500 cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeletePost(c.id);
-                                    }}
+                                  {c.postedBy.photoURL ? (
+                                      <Avatar className="w-10 h-10 border-2 border-white/10 group-hover/author:border-fuchsia-500/50 transition-all shadow-lg">
+                                          <AvatarImage src={c.postedBy.photoURL} className="object-cover" />
+                                          <AvatarFallback className="bg-zinc-800 text-fuchsia-400 font-bold">
+                                            {c.postedBy.name?.[0]}
+                                          </AvatarFallback>
+                                      </Avatar>
+                                  ) : (
+                                      <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-white/5 transition-all">
+                                        <UserCircle className="w-6 h-6 text-white/40 group-hover/author:text-fuchsia-400" />
+                                      </div>
+                                  )}
+                                  <div className="flex flex-col min-w-0">
+                                    <h3 className="text-sm font-bold text-white leading-tight truncate group-hover/author:text-fuchsia-300 transition-colors">
+                                      {c.postedBy?.name || "Anonymous"}
+                                    </h3>
+                                    <span className="text-[10px] text-white/30 mt-1 font-medium italic">
+                                      {formatDate(c.createdAt)}
+                                    </span>
+                                  </div>
+                                </Link>
+                              ) : (
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-white/5">
+                                    <UserCircle className="w-6 h-6 text-white/40" />
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <h3 className="text-sm font-bold text-white leading-tight">
+                                      {c.postedBy?.name || "Anonymous"}
+                                    </h3>
+                                    <span className="text-[10px] text-white/30 mt-1 font-medium italic">
+                                      {formatDate(c.createdAt)}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {canDeletePost(c) && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-white/30 hover:text-white hover:bg-white/5 rounded-full"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <MoreVertical className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+
+                                  <DropdownMenuContent
+                                    align="end"
+                                    className="rounded-xl bg-zinc-900 border border-white/10 text-white p-1"
                                   >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                            {/* show pending badge if pending (unchanged) */}
-                            {c.status === "pending" && (
-                              <span className="ml-auto text-xs px-2 py-1 rounded-full bg-yellow-500 text-black font-semibold">
-                                Pending
-                              </span>
-                            )}
+                                    <DropdownMenuItem
+                                      className="text-white/70 focus:text-white cursor-pointer rounded-lg px-3 py-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsEditMode(true);
+                                        setEditingPostId(c.id);
+                                        setNewTitle(c.title);
+                                        setNewDescription(c.description);
+                                        setNewCategory(c.category);
+                                        setCreateOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      <span className="font-semibold text-xs">Edit Post</span>
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem
+                                      className="text-red-400 focus:text-red-300 cursor-pointer rounded-lg px-3 py-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePost(c.id);
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      <span className="font-semibold text-xs">Delete Post</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
 
-                          {/* Post Content (unchanged) */}
-                          <h4 className="text-2xl font-extrabold mt-3 leading-snug text-primary-200">
-                            {c.title}
-                          </h4>
-                          <p className="text-sm text-white/80 mt-3 line-clamp-3">
-                            {c.description}
-                          </p>
+
+                          {/* Post Content */}
+                          <div className="min-h-[110px] flex flex-col pt-1">
+                            <h4 className="text-xl font-bold leading-tight text-white group-hover:text-fuchsia-300 transition-colors line-clamp-2 tracking-tight">
+                              {c.title}
+                            </h4>
+                            <p className="text-sm text-white/40 mt-4 line-clamp-3 leading-relaxed font-normal">
+                              {c.description}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* Post Footer (unchanged) */}
-                        <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                          <div className="text-xs text-white/60 space-x-3">
-                            <span className="capitalize px-2 py-0.5 bg-primary/20 rounded-full text-primary-300 font-medium">
-                              {c.category}
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <Heart className="w-3 h-3" />
-                              {c.likesCount}
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <MessageCircle className="w-3 h-3" />
-                              {c.comments.length}
-                            </span>
+                        {/* Post Footer */}
+                        <div className="mt-auto pt-6 border-t border-white/5">
+                          <div className="flex flex-wrap items-center justify-between gap-y-4">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <span className="text-[9px] px-2 py-0.5 bg-white/5 text-white/50 rounded-md border border-white/5 font-bold uppercase tracking-[0.1em]">
+                                {c.category}
+                              </span>
+                              
+                              <div className="flex items-center gap-3 text-white/30">
+                                <div className="flex items-center gap-1.5 transition-colors hover:text-rose-400">
+                                  <Heart className="w-3.5 h-3.5" />
+                                  <span className="text-xs font-bold">{c.likesCount}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 transition-colors hover:text-fuchsia-400">
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                  <span className="text-xs font-bold">{c.comments.length}</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <Button
+                              size="sm"
+                              className="w-full sm:w-auto rounded-xl bg-white/5 hover:bg-fuchsia-600 text-white border border-white/10 hover:border-transparent transition-all font-bold text-xs px-5 py-5 shadow-lg active:scale-95 ml-auto"
+                            >
+                              View Post
+                            </Button>
                           </div>
-                          <Button
-                            size="sm"
-                            className="rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 transition-all font-medium text-xs sm:text-sm px-5"
-                          >
-                            View Post
-                          </Button>
                         </div>
                       </div>
                     </motion.div>
@@ -1329,21 +1535,22 @@ export default function CommunityPage() {
           onOpenChange={(open) => {
             setCreateOpen(open);
             if (!open) {
-              // Clear fields when closing create modal
               setNewTitle("");
               setNewDescription("");
               setNewCategory(categories[1] || "Tech");
+              setIsEditMode(false);
+              setEditingPostId(null);
             }
           }}
         >
           <DialogContent className={GLASSY_MODAL_CLASSES}>
-            <DialogHeader className="pb-4 border-b border-white/10 mb-6">
-              <DialogTitle className="font-extrabold text-xl">
-                Create Post
-              </DialogTitle>
-            </DialogHeader>
+            <DialogHeader className="p-8 pb-0">
+            <DialogTitle className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/50 tracking-tight">
+              {isEditMode ? "Edit Post" : "Create Post"}
+            </DialogTitle>
+          </DialogHeader>
 
-            <div className="space-y-4">
+          <div className="p-8 pt-6 space-y-6">
               <div className="space-y-1">
                 <Input
                   value={newTitle}
@@ -1396,7 +1603,7 @@ export default function CommunityPage() {
                   onClick={handleCreatePost}
                   disabled={creating}
                 >
-                  {creating ? "Creating..." : "Submit for Review"}
+                  {creating ? (isEditMode ? "Updating..." : "Posting...") : (isEditMode ? "Save Changes" : "Post Content")}
                 </Button>
               </div>
             </div>

@@ -105,7 +105,7 @@ const AnnouncementCard: React.FC<{
    <Card
                 onClick={() => onSelect(item)}
                 // Removed h-full to allow the content constraints to determine size
-                className={`flex flex-col cursor-pointer ${GLASSY_CARD_CLASSES} hover:border-fuchsia-500/60`} 
+                className={`flex flex-col h-full cursor-pointer ${GLASSY_CARD_CLASSES} hover:border-fuchsia-500/60`} 
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -113,7 +113,7 @@ const AnnouncementCard: React.FC<{
                 }}
             >
                 {/* 1. Image/Media Container */}
-                <div className="relative w-full">
+                <div className="relative w-full shrink-0">
                     <AspectRatio ratio={16 / 9}>
                         <Image
                             src={imgSrc}
@@ -127,22 +127,24 @@ const AnnouncementCard: React.FC<{
                     </AspectRatio>
                 </div>
 
-                {/* 2. Header (Title and Date) - COMPACTED PADDING */}
-                <CardHeader className="px-3 py-2 sm:px-4 sm:py-3"> {/* Reduced p-6/p-3 to px-3 py-2 */}
-                    <CardTitle className="line-clamp-2 text-fuchsia-200 text-base sm:text-lg">
+                {/* 2. Header (Title and Date) */}
+                <CardHeader className="px-4 py-3 shrink-0">
+                    <CardTitle className="line-clamp-2 text-fuchsia-200 text-base sm:text-lg min-h-[3rem]">
                         {item.title}
                     </CardTitle>
-                    <div className="flex items-center space-x-1.5 text-xs text-fuchsia-300/80"> {/* Reduced text/icon size and spacing */}
+                    <div className="flex items-center space-x-1.5 text-xs text-fuchsia-300/80">
                         <CalendarIcon className="h-3 w-3" />
                         <span className="truncate">{formatDate(item.createdAt)}</span>
                     </div>
                 </CardHeader>
 
-                {/* 3. Content (Description) - COMPACTED PADDING */}
-                <CardContent className="px-3 py-0 sm:px-4 sm:py-0 flex-grow">
-                    {/* KEY CHANGE: line-clamp-3 maintains a predictable description height */}
-                    <p className="line-clamp-3 text-sm text-fuchsia-100/70">{item.description}</p>
+                {/* 3. Content (Description Preview) */}
+                <CardContent className="px-4 flex-grow">
+                    <p className="line-clamp-3 text-sm text-fuchsia-100/70 min-h-[3.75rem]">
+                        {item.description}
+                    </p>
                 </CardContent>
+
 
                 {/* 4. Footer (Button) - COMPACTED PADDING */}
                 <CardFooter className="px-3 py-3 sm:px-4 sm:py-4 pt-2"> {/* Reduced vertical padding, ensuring a small gap above the button */}
@@ -200,7 +202,7 @@ const FeaturedAnnouncement: React.FC<{
                 <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 z-10"> 
                     <span className="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-medium text-white bg-fuchsia-600 rounded-full mb-2 sm:mb-3 shadow-md">⭐ Featured</span>
                     <h2 className="text-xl sm:text-4xl md:text-5xl font-extrabold text-white mb-2 sm:mb-3 drop-shadow-lg line-clamp-2">{item.title}</h2>
-                    <p className="text-xs sm:text-sm md:text-lg text-fuchsia-100/90 max-w-2xl line-clamp-2 hidden sm:block">{item.description}</p>
+
                     <Button size="sm" className="mt-2 sm:mt-6 bg-fuchsia-600 hover:bg-fuchsia-700 h-8 sm:h-10 text-xs sm:text-sm">Read More →</Button>
                 </div>
             </div>

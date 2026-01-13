@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { db } from "@/services/firebase";
 import { collection, getDocs, query, Timestamp, onSnapshot, doc } from "firebase/firestore";
 import { getAttendance, getAttendanceSheets } from "@/actions/attendance";
+import { getCommunityStats } from "@/actions/community";
 
 // --- TYPE DEFINITIONS ---
 interface OverviewStats {
@@ -38,7 +39,12 @@ export default function OverviewContent() {
     const [attendanceData, setAttendanceData] = useState<{ name: string; value: number; color: string }[]>([]);
     const [latestEventDate, setLatestEventDate] = useState<string>("");
 
-    const [stats, setStats] = useState<OverviewStats | null>(null);
+    const [stats, setStats] = useState<OverviewStats>({
+        totalUsers: 0,
+        totalPosts: 0,
+        pendingPosts: 0,
+        serverUptime: "Online (99.9%)"
+    });
 
     const [loading, setLoading] = useState(true);
 
@@ -56,35 +62,35 @@ export default function OverviewContent() {
         const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
             const count = snapshot.size;
             setStats(prev => ({ 
-                ...prev!, 
+                ...prev, 
                 totalUsers: count,
-                totalPosts: prev?.totalPosts || 0,
-                pendingPosts: prev?.pendingPosts || 0,
-                serverUptime: "Online (99.9%)"
             }));
             setLoading(false);
         }, (err) => {
              console.error("Users listener error:", err);
-             setStats(prev => ({ ...prev!, totalUsers: 0, totalPosts: 0, pendingPosts: 0, serverUptime: "Error" }));
+             setStats(prev => ({ ...prev, serverUptime: "Error" }));
         });
         return () => unsub();
     }, []);
 
-    // --- 2. Real-time Posts Listener ---
+    // --- 2. Post Stats (Server Action) ---
     useEffect(() => {
-        const unsub = onSnapshot(collection(db, "community"), (snapshot) => {
-            let total = 0;
-            let pending = 0;
-
-            setStats(prev => ({ 
-                ...prev!, 
-                totalUsers: prev?.totalUsers || 0,
-                totalPosts: total,
-                pendingPosts: pending,
-                serverUptime: "Online (99.9%)"
-            }));
-        });
-        return () => unsub();
+        const fetchStats = async () => {
+            try {
+                const data = await getCommunityStats();
+                setStats(prev => ({ 
+                    ...prev, 
+                    totalPosts: data.total,
+                    pendingPosts: data.pending,
+                }));
+            } catch (err) {
+                console.error("Failed to fetch community stats:", err);
+            }
+        };
+        fetchStats();
+        // Refresh every minute to keep it semi-live
+        const timer = setInterval(fetchStats, 60000);
+        return () => clearInterval(timer);
     }, []);
 
     const [attendedCount, setAttendedCount] = useState<number | null>(null);
@@ -149,12 +155,12 @@ export default function OverviewContent() {
                  const latency = Date.now() - start;
                  
                  setStats(prev => ({ 
-                     ...prev!, 
+                     ...prev, 
                      serverUptime: `Online (${latency}ms)`
                  }));
              } catch (e) {
                  setStats(prev => ({ 
-                     ...prev!, 
+                     ...prev, 
                      serverUptime: "Offline" 
                  }));
              }
@@ -165,8 +171,6 @@ export default function OverviewContent() {
         return () => clearInterval(interval);
     }, []);
 
-
-    const displayStats: OverviewStats = stats || { totalUsers: 0, totalPosts: 0, pendingPosts: 0, serverUptime: "Loading..." };
 
     if (loading) {
         return (
@@ -191,22 +195,22 @@ export default function OverviewContent() {
                 {[
                     {
                         title: "Total Users",
-                        stat: displayStats.totalUsers.toLocaleString(),
+                        stat: stats.totalUsers.toLocaleString(),
                         desc: "Registered Accounts",
                         icon: Users,
                         color: 'text-indigo-300'
                     },
                     {
-                        title: "Total Posts",
-                        stat: displayStats.totalPosts.toLocaleString(),
-                        desc: `${displayStats.pendingPosts} drafts pending`,
+                        title: "Pending Posts",
+                        stat: stats.pendingPosts.toLocaleString(),
+                        desc: "Awaiting Moderation",
                         icon: Upload,
                         color: 'text-cyan-300'
                     },
                     {
                         title: "Server Uptime",
-                        stat: displayStats.serverUptime.split(' ')[0],
-                        desc: `Last checked: ${displayStats.serverUptime.split('(')[1]?.replace(')', '') || 'N/A'}`,
+                        stat: stats.serverUptime.split(' ')[0],
+                        desc: `Last checked: ${stats.serverUptime.split('(')[1]?.replace(')', '') || 'N/A'}`,
                         icon: Server,
                         color: 'text-green-300'
                     },

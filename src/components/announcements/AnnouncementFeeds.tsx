@@ -40,41 +40,39 @@ function AnnouncementCard({
     return (
         <motion.div
             variants={cardVariants}
-            whileHover={{ y: -5, transition: { duration: 0.3 } }}
+            whileHover={{ y: -8, scale: 1.02 }}
             className="h-full"
         >
             <Card
                 onClick={() => onSelect(item)}
-                className="flex flex-col h-full cursor-pointer transition-shadow hover:shadow-xl dark:hover:shadow-primary/50"
+                className="flex flex-col h-full cursor-pointer bg-zinc-900/40 backdrop-blur-md border border-white/10 hover:border-fuchsia-500/50 transition-all duration-300 shadow-2xl hover:shadow-fuchsia-500/20 group overflow-hidden rounded-[1.5rem]"
             >
-                <div className="relative w-full">
+                <div className="relative w-full overflow-hidden">
                     <AspectRatio ratio={16 / 9}>
                         <Image
                             src={item.image || fallbackImage}
                             alt={item.title}
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            className="rounded-t-lg object-cover"
+                            className="object-cover transition-transform duration-700 group-hover:scale-110"
                             loading="lazy"
                         />
                     </AspectRatio>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
                 </div>
-                <CardHeader>
-                    <CardTitle className="line-clamp-2">{item.title}</CardTitle>
-                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span className="truncate">
-                            {new Date(item.createdAt).toLocaleDateString()}
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold text-white group-hover:text-fuchsia-300 transition-colors line-clamp-2 min-h-[3.5rem] tracking-tight">
+                        {item.title}
+                    </CardTitle>
+                    <div className="flex items-center space-x-2 text-xs font-medium text-white/50 uppercase tracking-[0.15em]">
+                        <CalendarIcon className="h-4 w-4 text-fuchsia-500/60" />
+                        <span>
+                            {new Date(item.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                     </div>
                 </CardHeader>
-                <CardContent className="flex-grow">
-                    <p className="line-clamp-3 text-sm text-muted-foreground">
-                        {item.description}
-                    </p>
-                </CardContent>
-                <CardFooter>
-                    <Button variant="outline" className="w-full">
+                <CardFooter className="mt-auto pt-4 pb-8">
+                    <Button variant="outline" className="w-full rounded-xl border-white/10 bg-white/5 hover:bg-fuchsia-600 hover:text-white hover:border-transparent transition-all font-bold text-[10px] uppercase tracking-[0.2em] py-6 shadow-xl active:scale-95">
                         View Details
                     </Button>
                 </CardFooter>
@@ -95,37 +93,62 @@ function FeaturedAnnouncement({
 }) {
     return (
         <motion.section
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative w-full max-w-6xl mx-auto rounded-xl overflow-hidden shadow-2xl transition-shadow hover:shadow-primary/50 cursor-pointer"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.005 }}
+            className="group relative w-[92%] sm:w-full max-w-5xl mx-auto h-[40vh] min-h-[400px] overflow-hidden rounded-[2.5rem] cursor-pointer shadow-2xl transition-all duration-700 border border-white/10 hover:border-fuchsia-500/50 hover:shadow-fuchsia-500/20"
             onClick={() => onSelect(item)}
         >
-            <div className="relative w-full">
-                <AspectRatio ratio={21 / 9}>
-                    <Image
-                        src={item.image || fallbackImage}
-                        alt={item.title}
-                        fill
-                        sizes="100vw"
-                        className="object-cover brightness-50"
-                        priority
-                    />
-                </AspectRatio>
-                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
+            <div className="absolute inset-0 z-0">
+                <div className="hidden sm:block h-full">
+                    <AspectRatio ratio={21 / 9} className="h-full">
+                        <Image
+                            src={item.image || fallbackImage}
+                            alt={item.title}
+                            fill
+                            sizes="100vw"
+                            className="object-cover brightness-[0.7] group-hover:brightness-90 group-hover:scale-105 transition-all duration-1000"
+                            priority
+                        />
+                    </AspectRatio>
+                </div>
+                <div className="sm:hidden h-full">
+                    <AspectRatio ratio={1 / 1} className="h-full">
+                        <Image
+                            src={item.image || fallbackImage}
+                            alt={item.title}
+                            fill
+                            sizes="100vw"
+                            className="object-cover brightness-[0.7] group-hover:brightness-90 group-hover:scale-105 transition-all duration-1000"
+                            priority
+                        />
+                    </AspectRatio>
+                </div>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 z-10">
-                <span className="inline-block px-3 py-1 text-xs font-medium text-primary-foreground bg-primary rounded-full mb-3">
-                    ⭐ Featured
-                </span>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-foreground mb-4 drop-shadow-md">
-                    {item.title}
-                </h2>
-                <p className="text-base md:text-lg text-muted-foreground max-w-2xl line-clamp-2">
-                    {item.description}
-                </p>
-                <Button className="mt-6">Read More →</Button>
+            
+            <div className="absolute inset-0 z-10 flex flex-col justify-end p-8 sm:p-14 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent">
+                <div className="max-w-4xl">
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="mb-6"
+                    >
+                        <span className="px-6 py-2 bg-fuchsia-600 rounded-full text-[11px] font-black tracking-[0.25em] text-white shadow-2xl shadow-fuchsia-900/60 uppercase">
+                            ★ FEATURED
+                        </span>
+                    </motion.div>
+                    <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-white leading-[1.05] mb-4 drop-shadow-2xl line-clamp-2 tracking-tighter group-hover:text-fuchsia-300 transition-colors">
+                        {item.title}
+                    </h2>
+                    <p className="text-white/50 text-xs font-bold uppercase tracking-[0.2em] italic">
+                        {new Date(item.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                </div>
             </div>
+            
+            {/* Decorative glass shine */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-tr from-fuchsia-500/10 to-transparent pointer-events-none" />
         </motion.section>
     );
 }
@@ -175,10 +198,12 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
     // Fetch announcements in real-time
     useEffect(() => {
         setLoading(true);
+        // Note: We use a larger fetch limit and client-side filtering to ensure we get enough 'active' items 
+        // without complex composite indices for every combination of filters.
         const q = query(
             collection(db, "announcements"),
             orderBy("createdAt", "desc"),
-            firestoreLimit(limit)
+            firestoreLimit(50) 
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -189,7 +214,9 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
                     createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
                     updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
                 } as Announcement))
-                .filter(a => a.status === "active"); // Client-side filter to avoid composite index
+                .filter(a => a.status === "active")
+                .slice(0, limit); // Respect the requested limit after filtering
+                
             setAnnouncements(data);
             setLoading(false);
         }, (error) => {
@@ -221,32 +248,36 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
             )}
 
             {/* 3. Announcements Grid */}
-            <motion.div
-                animate="visible"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-20 max-w-6xl mx-auto w-full"
-                initial="hidden"
-                variants={{
-                    hidden: {},
-                    visible: { transition: { staggerChildren: 0.1 } },
-                }}
-            >
-                {loading
-                    ? <AnnouncementSkeleton />
-                    : gridAnnouncements.map((item) => (
-                        <AnnouncementCard
-                            key={item.id}
-                            fallbackImage={fallbackImage}
-                            item={item}
-                            onSelect={setSelected}
-                        />
-                    ))}
+            <div className="px-6 sm:px-0 max-w-6xl mx-auto w-full">
+                <motion.div
+                    animate="visible"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-20 items-stretch"
+                    initial="hidden"
+                    variants={{
+                        hidden: {},
+                        visible: { transition: { staggerChildren: 0.1 } },
+                    }}
+                >
+                    {loading
+                        ? <AnnouncementSkeleton />
+                        : gridAnnouncements.map((item) => (
+                            <AnnouncementCard
+                                key={item.id}
+                                fallbackImage={fallbackImage}
+                                item={item}
+                                onSelect={setSelected}
+                            />
+                        ))}
 
-                {!loading && announcements.length === 0 && (
-                    <p className="text-center col-span-full text-muted-foreground py-10">
-                        No announcements found. Check back later!
-                    </p>
-                )}
-            </motion.div>
+                    {!loading && gridAnnouncements.length === 0 && (
+                        <div className="text-center col-span-full py-20 bg-zinc-900/30 rounded-[2rem] border border-white/5 border-dashed">
+                            <p className="text-white/30 font-bold uppercase tracking-widest text-sm">
+                                No additional announcements found
+                            </p>
+                        </div>
+                    )}
+                </motion.div>
+            </div>
 
             {/* 4. Modal */}
             <AnnouncementModal
@@ -283,8 +314,9 @@ export default function AnnouncementPage() {
             {/* --- Horizontal Rule --- */}
             <hr className="w-1/3 mx-auto border-t border-muted-foreground/20" />
 
-            {/* CALL THE REUSABLE COMPONENT HERE */}
-            <AnnouncementsFeed limit={10} />
+             <div className="container mx-auto">
+                <AnnouncementsFeed limit={7} />
+             </div>
         </div>
     );
 }

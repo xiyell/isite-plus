@@ -19,6 +19,8 @@ import {
 
 import { useToast } from "@/components/ui/use-toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useMemo } from "react";
+import { Activity } from "lucide-react";
 
 // ---------------- ICON HELPERS ----------------
 const getIconConfig = (type: TrashedItem['type']) => {
@@ -51,50 +53,40 @@ interface TrashRowProps {
 const TrashRow = ({ item, onAction }: TrashRowProps) => {
     const typeConfig = getIconConfig(item.type);
     return (
-        <TableRow className="hover:bg-white/5 transition-colors border-b border-white/10">
-            <TableCell className="border-r border-white/10 text-white p-4 text-center">
-                <Badge className={typeConfig.color + " rounded-sm px-2 py-0.5 text-[10px] uppercase shadow-none border-0 inline-flex items-center"}>
-                    {typeConfig.Icon && <typeConfig.Icon size={12} className="mr-1" />}
-                    {item.type.toUpperCase()}
+        <TableRow className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0 h-16">
+            <TableCell className="pl-6 text-center">
+                <Badge className={typeConfig.color + " rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase shadow-lg shadow-black/40 border-0 inline-flex items-center"}>
+                    {typeConfig.Icon && <typeConfig.Icon size={10} className="mr-1" />}
+                    {item.type}
                 </Badge>
-                {item.status === 'disabled' && (
-                    <Badge className="ml-2 bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-[10px] uppercase">
-                        Disabled
-                    </Badge>
-                )}
             </TableCell>
-            <TableCell className="border-r border-white/10 text-gray-200 p-4 font-medium truncate" title={item.title}>
+            <TableCell className="text-[11px] font-bold text-white/90 truncate pr-4" title={item.title}>
                 {item.title}
             </TableCell>
-            <TableCell className="border-r border-white/10 text-gray-200 p-4 truncate hidden sm:table-cell text-center align-middle">
-                {item.deletedBy}
+            <TableCell className="text-center">
+                <div className="flex flex-col items-center">
+                    <span className="text-[11px] font-bold text-white/80">{item.deletedBy}</span>
+                    <span className="text-[9px] font-black uppercase tracking-tighter text-indigo-400/60 leading-none">Admin</span>
+                </div>
             </TableCell>
-            <TableCell className="border-r border-white/10 text-gray-200 p-4 whitespace-nowrap hidden md:table-cell text-center align-middle">
-                {item.deletedAt === 'Unknown' || !item.deletedAt ? (
-                    <span className="text-gray-500 text-xs">-</span>
-                ) : (
-                    <span className="font-mono text-xs text-gray-200">
-                        {new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                )}
+            <TableCell className="text-center font-mono text-[10px] text-zinc-400">
+                {item.deletedAt === 'Unknown' || !item.deletedAt ? "-" : new Date(item.deletedAt).toLocaleString()}
             </TableCell>
-            <TableCell className="text-center p-4 align-middle">
-                <div className="flex items-center justify-center gap-2">
+            <TableCell className="pr-6 text-center">
+                <div className="flex items-center justify-center gap-1.5">
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-400/10"
+                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-400/10 rounded-lg"
                         onClick={() => onAction('restore', item)}
-                        title="Restore"
                     >
                         <Undo2 size={16} />
                     </Button>
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg"
                         onClick={() => onAction('delete', item)}
-                        title="Permanent Delete"
                     >
                         <XCircle size={16} />
                     </Button>
@@ -113,50 +105,69 @@ interface TrashTableProps {
 
 const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => {
     const [page, setPage] = useState(1);
+    const [search, setSearch] = useState("");
     const ITEMS_PER_PAGE = 5;
 
-    useEffect(() => {
-        const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE) || 1;
-        if (page > totalPages) setPage(totalPages);
-    }, [items.length, page]);
+    const filteredItems = useMemo(() => {
+        return items.filter(item => 
+            item.title.toLowerCase().includes(search.toLowerCase()) ||
+            item.deletedBy.toLowerCase().includes(search.toLowerCase())
+        );
+    }, [items, search]);
 
-    const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+    useEffect(() => {
+        const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE) || 1;
+        if (page > totalPages) setPage(totalPages);
+    }, [filteredItems.length, page]);
+
+    const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
     const currentPage = Math.min(Math.max(1, page), Math.max(1, totalPages));
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const paginatedItems = items.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    const paginatedItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     return (
         <div className="space-y-4">
-            {items.length > 0 && onEmpty && (
-                <div className="flex justify-end">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="relative w-full md:max-w-xs">
+                    <input
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                        placeholder="Search deleted items..."
+                        className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                    />
+                </div>
+                {items.length > 0 && onEmpty && (
                     <Button 
                         variant="destructive" 
                         size="sm" 
                         onClick={onEmpty}
                         disabled={disabled}
-                        className="bg-red-600/20 text-white hover:bg-red-600/40 border border-red-500/30"
+                        className="bg-red-600/20 text-white hover:bg-red-600/30 border border-red-500/30 rounded-xl"
                     >
                         <Trash2 size={16} className="mr-2" />
-                        Delete All
+                        Empty Category
                     </Button>
-                </div>
-            )}
-            <div className="border border-white/20 rounded-lg bg-black/20 overflow-x-auto">
-                <Table className="border-collapse w-full min-w-[500px] table-fixed">
-                    <TableHeader className="bg-white/10">
-                        <TableRow className="border-b border-white/20">
-                            <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Type</TableHead>
-                            <TableHead className="border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 align-middle">Title / Identifier</TableHead>
-                            <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 hidden sm:table-cell text-center align-middle">Deleted By</TableHead>
-                            <TableHead className="w-[200px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-[10px] p-4 hidden md:table-cell text-center align-middle">Deleted At</TableHead>
-                            <TableHead className="w-[120px] text-white font-bold uppercase tracking-wider text-[10px] p-4 text-center align-middle">Actions</TableHead>
+                )}
+            </div>
+
+            {/* DESKTOP VIEW */}
+            <div className="hidden lg:block border border-white/10 rounded-xl bg-black/40 overflow-hidden shadow-inner">
+                <Table className="border-collapse w-full table-fixed">
+                    <TableHeader className="bg-white/5">
+                        <TableRow className="border-b border-white/10 hover:bg-transparent">
+                            <TableHead className="w-[140px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6 text-center">Type</TableHead>
+                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Title / Identifier</TableHead>
+                            <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 text-center">Deleted By</TableHead>
+                            <TableHead className="w-[200px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 text-center">Deleted At</TableHead>
+                            <TableHead className="w-[120px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6 text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {items.length === 0 ? (
+                        {filteredItems.length === 0 ? (
                             <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={5} className="text-center text-gray-500 py-10">
-                                    The trash bin is empty for this category.
+                                <TableCell colSpan={5} className="text-center text-gray-500 py-16">
+                                    <Trash2 className="mx-auto h-8 w-8 mb-3 opacity-20" />
+                                    No items found in this category.
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -164,19 +175,59 @@ const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => 
                                 {paginatedItems.map(item => (
                                     <TrashRow key={item.id} item={item} onAction={onAction} />
                                 ))}
-                                {Array.from({ length: Math.max(0, ITEMS_PER_PAGE - paginatedItems.length) }).map((_, index) => (
-                                    <TableRow key={`empty-${index}`} className="border-b border-white/10 pointer-events-none opacity-0">
-                                        <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                                        <TableCell className="border-r border-white/10 p-4">&nbsp;</TableCell>
-                                        <TableCell className="border-r border-white/10 p-4 hidden sm:table-cell">&nbsp;</TableCell>
-                                        <TableCell className="border-r border-white/10 p-4 hidden md:table-cell">&nbsp;</TableCell>
-                                        <TableCell className="p-4">&nbsp;</TableCell>
-                                    </TableRow>
-                                ))}
                             </>
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            {/* MOBILE VIEW */}
+            <div className="lg:hidden space-y-4">
+                {paginatedItems.map((item) => {
+                    const config = getIconConfig(item.type);
+                    return (
+                        <div key={item.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 transition-all hover:border-indigo-500/30">
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className={`p-2.5 rounded-xl bg-white/5 border border-white/10 shrink-0`}>
+                                        <config.Icon size={18} className={config.color.split(' ')[1]} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1">{item.type}</p>
+                                        <h4 className="text-xs font-bold text-white break-words">{item.title}</h4>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-9 w-9 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-xl border border-green-500/20"
+                                        onClick={() => onAction('restore', item)}
+                                    >
+                                        <Undo2 size={16} />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-9 w-9 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl border border-red-500/20"
+                                        onClick={() => onAction('delete', item)}
+                                    >
+                                        <XCircle size={16} />
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-end pt-3 border-t border-white/5">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] text-zinc-500 uppercase font-black tracking-tighter mb-0.5">Deleted By</span>
+                                    <span className="text-[11px] font-bold text-white/90">{item.deletedBy}</span>
+                                </div>
+                                <span className="text-[10px] font-mono text-zinc-500 italic">
+                                    {item.deletedAt && item.deletedAt !== 'Unknown' ? new Date(item.deletedAt).toLocaleDateString() : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
 
@@ -328,27 +379,29 @@ export default function TrashBinDashboard() {
     const ibotItems = trashItems.filter(item => item.type === 'ibot');
 
     return (
-        <div className="p-4 md:p-8 space-y-6 text-white min-h-[500px]">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3 text-red-400">
-                <Trash2 size={32} /> Trash Bin
-            </h1>
-            <CardDescription className="text-sm md:text-base text-gray-300">
-                Items listed here have been soft-deleted and can be restored. Permanent deletion is final.
-            </CardDescription>
+        <div className="p-4 md:p-8 space-y-8 text-white min-h-[500px] font-outfit">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3 text-red-500">
+                    <Trash2 size={36} /> Trash Bin
+                </h1>
+                <p className="text-zinc-400 text-sm md:text-base font-medium">
+                    Manage soft-deleted items across all platforms. You can restore them or delete them permanently.
+                </p>
+            </div>
 
             <Card className="bg-black/10 backdrop-blur-xl border border-white/10 shadow-2xl">
                 <Tabs defaultValue="posts">
-                    <CardHeader className="p-4 pb-0">
-                        <div className="w-full overflow-x-auto pb-2 scrollbar-hide">
-                            <TabsList className="bg-transparent border-0 w-max flex gap-2 h-auto p-0">
-                                <TabsTrigger value="posts" className="bg-indigo-900/20 data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-indigo-200 border border-indigo-500/30 px-4 py-2 rounded-full whitespace-nowrap">Posts ({posts.length})</TabsTrigger>
-                                <TabsTrigger value="announcements" className="bg-green-900/20 data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-200 border border-green-500/30 px-4 py-2 rounded-full whitespace-nowrap">Announcements ({announcements.length})</TabsTrigger>
-                                <TabsTrigger value="users" className="bg-red-900/20 data-[state=active]:bg-red-600 data-[state=active]:text-white text-red-200 border border-red-500/30 px-4 py-2 rounded-full whitespace-nowrap">Users ({users.length})</TabsTrigger>
-                                <TabsTrigger value="evaluations" className="bg-purple-900/20 data-[state=active]:bg-purple-600 data-[state=active]:text-white text-purple-200 border border-purple-500/30 px-4 py-2 rounded-full whitespace-nowrap">Evaluations ({evaluations.length})</TabsTrigger>
-                                <TabsTrigger value="ibot" className="bg-blue-900/20 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-200 border border-blue-500/30 px-4 py-2 rounded-full whitespace-nowrap">iBot ({ibotItems.length})</TabsTrigger>
+                    <div className="p-4 border-b border-white/5 bg-white/5 backdrop-blur-md rounded-t-2xl">
+                        <div className="w-full overflow-x-auto pb-1 scrollbar-hide">
+                            <TabsList className="bg-white/5 h-11 p-1 rounded-xl flex gap-1 w-max border border-white/10">
+                                <TabsTrigger value="posts" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Posts ({posts.length})</TabsTrigger>
+                                <TabsTrigger value="announcements" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Announcements ({announcements.length})</TabsTrigger>
+                                <TabsTrigger value="users" className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Users ({users.length})</TabsTrigger>
+                                <TabsTrigger value="evaluations" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Evaluations ({evaluations.length})</TabsTrigger>
+                                <TabsTrigger value="ibot" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">iBot ({ibotItems.length})</TabsTrigger>
                             </TabsList>
                         </div>
-                    </CardHeader>
+                    </div>
                     <CardContent className="pt-6">
                         {loading ? (
                             <div className="flex justify-center items-center h-40 text-gray-400">

@@ -17,10 +17,19 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 // Third-party imports
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Trash2, Edit, Bot, X } from "lucide-react";
+import { Send, Trash2, Edit, Bot, X, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 // Firebase imports
 import {
@@ -95,7 +104,17 @@ export default function IBot() {
 
     // Pagination State
     const [page, setPage] = useState(1);
-    const ITEMS_PER_PAGE = 3;
+    const [searchReplies, setSearchReplies] = useState("");
+    const ITEMS_PER_PAGE = 5;
+
+    // Derived filtered and paginated responses
+    const filteredResponses = responses.filter(r => 
+        r.trigger.toLowerCase().includes(searchReplies.toLowerCase()) || 
+        r.reply.toLowerCase().includes(searchReplies.toLowerCase())
+    ).sort((a, b) => b.createdAt - a.createdAt);
+
+    const totalPages = Math.ceil(filteredResponses.length / ITEMS_PER_PAGE);
+    const paginatedResponses = filteredResponses.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
 
     // ──────────────────────────────────────────────────────────
@@ -122,11 +141,12 @@ export default function IBot() {
                 const q = query(collection(db, "announcements"), orderBy("createdAt", "desc"));
                 
                 const snap = await getDocs(q);
-                const data = snap.docs.map(doc => ({
-                    id: doc.id,
-                    title: doc.data().title || "Untitled Announcement",
-                    // We can include other fields if needed
-                }));
+                const data = snap.docs
+                    .filter(doc => doc.data().status === 'active') // Only show active ones
+                    .map(doc => ({
+                        id: doc.id,
+                        title: doc.data().title || "Untitled Announcement",
+                    }));
                 setAnnouncements(data);
             } catch (e) {
                 console.error("Failed to load announcements", e);
@@ -134,10 +154,12 @@ export default function IBot() {
                 try {
                      const { getDocs } = await import("firebase/firestore");
                      const snap = await getDocs(collection(db, "announcements"));
-                     const data = snap.docs.map(doc => ({
-                        id: doc.id,
-                        title: doc.data().title || "Untitled Announcement",
-                    }));
+                     const data = snap.docs
+                        .filter(doc => doc.data().status === 'active') // Only show active ones
+                        .map(doc => ({
+                            id: doc.id,
+                            title: doc.data().title || "Untitled Announcement",
+                        }));
                     setAnnouncements(data);
                 } catch (e2) {
                     console.error("Fallback fetch failed", e2);
@@ -145,24 +167,19 @@ export default function IBot() {
             }
         };
 
-        const loadSettings = async () => { 
-            try {
-                // Dynamically import to ensure client-side execution if needed, though we are in useEffect
-                const { getDoc, doc } = await import("firebase/firestore");
-                const ref = doc(db, "settings", "ibot_settings");
-                const snap = await getDoc(ref);
-                if (snap.exists()) {
-                    setBotEnabled(snap.data().enabled ?? true);
-                }
-            } catch (e) {
-                console.error("Failed to load settings", e);
+        // Listen for Settings (Real-time)
+        const unsubSettings = onSnapshot(doc(db, "settings", "ibot_settings"), (snap) => {
+            if (snap.exists()) {
+                setBotEnabled(snap.data().enabled ?? true);
             }
-        };
+        });
 
         loadAnnouncements();
-        loadSettings();
 
-        return () => unsub();
+        return () => {
+            unsub();
+            unsubSettings();
+        };
     }, []);
 
     const handleSave = async () => {
@@ -333,117 +350,164 @@ export default function IBot() {
             <Separator className="bg-white/20" />
 
             {/* 3. List of Responses (Applied Glassy Styles) */}
-            <Card className="bg-black/10 backdrop-blur-lg border border-white/10 shadow-lg">
-                <CardHeader>
-                    <CardTitle className="text-white">Existing iBot Replies ({responses.length})</CardTitle>
-                    <CardDescription className="text-gray-300">List of all saved trigger-reply pairs, ordered by creation.</CardDescription>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-xl shadow-2xl rounded-3xl overflow-hidden">
+                <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 p-6">
+                    <div>
+                        <CardTitle className="text-xl text-white">Existing iBot Replies ({responses.length})</CardTitle>
+                        <CardDescription className="text-zinc-400">List of all saved trigger-reply pairs.</CardDescription>
+                    </div>
+                    <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                        <Input
+                            placeholder="Search triggers or replies..."
+                            value={searchReplies}
+                            onChange={(e) => { setSearchReplies(e.target.value); setPage(1); }}
+                            className="bg-white/5 border-white/10 text-white pl-10 h-10 rounded-xl text-xs focus:ring-purple-500/50"
+                        />
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                    {responses.length === 0 && (
-                        <p className="text-gray-400 py-4 text-center">
-                            <Bot className="inline h-5 w-5 mr-2" /> No automated responses have been added yet.
-                        </p>
-                    )}
 
-                    {responses
-                        .slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
-                        .map((r) => (
-                        <motion.div
-                            key={r.id}
-                            // Glassy List Item Style
-                            className="p-4 border border-white/15 bg-black/5 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center transition-shadow hover:shadow-lg hover:shadow-purple-500/10"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, x: -50 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {/* ... (Existing Item Content) ... */}
-                            <div className="flex-1 space-y-1 mb-3 sm:mb-0">
-                                <p className="text-sm font-semibold text-purple-400 uppercase">Trigger:</p>
-                                <p className="text-white mb-2 whitespace-pre-wrap">{r.trigger}</p>
-
-                                <p className="text-sm font-semibold text-purple-400 uppercase">Reply:</p>
-                                <p className="text-gray-300 whitespace-pre-wrap">{r.reply}</p>
-                            </div>
-
-                            <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
-                                    <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="text-blue-500 border-blue-500/50 hover:bg-blue-500/10 w-1/2 sm:w-8"
-                                    onClick={() => {
-                                        setEditing(r);
-                                        setTrigger(r.trigger);
-                                        setReply(r.reply);
-                                        setLinkedAnnouncementId(r.linkedAnnouncementId || "none");
-                                        toast({ title: "Editing Mode", description: `Editing: ${r.trigger}` });
-                                    }}
-                                >
-                                    <Edit size={18} />
-                                </Button>
-
-                                <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="w-1/2 sm:w-8"
-                                    onClick={() => handleDelete(r.id)}
-                                >
-                                    <Trash2 size={18} />
-                                </Button>
-                            </div>
-                        </motion.div>
-                    ))}
-
-                    {/* Pagination Controls */}
-                    {Math.ceil(responses.length / ITEMS_PER_PAGE) > 1 && (
-                        <div className="pt-4 flex justify-center">
-                            <Pagination>
-                                <PaginationContent>
-                                    <PaginationItem>
-                                        <PaginationPrevious
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setPage(p => Math.max(1, p - 1));
-                                            }}
-                                            className={page === 1 ? "pointer-events-none opacity-50 text-gray-400" : "cursor-pointer text-gray-300 hover:text-white"}
-                                            aria-label="Previous page"
-                                        />
-                                    </PaginationItem>
-                                    
-                                    {Array.from({ length: Math.ceil(responses.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((p) => (
-                                        <PaginationItem key={p}>
-                                            <PaginationLink
-                                                href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setPage(p);
-                                                }}
-                                                isActive={p === page}
-                                                className={p === page
-                                                    ? "bg-indigo-600 text-white border-indigo-500 hover:bg-indigo-700 hover:text-white"
-                                                    : "text-gray-400 hover:text-white"
-                                                }
-                                            >
-                                                {p}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    ))}
-                                    
-                                    <PaginationItem>
-                                        <PaginationNext
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setPage(p => Math.min(Math.ceil(responses.length / ITEMS_PER_PAGE), p + 1));
-                                            }}
-                                            className={page >= Math.ceil(responses.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "cursor-pointer text-gray-300 hover:text-white"}
-                                            aria-label="Next page"
-                                        />
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
+                <CardContent className="p-0">
+                    {filteredResponses.length === 0 ? (
+                        <div className="text-center py-20">
+                            <Bot className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
+                            <p className="text-zinc-500 font-medium font-outfit">No replies matching your search.</p>
                         </div>
+                    ) : (
+                        <>
+                            {/* DESKTOP VIEW */}
+                            <div className="hidden lg:block">
+                                <Table>
+                                    <TableHeader className="bg-white/5">
+                                        <TableRow className="border-b border-white/5 hover:bg-transparent">
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6 w-[25%]">Trigger Keywords</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 w-[45%]">Auto-Reply Content</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 w-[15%]">Attachment</TableHead>
+                                            <TableHead className="text-right text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6 w-[15%]">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {paginatedResponses.map((r) => (
+                                            <TableRow key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors group">
+                                                <TableCell className="pl-6 py-5">
+                                                    <span className="text-sm font-bold text-purple-400 break-words">{r.trigger}</span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <p className="text-xs text-zinc-300 leading-relaxed max-w-md line-clamp-2" title={r.reply}>{r.reply}</p>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {r.linkedAnnouncementId && announcements.some(a => a.id === r.linkedAnnouncementId) ? (
+                                                        <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-300 border-indigo-500/20 text-[9px] uppercase font-black truncate max-w-[120px]">
+                                                            Linked Doc
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-[10px] text-zinc-600 font-bold uppercase italic">None</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            variant="ghost" size="icon" className="h-8 w-8 text-blue-400 hover:text-white hover:bg-blue-500/20 rounded-lg"
+                                                            onClick={() => {
+                                                                setEditing(r);
+                                                                setTrigger(r.trigger);
+                                                                setReply(r.reply);
+                                                                setLinkedAnnouncementId(r.linkedAnnouncementId || "none");
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            }}
+                                                        >
+                                                            <Edit size={16} />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg"
+                                                            onClick={() => handleDelete(r.id)}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* MOBILE VIEW */}
+                            <div className="lg:hidden p-4 space-y-4">
+                                {paginatedResponses.map((r) => (
+                                    <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 group hover:border-purple-500/30 transition-all">
+                                        <div className="flex justify-between items-start gap-3">
+                                            <div className="space-y-1 flex-1 min-w-0">
+                                                <span className="text-[9px] text-purple-400 font-black uppercase tracking-widest block">Trigger</span>
+                                                <h4 className="text-sm font-bold text-white break-words">{r.trigger}</h4>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-400" onClick={() => {
+                                                    setEditing(r);
+                                                    setTrigger(r.trigger);
+                                                    setReply(r.reply);
+                                                    setLinkedAnnouncementId(r.linkedAnnouncementId || "none");
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                }}>
+                                                    <Edit size={16} />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => handleDelete(r.id)}>
+                                                    <Trash2 size={16} />
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-black/20 p-3.5 rounded-xl border border-white/5">
+                                            <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest block mb-2">Reply</span>
+                                            <p className="text-xs text-zinc-300 leading-relaxed break-words">{r.reply}</p>
+                                        </div>
+
+                                        {r.linkedAnnouncementId && announcements.some(a => a.id === r.linkedAnnouncementId) && (
+                                            <div className="flex items-center gap-2 text-[10px] text-indigo-300 font-bold bg-indigo-500/5 p-2 rounded-lg border border-indigo-500/10">
+                                                <Bot size={12} />
+                                                Linked to Attachment
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="p-6 border-t border-white/5 flex justify-center">
+                                    <Pagination>
+                                        <PaginationContent className="flex-wrap gap-1">
+                                            <PaginationItem>
+                                                <PaginationPrevious 
+                                                    href="#"
+                                                    onClick={(e) => { e.preventDefault(); if (page > 1) setPage(p => p - 1); }}
+                                                    className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                                                />
+                                            </PaginationItem>
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                                                <PaginationItem key={p}>
+                                                    <PaginationLink
+                                                        href="#"
+                                                        onClick={(e) => { e.preventDefault(); setPage(p); }}
+                                                        isActive={p === page}
+                                                        className={p === page ? "bg-purple-600 border-purple-500" : ""}
+                                                    >
+                                                        {p}
+                                                    </PaginationLink>
+                                                </PaginationItem>
+                                            ))}
+                                            <PaginationItem>
+                                                <PaginationNext
+                                                    href="#"
+                                                    onClick={(e) => { e.preventDefault(); if (page < totalPages) setPage(p => p + 1); }}
+                                                    className={page === totalPages ? "pointer-events-none opacity-50" : ""}
+                                                />
+                                            </PaginationItem>
+                                        </PaginationContent>
+                                    </Pagination>
+                                </div>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>

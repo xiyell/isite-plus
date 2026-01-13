@@ -52,9 +52,7 @@ export default function AnnouncementCard({ item, fallbackImage, onSelect }: Prop
 
       <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-fuchsia-400 transition-colors line-clamp-1">
         {item.title}
-      </h3>
-
-      <p className="text-sm text-gray-300 leading-snug mb-3 line-clamp-3">
+      </h3>      <p className="text-sm text-gray-300 line-clamp-2 mb-3">
         {item.description}
       </p>
 

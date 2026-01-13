@@ -52,7 +52,7 @@ export default function IChat() {
     const [userHasTyped, setUserHasTyped] = useState(false);
     const [announcements, setAnnouncements] = useState<AnnouncementDoc[]>([]);
     const [botEnabled, setBotEnabled] = useState(true);
-
+    const [responses, setResponses] = useState<BotResponse[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const normalize = (text: string) => text.toLowerCase().trim();
@@ -71,10 +71,28 @@ export default function IChat() {
         if (!botEnabled) return { reply: "iBot is currently disabled 🟥" };
 
         const normalizedInput = normalize(text);
-        const inputTokens = tokenize(text);
         
-        // 0. QUICK CHECK: "LATEST"
-        // 0. QUICK CHECK: "LATEST" OR KEYWORDS
+        // 1. Check Custom Responses first
+        const customMatch = responses.find(r => 
+            normalizedInput.includes(normalize(r.trigger))
+        );
+
+        if (customMatch) {
+            let attachment: Message['attachment'] | undefined;
+            if (customMatch.linkedAnnouncementId) {
+                const ann = announcements.find(a => a.id === customMatch.linkedAnnouncementId && a.status === 'active');
+                if (ann) {
+                    attachment = {
+                        type: "announcement",
+                        title: ann.title,
+                        url: `/announcement?id=${ann.id}`
+                    };
+                }
+            }
+            return { reply: customMatch.reply, attachment };
+        }
+
+        // 2. SMART CHECK: "LATEST ANNOUNCEMENTS"
         const isAnnouncementQuery = 
             (normalizedInput.includes("latest") || normalizedInput.includes("recent") || normalizedInput.includes("new") || normalizedInput.includes("what")) && 
             (normalizedInput.includes("announcement") || normalizedInput.includes("event") || normalizedInput.includes("news"));
@@ -83,15 +101,12 @@ export default function IChat() {
 
         if (isAnnouncementQuery || isDirectKeyword) {
              if (announcements.length > 0) {
-                 // FILTER: Only show active announcements
                  const activeAnnouncements = announcements.filter(a => a.status === 'active');
-                 
                  if (activeAnnouncements.length > 0) {
-                     // SORT: Ensure we get the actual latest (Client-side sort to avoid index requirements)
                      activeAnnouncements.sort((a, b) => {
                         const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0).getTime());
                         const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0).getTime());
-                        return dateB - dateA; // Descending
+                        return dateB - dateA;
                      });
 
                      const latest = activeAnnouncements[0]; 
@@ -135,6 +150,18 @@ export default function IChat() {
     
     // Effect 2: Announcements & Settings
     useEffect(() => {
+        // A. Listen for Responses
+        const unsubResponses = onSnapshot(collection(db, "ibot_responses"), (snap) => {
+            const list: BotResponse[] = [];
+            snap.forEach((d) => {
+                const data = d.data();
+                if (!data.isDeleted && data.status !== 'deleted') {
+                    list.push({ id: d.id, ...data } as BotResponse);
+                }
+            });
+            setResponses(list);
+        });
+
         // B. Listen for Announcements
         const unsubAnnouncements = onSnapshot(
             collection(db, "announcements"), 
@@ -143,7 +170,6 @@ export default function IChat() {
                     id: d.id,
                     ...d.data()
                 } as AnnouncementDoc));
-                // We'll trust the component state to sort when needed or we can sort here if we want list consistency
                 setAnnouncements(list);
             },
             (error) => { console.warn("SmartBot: Real-time announcements failed", error); }
@@ -158,7 +184,7 @@ export default function IChat() {
         
         // Cleanup all listeners
         return () => {
-             // unsubResponses(); 
+             unsubResponses(); 
              unsubAnnouncements();
              unsubSettings();
         };
@@ -222,7 +248,7 @@ export default function IChat() {
                         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, y: 20, scale: 0.95, filter: "blur(10px)" }}
                         transition={{ duration: 0.3, type: "spring", stiffness: 300, damping: 25 }}
-                        className="absolute bottom-24 right-0 w-[90vw] sm:w-[380px] md:w-[420px] h-[600px] max-h-[80vh] flex flex-col origin-bottom-right"
+                        className="absolute bottom-24 right-0 w-[90vw] sm:w-[380px] md:w-[420px] h-[600px] max-h-[80vh] flex flex-col origin-bottom-right pointer-events-auto"
                     >
                         <Card className={`flex flex-col h-full rounded-2xl overflow-hidden ${GLASS_PANEL} border-0 ring-1 ring-white/10`}>
                             
@@ -343,8 +369,8 @@ export default function IChat() {
                                                     <button
                                                         key={idx}
                                                         onClick={() => { setUserHasTyped(true); sendMessage(text); }}
-                                                        disabled={isTyping}
-                                                        className={`text-left text-xs text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-xl px-4 py-3 transition-all active:scale-[0.98] flex items-center justify-between group ${isTyping ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        disabled={isTyping || !botEnabled}
+                                                        className={`text-left text-xs text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 hover:border-indigo-500/40 rounded-xl px-4 py-3 transition-all active:scale-[0.98] flex items-center justify-between group ${(isTyping || !botEnabled) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                     >
                                                         {text}
                                                         <Send className="h-3 w-3 opacity-0 group-hover:opacity-50 -translate-x-2 group-hover:translate-x-0 transition-all text-indigo-400" />
@@ -359,11 +385,11 @@ export default function IChat() {
 
                             {/* Input Footer */}
                             <CardFooter className="p-4 bg-transparent border-t border-white/5 backdrop-blur-md">
-                                <div className={`flex items-end gap-2 w-full bg-black/40 p-1.5 rounded-3xl border border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all ${!botEnabled ? "opacity-50 pointer-events-none" : ""}`}>
+                                <div className="flex items-end gap-2 w-full bg-black/40 p-1.5 rounded-3xl border border-white/10 focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all">
                                     
                                     <Input
                                         className="flex-grow bg-transparent border-0 focus-visible:ring-0 text-white placeholder:text-gray-500 h-9 py-2 px-1"
-                                        placeholder={botEnabled ? "Ask a question..." : "iBot is currently unavailable"}
+                                        placeholder={botEnabled ? "Ask a question..." : "iBot is disabled (Replies paused)"}
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         onKeyDown={handleKeyDown}
@@ -374,7 +400,7 @@ export default function IChat() {
                                     <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                         <Button
                                             size="icon"
-                                            className={`h-9 w-9 rounded-full shrink-0 transition-all ${input.trim() ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "bg-white/10 text-gray-500 cursor-not-allowed"}`}
+                                            className={`h-9 w-9 rounded-full shrink-0 transition-all ${(input.trim() && botEnabled) ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20" : "bg-white/10 text-gray-500 cursor-not-allowed"}`}
                                             onClick={() => { setUserHasTyped(true); sendMessage(); }}
                                             disabled={!input.trim() || !botEnabled}
                                         >

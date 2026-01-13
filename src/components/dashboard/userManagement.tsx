@@ -147,186 +147,234 @@ export const UserManagementContent: React.FC<UserManagementProps> = ({
                 {/* Search & Filter */}
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
-                        <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
                         <Input
                             type="text"
                             placeholder="Search by Name or Email..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-white/5 border-white/20 text-white pl-10"
+                            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                            className="w-full bg-white/5 border-white/10 rounded-xl text-white pl-11 h-11 focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder:text-zinc-600"
                         />
                     </div>
-                    <Select value={roleFilter} onValueChange={(val: any) => setRoleFilter(val)}>
-                        <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Filter by Role" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
-                            <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Roles</SelectItem>
-                            <SelectItem value="admin" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Admin</SelectItem>
-                            <SelectItem value="moderator" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Moderator</SelectItem>
-                            <SelectItem value="user" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">User</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
-                        <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
-                            <SelectValue placeholder="Filter by Status" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
-                            <SelectItem value="all" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">All Statuses</SelectItem>
-                            <SelectItem value="active" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Active</SelectItem>
-                            <SelectItem value="restricted" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Restricted</SelectItem>
-                            <SelectItem value="suspended" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Suspended</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="grid grid-cols-2 sm:flex gap-3">
+                        <Select value={roleFilter} onValueChange={(val: any) => { setRoleFilter(val); setCurrentPage(1); }}>
+                            <SelectTrigger className="w-full sm:w-[150px] bg-white/5 border-white/10 text-white rounded-xl h-11 font-medium">
+                                <SelectValue placeholder="Role" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                                <SelectItem value="all">All Roles</SelectItem>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="moderator">Moderator</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
+                            <SelectTrigger className="w-full sm:w-[150px] bg-white/5 border-white/10 text-white rounded-xl h-11 font-medium">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="restricted">Restricted</SelectItem>
+                                <SelectItem value="suspended">Suspended</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
-                {/* User Table - styled like ActivityLogs */}
-                <div className="border border-white/20 rounded-none bg-black/20 overflow-hidden">
-                    <Table className="border-collapse w-full">
-                        <TableHeader className="bg-white/10">
-                            <TableRow className="border-b border-white/20">
+                {/* DESKTOP VIEW */}
+                <div className="hidden lg:block border border-white/10 rounded-2xl bg-black/40 overflow-hidden shadow-inner font-outfit">
+                    <Table>
+                        <TableHeader className="bg-white/5">
+                            <TableRow className="border-b border-white/10 hover:bg-transparent">
                                 <TableHead
-                                    className="cursor-pointer hover:text-white border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4"
+                                    className="cursor-pointer hover:text-white text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-5 pl-6"
                                     onClick={() => handleSort('name')}
                                 >
                                     <div className="flex items-center gap-2">Name <SortIcon keyName="name" /></div>
                                 </TableHead>
                                 <TableHead
-                                    className="cursor-pointer hover:text-white border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 hidden sm:table-cell"
+                                    className="cursor-pointer hover:text-white text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-5"
                                     onClick={() => handleSort('email')}
                                 >
                                     <div className="flex items-center gap-2">Email <SortIcon keyName="email" /></div>
                                 </TableHead>
                                 <TableHead
-                                    className="cursor-pointer hover:text-white border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4"
+                                    className="cursor-pointer hover:text-white text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-5"
                                     onClick={() => handleSort('role')}
                                 >
                                     <div className="flex items-center gap-2">Role <SortIcon keyName="role" /></div>
                                 </TableHead>
-                                <TableHead className="text-center border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Status</TableHead>
-                                <TableHead className="text-right text-white font-bold uppercase tracking-wider text-xs p-4">Actions</TableHead>
+                                <TableHead className="text-center text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-5">Status</TableHead>
+                                <TableHead className="text-right text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-5 pr-6">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {paginatedUsers.map((user) => (
                                 <TableRow
                                     key={user.id}
-                                    className="hover:bg-white/5 transition-colors border-b border-white/10 text-gray-200"
+                                    className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0 h-16"
                                 >
-                                    <TableCell className="border-r border-white/10 p-4 font-medium text-white whitespace-nowrap">{user.name}</TableCell>
-                                    <TableCell className="border-r border-white/10 p-4 text-gray-300 hidden sm:table-cell">{user.email}</TableCell>
-                                    <TableCell className="border-r border-white/10 p-4">
+                                    <TableCell className="pl-6 font-bold text-white/90 text-[11px] whitespace-nowrap">{user.name}</TableCell>
+                                    <TableCell className="text-zinc-400 text-[11px] font-medium">{user.email}</TableCell>
+                                    <TableCell>
                                         <Badge
-                                            className={getRoleVariant(user.role)}
+                                            className={`${getRoleVariant(user.role)} rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase shadow-lg shadow-black/40 border-0`}
                                         >
-                                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                            {user.role}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="border-r border-white/10 p-4 text-center">
-                                        {user.active ? (
-                                            <span title="Active" className="flex justify-center">
-                                                <CheckCircle size={18} className="text-green-400" />
-                                            </span>
-                                        ) : (
-                                            <span title="Inactive" className="flex justify-center">
-                                                <XCircle size={18} className="text-red-400" />
-                                            </span>
-                                        )}
+                                    <TableCell className="text-center">
+                                        <div className="flex justify-center">
+                                            {user.active ? (
+                                                <div className="h-5 w-5 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                                                    <CheckCircle size={12} className="text-green-500" />
+                                                </div>
+                                            ) : (
+                                                <div className="h-5 w-5 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                                    <XCircle size={12} className="text-red-500" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="p-4 text-right whitespace-nowrap">
-                                        <div className="flex justify-end gap-2">
+                                    <TableCell className="pr-6 text-right whitespace-nowrap">
+                                        <div className="flex justify-end gap-1.5">
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon"
-                                                className="bg-yellow-600/30 hover:bg-yellow-600/50 border-yellow-500/50"
+                                                className="h-8 w-8 rounded-lg bg-yellow-500/5 text-yellow-500 hover:bg-yellow-500/10 border border-yellow-500/10"
                                                 onClick={() => setPasswordTarget(user)}
-                                                title="Change Password"
                                             >
-                                                <KeyRound size={16} className="text-yellow-300" />
+                                                <KeyRound size={14} />
                                             </Button>
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon"
-                                                className="bg-purple-600/30 hover:bg-purple-600/50 border-purple-500/50"
+                                                className="h-8 w-8 rounded-lg bg-indigo-500/5 text-indigo-400 hover:bg-indigo-500/10 border border-indigo-500/10"
                                                 onClick={() => handleEditUser(user)}
-                                                title="Edit User Info"
                                             >
-                                                <Edit size={16} className="text-purple-300" />
+                                                <Edit size={14} />
                                             </Button>
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon"
-                                                className="bg-red-600/30 hover:bg-red-600/50 border-red-500/50"
+                                                className="h-8 w-8 rounded-lg bg-red-500/5 text-red-500 hover:bg-red-500/10 border border-red-500/10"
                                                 onClick={() => handleDeleteUser(user.id, user.name)}
-                                                title="Delete User"
                                             >
-                                                <Trash2 size={16} className="text-red-300" />
+                                                <Trash2 size={14} />
                                             </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ))}
                             {filteredAndSortedUsers.length === 0 && (
-                                <TableRow className="border-white/10 hover:bg-transparent">
-                                    <TableCell colSpan={5} className="text-center text-gray-500 py-6">No users found.</TableCell>
+                                <TableRow className="hover:bg-transparent">
+                                    <TableCell colSpan={5} className="text-center text-zinc-500 py-16">
+                                        <Search className="mx-auto h-8 w-8 mb-3 opacity-10" />
+                                        No users matching your criteria.
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </div>
 
+                {/* MOBILE VIEW */}
+                <div className="lg:hidden space-y-4">
+                    {paginatedUsers.map((user) => (
+                        <div key={user.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 transition-all hover:border-indigo-500/30">
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/10 shrink-0">
+                                        <UserPlus className="h-4 w-4 text-indigo-400" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1 break-words">{user.role}</p>
+                                        <h4 className="text-xs font-bold text-white break-words">{user.name}</h4>
+                                    </div>
+                                </div>
+                                <div className={`h-6 w-6 rounded-full flex items-center justify-center border shrink-0 ${
+                                    user.active ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'
+                                }`}>
+                                    {user.active ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                                </div>
+                            </div>
+
+                            <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+                                <p className="text-[10px] text-zinc-500 font-mono truncate">{user.email}</p>
+                            </div>
+
+                            <div className="flex justify-between items-center pt-3 border-t border-white/5">
+                                <div className="flex flex-col">
+                                    <span className="text-[8px] text-zinc-500 uppercase font-black tracking-tighter mb-0.5">Status</span>
+                                    <span className={`text-[9px] font-bold ${user.active ? 'text-green-400' : 'text-zinc-500'}`}>
+                                        {user.active ? 'ACTIVE ACCOUNT' : 'INACTIVE'}
+                                    </span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-9 w-9 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border border-yellow-500/10 rounded-xl"
+                                        onClick={() => setPasswordTarget(user)}
+                                    >
+                                        <KeyRound size={16} />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-9 w-9 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/10 rounded-xl"
+                                        onClick={() => handleEditUser(user)}
+                                    >
+                                        <Edit size={16} />
+                                    </Button>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-9 w-9 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/10 rounded-xl"
+                                        onClick={() => handleDeleteUser(user.id, user.name)}
+                                    >
+                                        <Trash2 size={16} />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                    <div className="mt-4">
+                    <div className="flex justify-center pt-8">
                         <Pagination>
-                            <PaginationContent>
+                            <PaginationContent className="flex-wrap justify-center gap-2">
                                 <PaginationItem>
                                     <PaginationPrevious
                                         href="#"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            if (currentPage > 1) setCurrentPage(p => p - 1);
-                                        }}
-                                        className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
+                                        onClick={(e) => { e.preventDefault(); if(currentPage > 1) setCurrentPage(p => p - 1); }}
+                                        className={currentPage === 1 ? "pointer-events-none opacity-40" : "text-zinc-400 hover:text-white transition-colors cursor-pointer"}
                                     />
                                 </PaginationItem>
                                 
-                                {(() => {
-                                    const max = 5;
-                                    const pages: number[] = [];
-                                    let start = Math.max(1, currentPage - Math.floor(max / 2));
-                                    let end = Math.min(totalPages, start + max - 1);
-                                    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
-                                    for (let i = start; i <= end; i++) if (i > 0) pages.push(i);
-                                    
-                                    return pages.map((page) => (
-                                        <PaginationItem key={page}>
-                                            <PaginationLink
-                                                href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setCurrentPage(page);
-                                                }}
-                                                isActive={page === currentPage}
-                                                className={page === currentPage
-                                                    ? "bg-indigo-600 text-white border-indigo-500"
-                                                    : "text-gray-400 hover:text-white hover:bg-white/10"
-                                                }
-                                            >
-                                                {page}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    ));
-                                })()}
+                                {Array.from({ length: totalPages }).map((_, i) => (
+                                    <PaginationItem key={i}>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className={`h-8 w-8 p-0 rounded-lg text-xs font-bold transition-all ${
+                                                currentPage === i + 1 ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-600/20' : 'text-zinc-500 hover:text-white'
+                                            }`}
+                                            onClick={() => setCurrentPage(i + 1)}
+                                        >
+                                            {i + 1}
+                                        </Button>
+                                    </PaginationItem>
+                                ))}
 
                                 <PaginationItem>
                                     <PaginationNext
                                         href="#"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            if (currentPage < totalPages) setCurrentPage(p => p + 1);
-                                        }}
-                                        className={currentPage === totalPages ? "pointer-events-none opacity-50 text-gray-500" : "text-gray-300 hover:text-white hover:bg-white/10"}
+                                        onClick={(e) => { e.preventDefault(); if(currentPage < totalPages) setCurrentPage(p => p + 1); }}
+                                        className={currentPage === totalPages ? "pointer-events-none opacity-40" : "text-zinc-400 hover:text-white transition-colors cursor-pointer"}
                                     />
                                 </PaginationItem>
                             </PaginationContent>

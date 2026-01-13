@@ -580,7 +580,7 @@ export default function DashboardContent() {
 		};
 
 	return (
-		<div className="w-full min-h-screen text-white bg-transparent font-sans pt-24 px-6 pb-6 md:pt-28 md:px-10 md:pb-10">
+		<div className="w-full min-h-screen text-white bg-transparent font-sans pt-5 px-6 pb-6 md:pt-13 md:px-10 md:pb-10">
 			<motion.div animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto flex flex-col md:flex-row gap-8" initial={{ opacity: 0, y: 10 }} transition={{ duration: 0.4 }}>
 
 				{/* 1. Sidebar (Desktop Only) */}
@@ -726,8 +726,8 @@ export default function DashboardContent() {
 											<Card key={ann.id} className="bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-colors">
 												<CardHeader className="pb-2">
 													<div className="flex justify-between items-start">
-														<div>
-															<CardTitle className="text-lg text-white">{ann.title}</CardTitle>
+														<div className="min-w-0 flex-1 pr-4">
+															<CardTitle className="text-lg text-white break-words" title={ann.title}>{ann.title}</CardTitle>
 															<CardDescription className="text-gray-400 text-xs mt-1">
 																Posted on {ann.createdAt ? new Date(ann.createdAt).toLocaleDateString() : 'Unknown Date'}
 															</CardDescription>
@@ -741,8 +741,8 @@ export default function DashboardContent() {
 													</div>
 												</CardHeader>
 												<CardContent>
-													<p className="text-gray-300 text-sm line-clamp-2">{ann.description}</p>
-													<div className="flex gap-2 mt-3">
+													<p className="text-gray-400 text-xs mb-2 break-words leading-relaxed">{ann.description}</p>
+													<div className="flex gap-2">
 														{ann.platforms?.websitePost && <Badge variant="secondary" className="bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30">Website</Badge>}
 														{ann.platforms?.facebook && <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30">Facebook</Badge>}
 													</div>

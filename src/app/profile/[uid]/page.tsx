@@ -80,7 +80,8 @@ export default function ProfilePage() {
                     photoURL: data.photoURL || "",
                     showOnlineStatus: data.showOnlineStatus ?? true,
                     studentId: data.studentId || "N/A",
-                    role: data.role || "user"
+                    role: data.role || "user",
+                    createdAt: data.createdAt // New Field
                 });
                 
                 setStats(prev => ({ ...prev, karma: data.karma || 0 }));
@@ -239,7 +240,12 @@ export default function ProfilePage() {
                         { label: "Karma Points", value: stats.karma, icon: Trophy, color: "text-amber-400" },
                         { label: "Total Posts", value: stats.posts, icon: FileText, color: "text-blue-400" },
                         { label: "Comments", value: stats.comments, icon: MessageSquare, color: "text-emerald-400" },
-                        { label: "Joined", value: "2024", icon: Calendar, color: "text-fuchsia-400" }, // Static for now or fetch createdAt
+                        { 
+                            label: "Joined", 
+                            value: profile.createdAt ? new Date(profile.createdAt).getFullYear().toString() : "2026", 
+                            icon: Calendar, 
+                            color: "text-fuchsia-400" 
+                        },
                     ].map((stat, i) => (
                         <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.07] transition-colors flex flex-col items-center justify-center text-center gap-2">
                              <stat.icon className={`w-6 h-6 ${stat.color} mb-1 opacity-80`} />

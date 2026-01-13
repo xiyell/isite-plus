@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Save, ArrowLeft, CheckCircle, FileText, BarChart2, Send, MoreVertical, Calendar } from "lucide-react";
+import { Plus, Trash2, Save, ArrowLeft, CheckCircle, FileText, BarChart2, Send, MoreVertical, Calendar, Users, Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -338,125 +338,222 @@ export default function IEvaluationContent({ publicOnly = false }: { publicOnly?
 
 function EvaluationList({ evaluations, loading, onCreate, onEdit, onDelete, onRespond, onStats, isAdmin }: any) {
     const [currentPage, setCurrentPage] = useState(1);
-    const ITEMS_PER_PAGE = 5;
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const ITEMS_PER_PAGE = 6;
+
+    const filteredEvaluations = evaluations.filter((e: Evaluation) => {
+        const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase()) || 
+                             e.eventName.toLowerCase().includes(search.toLowerCase());
+        const matchesStatus = statusFilter === "all" || e.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const totalPages = Math.ceil(filteredEvaluations.length / ITEMS_PER_PAGE);
+    const paginatedItems = filteredEvaluations.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Evaluations</h2>
-                    <p className="text-gray-400">Manage and take event evaluations</p>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">Evaluations</h2>
+                    <p className="text-zinc-400 text-sm">Manage and participate in event evaluations</p>
                 </div>
                 {isAdmin && (
-                    <Button onClick={onCreate} className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white">
-                        <Plus className="mr-2 h-4 w-4" /> Create New
+                    <Button onClick={onCreate} className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20 px-6 rounded-xl transition-all hover:scale-105 active:scale-95">
+                        <Plus className="mr-2 h-4 w-4" /> Create Evaluation
                     </Button>
                 )}
             </div>
 
-            {loading ? <LoadingSpinner /> : (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {evaluations
-                            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                            .map((evaluation: Evaluation, index: number) => (
-                                // Use fallback key to prevent "two children with same key" error if IDs are missing/dup
-                                <Card key={evaluation.id || `eval-${index}`} className="bg-white/5 border-white/10 backdrop-blur-md hover:bg-white/10 transition-all">
-                                    <CardHeader>
+            <Card className="bg-white/5 border-white/10 backdrop-blur-md shadow-2xl overflow-hidden rounded-3xl mb-6">
+                <CardContent className="p-6">
+                    <div className="flex flex-col md:flex-row gap-4 mb-6">
+                        <div className="flex-1 min-w-0">
+                            <div className="relative">
+                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                <Input
+                                    placeholder="Search evaluations or events..."
+                                    value={search}
+                                    onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                                    className="bg-white/5 border-white/10 text-white pl-10 h-11 rounded-xl focus:ring-indigo-500/50"
+                                />
+                            </div>
+                        </div>
+                        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}>
+                            <SelectTrigger className="w-full md:w-[180px] bg-white/5 border-white/10 text-white h-11 rounded-xl">
+                                <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                                <SelectItem value="all">All Status</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="closed">Closed</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {loading ? <LoadingSpinner /> : (
+                        <>
+                            {/* DESKTOP VIEW */}
+                            <div className="hidden lg:block border border-white/10 rounded-2xl bg-black/20 overflow-hidden font-outfit">
+                                <Table>
+                                    <TableHeader className="bg-white/5">
+                                        <TableRow className="border-b border-white/5 hover:bg-transparent">
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Status</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Evaluation Details</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Event</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Date Created</TableHead>
+                                            <TableHead className="text-right text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {paginatedItems.map((evaluation: Evaluation) => (
+                                            <TableRow key={evaluation.id} className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0 h-20">
+                                                <TableCell className="pl-6">
+                                                    <Badge variant={evaluation.status === 'active' ? 'default' : 'secondary'} 
+                                                           className={evaluation.status === 'active' 
+                                                               ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                                                               : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}>
+                                                        {evaluation.status}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors line-clamp-1">{evaluation.title}</span>
+                                                        <span className="text-[11px] text-zinc-500 line-clamp-1">{evaluation.description || 'No description'}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2 text-zinc-300">
+                                                        <Calendar className="h-3.5 w-3.5 text-indigo-400/70" />
+                                                        <span className="text-xs font-medium">{evaluation.eventName}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-zinc-500 text-xs font-mono">
+                                                    {new Date(evaluation.createdAt).toLocaleDateString()}
+                                                </TableCell>
+                                                <TableCell className="text-right pr-6">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button onClick={() => onRespond(evaluation)} size="sm" className="bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-lg text-xs">
+                                                            Participate
+                                                        </Button>
+                                                        {isAdmin && (
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white rounded-lg">
+                                                                        <MoreVertical className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-100 rounded-xl shadow-2xl">
+                                                                    <DropdownMenuItem onClick={() => onEdit(evaluation)} className="focus:bg-zinc-900 cursor-pointer">Edit</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => onStats(evaluation)} className="focus:bg-zinc-900 cursor-pointer">View Responses</DropdownMenuItem>
+                                                                    <DropdownMenuItem onClick={() => onDelete(evaluation.id)} className="text-red-400 focus:bg-red-950 focus:text-red-400 cursor-pointer">Delete</DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* MOBILE VIEW */}
+                            <div className="lg:hidden space-y-4">
+                                {paginatedItems.map((evaluation: Evaluation) => (
+                                    <div key={evaluation.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 hover:border-indigo-500/30 transition-all group">
                                         <div className="flex justify-between items-start">
-                                            <Badge variant={evaluation.status === 'active' ? 'default' : 'secondary'} className={evaluation.status === 'active' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-gray-500/20 text-gray-400'}>
-                                                {evaluation.status}
-                                            </Badge>
+                                            <div className="space-y-1 min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className={evaluation.status === 'active' 
+                                                        ? 'bg-green-500/20 text-green-400 text-[9px] uppercase font-black px-2' 
+                                                        : 'bg-zinc-500/20 text-zinc-400 text-[9px] uppercase font-black px-2'}>
+                                                        {evaluation.status}
+                                                    </Badge>
+                                                    <span className="text-[10px] text-zinc-500 font-mono">
+                                                        {new Date(evaluation.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                                <h4 className="text-base font-bold text-white break-words group-hover:text-indigo-400 transition-colors">{evaluation.title}</h4>
+                                            </div>
                                             {isAdmin && (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-white">
-                                                            <MoreVertical className="h-4 w-4" />
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400">
+                                                            <MoreVertical size={18} />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent className="bg-gray-900 border-gray-800 text-white">
+                                                    <DropdownMenuContent align="end" className="bg-zinc-950 border-zinc-800 text-zinc-100">
                                                         <DropdownMenuItem onClick={() => onEdit(evaluation)}>Edit</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => onStats(evaluation)}>View Responses</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => onStats(evaluation)}>View Stats</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => onDelete(evaluation.id)} className="text-red-400">Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             )}
                                         </div>
-                                        <div className="mt-2 pr-2">
-                                            <CardTitle className="text-xl text-white break-all whitespace-normal leading-tight">{evaluation.title}</CardTitle>
-                                        </div>
-                                        <CardDescription className="text-gray-400 flex items-center gap-1 mt-2 min-w-0">
-                                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                                            <span className="truncate flex-1">{evaluation.eventName}</span>
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-gray-300 text-sm line-clamp-3 break-all whitespace-normal">{evaluation.description || "No description provided."}</p>
-                                    </CardContent>
-                                    <CardFooter>
-                                        <Button onClick={() => onRespond(evaluation)} className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/10">
-                                            Take Evaluation
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        {evaluations.length === 0 && (
-                            <div className="col-span-full text-center py-10 text-gray-500">
-                                <p>No active evaluations found.</p>
-                                {!isAdmin && <p className="text-xs mt-2 text-gray-600">Please ask an administrator to set an evaluation to "Active".</p>}
-                            </div>
-                        )}
-                    </div>
 
-                    {/* Pagination Controls */}
-                    {evaluations.length > ITEMS_PER_PAGE && (
-                        <div className="mt-6">
-                            <Pagination>
-                                <PaginationContent>
-                                    <PaginationItem>
-                                        <PaginationPrevious
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                if (currentPage > 1) setCurrentPage(p => p - 1);
-                                            }}
-                                            className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
-                                        />
-                                    </PaginationItem>
-                                    {Array.from({ length: Math.ceil(evaluations.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
-                                        <PaginationItem key={page}>
-                                            <PaginationLink
-                                                href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setCurrentPage(page);
-                                                }}
-                                                isActive={page === currentPage}
-                                                className={page === currentPage
-                                                    ? "bg-fuchsia-600 text-white border-fuchsia-500"
-                                                    : "text-gray-400 hover:text-white"
-                                                }
-                                            >
-                                                {page}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    ))}
-                                    <PaginationItem>
-                                        <PaginationNext
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                if (currentPage < Math.ceil(evaluations.length / ITEMS_PER_PAGE)) setCurrentPage(p => p + 1);
-                                            }}
-                                            className={currentPage === Math.ceil(evaluations.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
-                                        />
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
-                        </div>
+                                        <div className="flex items-center gap-2 text-zinc-400 bg-black/20 p-2.5 rounded-xl border border-white/5">
+                                            <Calendar size={14} className="text-indigo-400" />
+                                            <span className="text-xs font-medium break-words">{evaluation.eventName}</span>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                                            <Button onClick={() => onRespond(evaluation)} className="w-full bg-white/10 hover:bg-white/20 text-white rounded-xl">
+                                                Take Evaluation
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {filteredEvaluations.length === 0 && (
+                                <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-3xl">
+                                    <FileText className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
+                                    <p className="text-zinc-500 font-medium">No evaluations found matching your criteria.</p>
+                                </div>
+                            )}
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="mt-8 flex justify-center">
+                                    <Pagination>
+                                        <PaginationContent className="flex-wrap gap-1">
+                                            <PaginationItem>
+                                                <PaginationPrevious 
+                                                    href="#"
+                                                    onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(p => p - 1); }}
+                                                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                                                />
+                                            </PaginationItem>
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                                <PaginationItem key={page}>
+                                                    <PaginationLink
+                                                        href="#"
+                                                        onClick={(e) => { e.preventDefault(); setCurrentPage(page); }}
+                                                        isActive={page === currentPage}
+                                                        className={page === currentPage ? "bg-indigo-600 border-indigo-500" : ""}
+                                                    >
+                                                        {page}
+                                                    </PaginationLink>
+                                                </PaginationItem>
+                                            ))}
+                                            <PaginationItem>
+                                                <PaginationNext
+                                                    href="#"
+                                                    onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) setCurrentPage(p => p + 1); }}
+                                                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                                                />
+                                            </PaginationItem>
+                                        </PaginationContent>
+                                    </Pagination>
+                                </div>
+                            )}
+                        </>
                     )}
-                </>
-            )}
+                </CardContent>
+            </Card>
         </motion.div>
     );
 }
@@ -857,89 +954,147 @@ function EvaluationStats({ evaluation, onBack }: any) {
                         ))}
                     </div>
 
-                    {/* Table Section */}
-                    <Card className="bg-white/5 border-white/10 backdrop-blur-xl overflow-hidden">
-                        <CardHeader><CardTitle className="text-white">Individual Responses</CardTitle></CardHeader>
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader className="bg-black/20">
-                                    <TableRow className="border-white/10 hover:bg-transparent">
-                                        <TableHead className="text-gray-300">Name</TableHead>
-                                        <TableHead className="text-gray-300">ID / Year & Section</TableHead>
-                                        <TableHead className="text-gray-300">Date</TableHead>
-                                        {evaluation.questions.map((q: EvaluationQuestion) => (
-                                            <TableHead key={q.id} className="text-gray-300 min-w-[150px]">{q.text}</TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredResponses
-                                        .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-                                        .map((r) => {
-                                            const section = r.section || '';
-                                            const sectionDisplay = ['1', '2', '3', '4'].includes(section) ? `Section ${section}` : (section || '-');
-                                            const fullDisplay = r.yearLevel ? `${r.yearLevel} - ${sectionDisplay}` : sectionDisplay;
+                    {/* Responses Section */}
+                    <Card className="bg-white/5 border-white/10 backdrop-blur-xl shadow-2xl overflow-hidden rounded-3xl">
+                        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 p-6">
+                            <CardTitle className="text-xl text-white">Individual Responses</CardTitle>
+                            <div className="relative w-full sm:w-64">
+                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                <Input
+                                    placeholder="Filter by name/email..."
+                                    value={filterText}
+                                    onChange={(e) => setFilterText(e.target.value)}
+                                    className="bg-white/5 border-white/10 text-white pl-10 h-9 rounded-xl text-xs focus:ring-indigo-500/50"
+                                />
+                            </div>
+                        </CardHeader>
 
-                                            return (
-                                                <TableRow key={r.id} className="border-white/10 hover:bg-white/5">
-                                                    <TableCell className="font-medium text-white">
-                                                        <div>{r.userName || 'Unknown'}</div>
-                                                        <div className="text-xs text-gray-500">{r.userEmail}</div>
-                                                    </TableCell>
-                                                    <TableCell className="text-gray-400">
-                                                        <span className="block text-white">{r.studentId || '-'}</span>
-                                                        <span className="text-xs text-blue-200">{fullDisplay}</span>
-                                                    </TableCell>
-                                                    <TableCell className="text-gray-400">
-                                                        {new Date(r.submittedAt).toLocaleDateString()}
-                                                    </TableCell>
-                                                    {evaluation.questions.map((q: EvaluationQuestion) => (
-                                                        <TableCell key={q.id} className="text-gray-300">
-                                                            {r.answers[q.id]}
-                                                        </TableCell>
-                                                    ))}
-                                                </TableRow>
-                                            );
-                                        })}
-                                    {responses.length === 0 && (
-                                        <TableRow>
-                                            <TableCell colSpan={evaluation.questions.length + 2} className="text-center py-8 text-gray-500">
-                                                No responses yet.
-                                            </TableCell>
+                        <div className="p-0">
+                            {/* DESKTOP VIEW */}
+                            <div className="hidden lg:block">
+                                <Table>
+                                    <TableHeader className="bg-white/5">
+                                        <TableRow className="border-b border-white/5 hover:bg-transparent">
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Respondent</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Identification</TableHead>
+                                            <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Date</TableHead>
+                                            {evaluation.questions.map((q: EvaluationQuestion) => (
+                                                <TableHead key={q.id} className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 min-w-[120px]">
+                                                    {q.text}
+                                                </TableHead>
+                                            ))}
                                         </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredResponses
+                                            .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                                            .map((r) => {
+                                                const section = r.section || '';
+                                                const sectionDisplay = ['1', '2', '3', '4'].includes(section) ? `Section ${section}` : (section || '-');
+                                                const fullDisplay = r.yearLevel ? `${r.yearLevel} - ${sectionDisplay}` : sectionDisplay;
+
+                                                return (
+                                                    <TableRow key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+                                                        <TableCell className="pl-6 py-4">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-bold text-white">{r.userName || 'Unknown'}</span>
+                                                                <span className="text-[10px] text-zinc-500">{r.userEmail}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[11px] font-mono text-indigo-300">{r.studentId || 'N/A'}</span>
+                                                                <span className="text-[10px] text-zinc-500 uppercase font-black tracking-tighter">{fullDisplay}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="text-zinc-400 text-xs">
+                                                            {new Date(r.submittedAt).toLocaleDateString()}
+                                                        </TableCell>
+                                                        {evaluation.questions.map((q: EvaluationQuestion) => (
+                                                            <TableCell key={q.id} className="text-zinc-300 text-xs py-4">
+                                                                <div className="max-w-[200px] line-clamp-2" title={String(r.answers[q.id])}>
+                                                                    {r.answers[q.id]}
+                                                                </div>
+                                                            </TableCell>
+                                                        ))}
+                                                    </TableRow>
+                                                );
+                                            })}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {/* MOBILE VIEW */}
+                            <div className="lg:hidden p-4 space-y-4">
+                                {filteredResponses
+                                    .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                                    .map((r) => (
+                                        <div key={r.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20">
+                                                        <FileText size={18} className="text-indigo-400" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <h4 className="text-sm font-bold text-white break-words">{r.userName || 'Unknown'}</h4>
+                                                        <p className="text-[10px] text-zinc-500 break-all">{r.userEmail}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10px] text-zinc-500 font-mono">
+                                                    {new Date(r.submittedAt).toLocaleDateString()}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-3 bg-black/20 p-3 rounded-xl border border-white/5 text-[10px]">
+                                                <div className="space-y-1">
+                                                    <span className="text-zinc-500 uppercase font-black tracking-widest block">Student ID</span>
+                                                    <span className="text-indigo-300 font-mono font-bold">{r.studentId || 'N/A'}</span>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <span className="text-zinc-500 uppercase font-black tracking-widest block">Year & Section</span>
+                                                    <span className="text-white font-bold">{r.yearLevel ? `${r.yearLevel}-${r.section}` : (r.section || 'N/A')}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3 pt-2">
+                                                {evaluation.questions.map((q: EvaluationQuestion) => (
+                                                    <div key={q.id} className="space-y-1">
+                                                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">{q.text}</span>
+                                                        <p className="text-xs text-zinc-300 bg-white/5 p-2.5 rounded-lg border border-white/5 leading-relaxed break-words">{r.answers[q.id]}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+
+                            {filteredResponses.length === 0 && (
+                                <div className="text-center py-20">
+                                    <Users className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
+                                    <p className="text-zinc-500 font-medium">No responses found yet.</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Pagination Controls */}
                         {filteredResponses.length > ITEMS_PER_PAGE && (
-                            <div className="p-4 border-t border-white/10">
+                            <div className="p-4 border-t border-white/5 flex justify-center">
                                 <Pagination>
-                                    <PaginationContent>
+                                    <PaginationContent className="flex-wrap gap-1">
                                         <PaginationItem>
                                             <PaginationPrevious
                                                 href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    if (currentPage > 1) setCurrentPage(p => p - 1);
-                                                }}
-                                                className={currentPage === 1 ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                                                onClick={(e) => { e.preventDefault(); if (currentPage > 1) setCurrentPage(p => p - 1); }}
+                                                className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                                             />
                                         </PaginationItem>
                                         {Array.from({ length: Math.ceil(filteredResponses.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
                                             <PaginationItem key={page}>
                                                 <PaginationLink
                                                     href="#"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        setCurrentPage(page);
-                                                    }}
+                                                    onClick={(e) => { e.preventDefault(); setCurrentPage(page); }}
                                                     isActive={page === currentPage}
-                                                    className={page === currentPage
-                                                        ? "bg-fuchsia-600 text-white border-fuchsia-500"
-                                                        : "text-gray-400 hover:text-white"
-                                                    }
+                                                    className={page === currentPage ? "bg-indigo-600 border-indigo-500" : ""}
                                                 >
                                                     {page}
                                                 </PaginationLink>
@@ -948,11 +1103,8 @@ function EvaluationStats({ evaluation, onBack }: any) {
                                         <PaginationItem>
                                             <PaginationNext
                                                 href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    if (currentPage < Math.ceil(filteredResponses.length / ITEMS_PER_PAGE)) setCurrentPage(p => p + 1);
-                                                }}
-                                                className={currentPage === Math.ceil(filteredResponses.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50 text-gray-400" : "text-gray-300 hover:text-white"}
+                                                onClick={(e) => { e.preventDefault(); if (currentPage < Math.ceil(filteredResponses.length / ITEMS_PER_PAGE)) setCurrentPage(p => p + 1); }}
+                                                className={currentPage === Math.ceil(filteredResponses.length / ITEMS_PER_PAGE) ? "pointer-events-none opacity-50" : ""}
                                             />
                                         </PaginationItem>
                                     </PaginationContent>

@@ -199,6 +199,7 @@ export async function createCommunityPost(data: NewPostData) {
     likesCount: 0,
     dislikesCount: 0,
     createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   };
 
   await db.collection("community").add(postDoc);
@@ -225,6 +226,60 @@ export async function createCommunityPost(data: NewPostData) {
   });
 
   return { success: true };
+}
+
+export async function updateCommunityPost(postId: string, data: Partial<NewPostData>, actorUid: string) {
+    const db = getAdminDb();
+    const postRef = db.collection("community").doc(postId);
+    const actorRef = db.collection("users").doc(actorUid);
+    
+    const [postSnap, actorSnap] = await Promise.all([
+        postRef.get(),
+        actorRef.get()
+    ]);
+
+    if (!postSnap.exists) throw new Error("Post not found.");
+    const originalPost = postSnap.data();
+    const actor = actorSnap.data();
+
+    // Moderation Check on Edited Content
+    const titleToCheck = data.title || originalPost?.title || "";
+    const descriptionToCheck = data.description || originalPost?.description || "";
+    
+    const isProfane = checkProfanity(titleToCheck) || checkProfanity(descriptionToCheck);
+    const isSpam = checkSpam(titleToCheck) || checkSpam(descriptionToCheck);
+
+    let finalStatus = data.status || originalPost?.status || "pending";
+    let moderationReason = "";
+
+    if (isProfane || isSpam) {
+        finalStatus = "deleted";
+        moderationReason = isProfane ? "Blocked: Profanity detected." : "Blocked: Spam pattern detected.";
+    } else if (finalStatus === "deleted") {
+        // If it was deleted but now it's clean (and being edited), maybe keep it pending?
+        // Usually, if a user edits a deleted/rejected post, it goes back to pending.
+        finalStatus = "approved"; // Default auto-approve if clean? User said "to be approved if it has no profanity"
+    }
+
+    const updateData = {
+        ...data,
+        status: finalStatus,
+        moderationNote: moderationReason,
+        updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    await postRef.update(updateData);
+
+    await addLog({
+        category: "posts",
+        action: "UPDATE_POST",
+        severity: "low",
+        actorRole: actor?.role,
+        actorName: actor?.name,
+        message: `User ${actor?.name} updated post: "${titleToCheck}". Status: ${finalStatus}`,
+    });
+
+    return { success: true, status: finalStatus, message: moderationReason };
 }
 
 
@@ -531,4 +586,30 @@ export async function deleteCommunityComment(postId: string, commentId: string, 
   await commentRef.delete();
   
   return { success: true };
+}
+
+// -----------------------------------------------------------------
+// 7. STATS ACTION
+// -----------------------------------------------------------------
+
+export async function getCommunityStats() {
+  const db = getAdminDb();
+  const snapshot = await db.collection("community").get();
+  
+  let total = 0;
+  let approved = 0;
+  let pending = 0;
+
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    const status = (data.status || 'approved').toString().toLowerCase();
+    
+    if (status !== 'deleted' && status !== 'rejected') {
+      total++;
+      if (status === 'approved' || status === 'active') approved++; // Support both active/approved aliases
+      if (status === 'pending') pending++;
+    }
+  });
+
+  return { total, approved, pending };
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { db } from "@/services/firebase";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
@@ -192,7 +193,12 @@ export default function AdminPostModerationPage() {
     return !q || p.title.toLowerCase().includes(q) || p.authorUsername.toLowerCase().includes(q);
   });
 
+  const totalPages = Math.ceil(filteredPosts.length / ITEMS_PER_PAGE);
   const paginatedPosts = filteredPosts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
 
   /* ─────────── BATCH MODERATION ─────────── */
 
@@ -258,211 +264,266 @@ export default function AdminPostModerationPage() {
   }
 
   return (
-    <div className="space-y-6 text-white w-full"> {/* Removed min-h-screen to fit in dashboard better */}
-
+    <div className="space-y-8 text-white w-full font-outfit">
+      
       {/* Filters & Actions */}
-      <div className="space-y-4">
-        {/* Filter Controls */}
-        <div className="flex flex-col md:flex-row gap-4 p-4 bg-white/5 rounded-lg border border-white/10">
-          <div className="flex-1">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex-1 min-w-[300px] relative">
             <input
               type="text"
-              placeholder="Search by title or author..."
+              placeholder="Search posts or authors..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
             />
           </div>
-          <div className="flex gap-4">
-            <Select
-              value={statusFilter}
-              onValueChange={(val: any) => setStatusFilter(val)}
-            >
-              <SelectTrigger className="w-[140px] bg-black/20 border-white/10 text-white focus:ring-indigo-500">
+          
+          <div className="flex flex-wrap gap-3">
+            <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-white rounded-xl h-10">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
-                <SelectItem value="pending" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Pending</SelectItem>
-                <SelectItem value="approved" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Approved</SelectItem>
-                <SelectItem value="rejected" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Rejected</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select
-              value={categoryFilter}
-              onValueChange={(val) => setCategoryFilter(val)}
-            >
-              <SelectTrigger className="w-[140px] bg-black/20 border-white/10 text-white focus:ring-indigo-500">
+            <Select value={categoryFilter} onValueChange={(val) => { setCategoryFilter(val); setCurrentPage(1); }}>
+              <SelectTrigger className="w-[140px] bg-white/5 border-white/10 text-white rounded-xl h-10">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100 z-[200]">
                 {CATEGORIES.map(c => (
-                  <SelectItem key={c} value={c} className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">
-                    {c}
-                  </SelectItem>
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        </div>
-
-        {/* Action Bar */}
-        <div className="flex justify-between items-center">
-          <div>
-            {selectedPosts.length > 0 ? (
-              <div className="flex gap-2 animate-in fade-in slide-in-from-left-2 transition-all">
-                <Button onClick={() => handleBatchAction("approve")} variant="default" className="bg-green-600 hover:bg-green-700 h-9 text-xs uppercase font-bold tracking-wide border border-green-500/50">
-                  <CheckCircle className="mr-2 h-3 w-3" /> Approve ({selectedPosts.length})
-                </Button>
-                <Button onClick={() => handleBatchAction("reject")} variant="destructive" className="bg-red-600 hover:bg-red-700 h-9 text-xs uppercase font-bold tracking-wide border border-red-500/50">
-                  <XCircle className="mr-2 h-3 w-3" /> Reject ({selectedPosts.length})
-                </Button>
-              </div>
-            ) : (
-              <div className="text-gray-400 text-sm font-medium flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-indigo-400" />
-                Select ({selectedPosts.length}) items to perform mass actions
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-500 font-mono">
-              {filteredPosts.length} POSTS
-            </span>
-            <Button variant="ghost" size="sm" onClick={loadPendingPosts} className="h-6 text-xs text-gray-400 hover:text-white">
-              Refresh
+            
+            <Button variant="ghost" size="icon" onClick={loadPendingPosts} className="h-10 w-10 bg-white/5 border border-white/10 rounded-xl text-zinc-400 hover:text-white">
+              <Loader2 className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
+
+        {/* Batch Actions Bar */}
+        {selectedPosts.length > 0 && (
+          <div className="flex items-center justify-between p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <ShieldAlert className="h-4 w-4 text-indigo-400" />
+              </div>
+              <span className="text-sm font-bold text-indigo-100">
+                {selectedPosts.length} posts selected for moderation
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => handleBatchAction("reject")} variant="destructive" className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/20 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest px-4">
+                Reject All
+              </Button>
+              <Button onClick={() => handleBatchAction("approve")} className="bg-green-600/20 text-green-400 hover:bg-green-600/30 border border-green-500/20 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest px-4">
+                Approve All
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* BOXY GRID TABLE */}
-      <div className="border border-white/20 rounded-none bg-black/20 overflow-visible">
-        <Table className="border-collapse w-full">
-          <TableHeader className="bg-white/10">
-            <TableRow className="border-b border-white/20">
-              <TableHead className="w-[50px] border-r border-white/10 text-center p-0">
-                <div className="flex items-center justify-center h-full w-full">
-                  <Checkbox
-                    checked={paginatedPosts.length > 0 && selectedPosts.length >= paginatedPosts.length}
-                    onCheckedChange={handleSelectAll}
-                    className="border-white/50 data-[state=checked]:bg-indigo-500"
-                  />
-                </div>
-              </TableHead>
-              <TableHead className="w-[180px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Author</TableHead>
-              <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Category</TableHead>
-              <TableHead className="border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4">Post Content</TableHead>
-              <TableHead className="w-[140px] border-r border-white/10 text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Spam Analysis</TableHead>
-              <TableHead className="w-[120px] text-white font-bold uppercase tracking-wider text-xs p-4 text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-gray-400">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                  Loading posts...
-                </TableCell>
-              </TableRow>
-            ) : paginatedPosts.length > 0 ? (
-              paginatedPosts.map((post) => (
-                <TableRow key={post.id} className="hover:bg-white/5 transition-colors border-b border-white/10 group">
-                  {/* Checkbox */}
-                  <TableCell className="border-r border-white/10 text-center p-0">
-                    <div className="flex items-center justify-center h-full w-full py-4">
+      {/* POSTS LIST */}
+      {loading ? (
+        <div className="py-20 text-center text-white/40">
+           <Activity className="h-8 w-8 animate-pulse mx-auto mb-3 opacity-20" />
+           Loading posts for moderation...
+        </div>
+      ) : (
+        <>
+          {/* DESKTOP VIEW */}
+          <div className="hidden lg:block border border-white/10 rounded-2xl bg-black/40 overflow-hidden shadow-inner">
+            <Table>
+              <TableHeader className="bg-white/5">
+                <TableRow className="border-b border-white/10 hover:bg-transparent">
+                  <TableHead className="w-[60px] text-center pl-6">
+                    <Checkbox
+                      checked={paginatedPosts.length > 0 && selectedPosts.length >= paginatedPosts.length}
+                      onCheckedChange={handleSelectAll}
+                      className="border-white/30 data-[state=checked]:bg-indigo-600"
+                    />
+                  </TableHead>
+                  <TableHead className="w-[200px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Author</TableHead>
+                  <TableHead className="w-[120px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 text-center">Category</TableHead>
+                  <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Content</TableHead>
+                  <TableHead className="w-[140px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 text-center">Security</TableHead>
+                  <TableHead className="w-[120px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6 text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedPosts.map((post) => (
+                  <TableRow key={post.id} className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0">
+                    <TableCell className="text-center pl-6">
                       <Checkbox
                         checked={selectedPosts.includes(post.id)}
                         onCheckedChange={(c) => handleSelectOne(post.id, c as boolean)}
-                        className="border-white/50 data-[state=checked]:bg-indigo-500"
+                        className="border-white/30 data-[state=checked]:bg-indigo-600"
                       />
-                    </div>
-                  </TableCell>
-
-                  {/* Author */}
-                  <TableCell className="border-r border-white/10 p-4 align-top">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-white font-bold text-sm truncate">
-                        <User size={14} className="text-gray-400" />
-                        {post.authorUsername}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-bold text-white/90 flex items-center gap-1.5">
+                          <User size={10} className="text-indigo-400" />
+                          {post.authorUsername}
+                        </span>
+                        <span className="text-[9px] font-mono text-zinc-500 italic mt-0.5">{post.timestamp}</span>
                       </div>
-                      <span className="text-[10px] text-gray-400 font-mono">{post.timestamp}</span>
-                    </div>
-                  </TableCell>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Badge className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-lg px-2 py-0.5 text-[9px] font-black uppercase">
+                        {post.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[400px]">
+                        <p className="text-[11px] font-bold text-white mb-1 leading-tight">{post.title}</p>
+                        <p className="text-[10px] text-zinc-400 line-clamp-1 italic">{post.contentSnippet}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className={`text-[9px] font-black px-2 py-1 rounded-full uppercase tracking-widest border ${
+                        (post.spamScore || 0) < 30 ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                        (post.spamScore || 0) < 70 ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                        'bg-red-500/10 text-red-400 border-red-500/20'
+                      }`}>
+                        {(post.spamScore || 0) < 30 ? 'Verified' : `${post.spamScore}% Risk`}
+                      </div>
+                    </TableCell>
+                    <TableCell className="pr-6 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => updateStatus(post.id, 'approved')}
+                          className="h-8 w-8 flex items-center justify-center rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/20 transition-all"
+                        >
+                          <CheckCircle size={16} />
+                        </button>
+                        <button
+                          onClick={() => updateStatus(post.id, 'rejected')}
+                          className="h-8 w-8 flex items-center justify-center rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-                  {/* Category */}
-                  <TableCell className="border-r border-white/10 p-4 text-center align-top">
-                    <Badge variant="outline" className="border-white/20 text-white bg-white/5 text-[10px] uppercase tracking-wider">
+          {/* MOBILE VIEW */}
+          <div className="lg:hidden space-y-4">
+            {paginatedPosts.map((post) => (
+              <div key={post.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 transition-all hover:border-indigo-500/30">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 shrink-0">
+                      <User className="h-4 w-4 text-indigo-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1 break-words">{post.authorUsername}</p>
+                      <h4 className="text-xs font-bold text-white break-words">{post.title}</h4>
+                    </div>
+                  </div>
+                  <Checkbox
+                    checked={selectedPosts.includes(post.id)}
+                    onCheckedChange={(c) => handleSelectOne(post.id, c as boolean)}
+                    className="border-white/30 data-[state=checked]:bg-indigo-600 h-5 w-5 rounded-md shrink-0"
+                  />
+                </div>
+
+                <div className="bg-black/20 rounded-xl p-3 border border-white/5">
+                  <p className="text-xs text-zinc-300 leading-relaxed font-medium line-clamp-2">
+                    {post.contentSnippet}
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-end pt-3 border-t border-white/5">
+                  <div className="flex flex-col gap-1">
+                    <Badge className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-lg px-2 py-0.5 text-[8px] font-black uppercase w-max">
                       {post.category}
                     </Badge>
-                  </TableCell>
-
-                  {/* Content */}
-                  <TableCell className="border-r border-white/10 p-4 align-top relative">
-                    <p className="font-bold text-white text-sm mb-1">{post.title}</p>
-                    <p className="text-xs text-gray-400 line-clamp-2">{post.contentSnippet}</p>
-                    {post.spamScore && post.spamScore > 50 && (
-                      <div className="absolute top-2 right-2 flex items-center gap-1 text-[10px] text-red-400 font-bold bg-red-900/20 px-1.5 py-0.5 rounded border border-red-500/30">
-                        <AlertTriangle size={10} /> SPAM?
-                      </div>
-                    )}
-                  </TableCell>
-
-                  {/* Spam Analysis */}
-                  <TableCell className="border-r border-white/10 p-4 text-center align-middle">
-                    <div className={`text-xs font-bold px-2 py-1 rounded inline-block ${(post.spamScore || 0) < 30 ? 'text-green-400 bg-green-900/20' :
-                      (post.spamScore || 0) < 70 ? 'text-yellow-400 bg-yellow-900/20' :
-                        'text-red-400 bg-red-900/20 border border-red-500/30'
-                      }`}>
-                      {(post.spamScore || 0) < 30 ? 'SAFE' : `${post.spamScore}% RISK`}
-                    </div>
-                  </TableCell>
-
-                  {/* Actions */}
-                  <TableCell className="p-4 align-middle text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => updateStatus(post.id, 'approved')}
-                        className="p-1.5 rounded-md hover:bg-green-500/20 text-green-400 transition-colors border border-transparent hover:border-green-500/50"
-                        title="Approve"
-                      >
-                        <CheckCircle size={18} />
-                      </button>
-                      <button
-                        onClick={() => updateStatus(post.id, 'rejected')}
-                        className="p-1.5 rounded-md hover:bg-red-500/20 text-red-400 transition-colors border border-transparent hover:border-red-500/50"
-                        title="Reject to Trash"
-                      >
-                        <XCircle size={18} />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              /* Empty State */
-              <TableRow>
-                <TableCell colSpan={6} className="h-64 text-center">
-                  <div className="flex flex-col items-center justify-center text-gray-500">
-                    <CheckCircle className="h-10 w-10 mb-4 text-green-500/20" />
-                    <p className="text-lg font-medium text-white">All caught up!</p>
-                    <p className="text-sm">No pending posts to review.</p>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${
+                      (post.spamScore || 0) < 50 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                       {post.spamScore}% Spam Risk
+                    </span>
                   </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 bg-red-500/10 text-red-400 hover:bg-red-400/20 border border-red-500/20 rounded-xl"
+                      onClick={() => updateStatus(post.id, 'rejected')}
+                    >
+                      <XCircle size={18} />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 bg-green-500/10 text-green-400 hover:bg-green-400/20 border border-green-500/20 rounded-xl"
+                      onClick={() => updateStatus(post.id, 'approved')}
+                    >
+                      <CheckCircle size={18} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {paginatedPosts.length === 0 && (
+            <div className="py-20 text-center bg-white/5 rounded-3xl border border-white/5 border-dashed">
+              <CheckCircle className="h-10 w-10 text-green-500/20 mx-auto mb-4" />
+              <p className="text-white/40 font-medium font-outfit uppercase tracking-widest text-[10px]">All posts processed. Inbox clean.</p>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Pagination */}
-      {!loading && filteredPosts.length > ITEMS_PER_PAGE && (
-        <div className="flex justify-center pt-2">
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center pt-8">
           <Pagination>
-            <PaginationContent>
-              <PaginationItem><PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1)); }} className={`cursor-pointer ${currentPage === 1 ? 'opacity-50 pointer-events-none' : ''}`} /></PaginationItem>
-              <PaginationItem><span className="mx-4 text-white text-sm font-mono self-center">Page {currentPage}</span></PaginationItem>
-              <PaginationItem><PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(Math.ceil(filteredPosts.length / ITEMS_PER_PAGE), p + 1)); }} className={`cursor-pointer ${currentPage >= Math.ceil(filteredPosts.length / ITEMS_PER_PAGE) ? 'opacity-50 pointer-events-none' : ''}`} /></PaginationItem>
+            <PaginationContent className="flex-wrap justify-center gap-2">
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if(currentPage > 1) setCurrentPage(p => p - 1); }}
+                  className={currentPage === 1 ? "pointer-events-none opacity-40" : "text-zinc-400 hover:text-white transition-colors cursor-pointer"}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <PaginationItem key={i}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-8 w-8 p-0 rounded-lg text-xs font-bold transition-all ${
+                      currentPage === i + 1 ? 'bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-600/20' : 'text-zinc-500 hover:text-white'
+                    }`}
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </Button>
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); if(currentPage < totalPages) setCurrentPage(p => p + 1); }}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-40" : "text-zinc-400 hover:text-white transition-colors cursor-pointer"}
+                />
+              </PaginationItem>
             </PaginationContent>
           </Pagination>
         </div>

@@ -40,7 +40,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-linear-to-b from-gray-900/80 via-transparent to-transparent" />
 
         <h1
-          className="relative z-10 text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-4 sm:mb-6 bg-linear-to-r from-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
+          className="relative z-10 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-4 sm:mb-6 bg-linear-to-r from-fuchsia-400 to-indigo-400 bg-clip-text text-transparent">
           Welcome to iSITE+
         </h1>
         <p
@@ -69,7 +69,7 @@ export default function Home() {
       <section className="py-24 sm:py-32 flex flex-col gap-24 sm:gap-32">
         <AnnouncementCarousel />
         <div className="container mx-auto">
-          <AnnouncementsFeed limit={3} />
+          <AnnouncementsFeed limit={10} />
         </div>
       </section>
       {/* -----------------------------------------------------------------
