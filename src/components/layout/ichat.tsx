@@ -10,6 +10,7 @@ import { Send, X, Bot, Link as LinkIcon, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link"; // For smart navigation
+import { useAuth } from "@/services/auth"; // For checking if user is logged in
 
 import { collection, doc, onSnapshot, getDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/services/firebase";
@@ -43,6 +44,7 @@ interface AnnouncementDoc {
 
 export default function IChat() {
     const { toast } = useToast();
+    const { user } = useAuth(); // Check if user is authenticated
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([
@@ -436,7 +438,7 @@ export default function IChat() {
                                                     {[
                                                         "📢 Latest Announcements",
                                                         "🏠 Go to Home",
-                                                        "👥 Community",
+                                                        ...(user ? ["👥 Community"] : []), // Only show for authenticated users
                                                         "ℹ️ About iSITE+",
                                                     ].map((text, idx) => (
                                                         <button
