@@ -313,7 +313,7 @@ export default function IChat() {
                                         <div className="absolute inset-0 bg-white/20 rounded-xl blur-sm animate-pulse" />
                                     </div>
                                     <div>
-                                        <h2 className="font-bold text-white text-base tracking-tight">iChat AI</h2>
+                                        <h2 className="font-bold text-white text-base tracking-tight">Smart Assistant</h2>
                                         <p className={`text-xs font-medium flex items-center gap-1.5 ${botEnabled ? "text-indigo-300/80" : "text-red-400"}`}>
                                             <span className="relative flex h-2 w-2">
                                               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${botEnabled ? "bg-green-400" : "bg-red-400"}`}></span>

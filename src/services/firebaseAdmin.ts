@@ -18,6 +18,7 @@ function initFirebase() {
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
                 databaseURL: process.env.FIREBASE_DATABASE_URL,
+                storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
             });
         } catch (error) {
             console.error("❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", error);
@@ -36,6 +37,7 @@ function initFirebase() {
                     privateKey: privateKey.replace(/\\n/g, "\n"),
                 }),
                 databaseURL: process.env.FIREBASE_DATABASE_URL,
+                storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
             });
         } else {
             console.warn("⚠️ Firebase Admin skipped: Missing credentials in .env.local");
@@ -54,4 +56,10 @@ export const getAdminDb = () => {
     initFirebase();
     if (!admin.apps.length) throw new Error("Firebase Admin not initialized");
     return admin.firestore();
+};
+
+export const getAdminStorage = () => {
+    initFirebase();
+    if (!admin.apps.length) throw new Error("Firebase Admin not initialized");
+    return admin.storage();
 };

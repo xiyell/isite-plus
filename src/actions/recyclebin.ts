@@ -1,7 +1,7 @@
 // actions/recyclebin.ts
 "use server";
 
-import { getAdminDb, getAdminAuth } from "@/services/firebaseAdmin";
+import { getAdminDb, getAdminAuth, getAdminStorage } from "@/services/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
 export type TrashType = "post" | "announcement" | "user" | "evaluation" | "ibot" | "log_batch";
@@ -189,14 +189,27 @@ export async function permanentlyDeleteItem(id: string, type: TrashType) {
   try {
     const db = getAdminDb();
     
-    // 1. If it's a user, delete from Authentication first
+    // 1. If it's a user, delete from Authentication AND Storage first
     if (type === 'user') {
         try {
             const auth = getAdminAuth();
             await auth.deleteUser(id);
             console.log(`User ${id} deleted from Authentication.`);
+
+            // Delete Storage Files (Avatar, uploads, etc.)
+            const storage = getAdminStorage();
+            const bucket = storage.bucket();
+
+            // Attempt to delete 'users/{id}' folder
+            await bucket.deleteFiles({ prefix: `users/${id}/` });
+            console.log(`Deleted storage folder: users/${id}/`);
+
+             // Attempt to delete 'avatars/{id}' folder (if applicable)
+            await bucket.deleteFiles({ prefix: `avatars/${id}/` });
+            console.log(`Deleted storage folder: avatars/${id}/`);
+
         } catch (authError) {
-            console.error(`Failed to delete user ${id} from Authentication:`, authError);
+            console.error(`Failed to cleanup user ${id} (Auth/Storage):`, authError);
         }
     }
 
