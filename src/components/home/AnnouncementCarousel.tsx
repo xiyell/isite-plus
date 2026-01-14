@@ -61,15 +61,16 @@ const CarouselCard = ({ item, onClick }: { item: Announcement; onClick: () => vo
 };
 
 export default function AnnouncementCarousel() {
-
-  const [featuredAnnouncements, setFeaturedAnnouncements] = useState<Announcement[]>([])
+  const [featuredAnnouncements, setFeaturedAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<Announcement | null>(null);
+
   useEffect(() => {
     const q = query(
       collection(db, "announcements"),
       orderBy("createdAt", "desc"),
-      limit(6) // Fetch a few more to account for filtered items
+      limit(6) 
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -81,8 +82,9 @@ export default function AnnouncementCarousel() {
           updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
         } as Announcement))
         .filter(a => a.status === "active")
-        .slice(0, 3); // Take top 3 after filtering
+        .slice(0, 3);
       setFeaturedAnnouncements(data);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -95,13 +97,12 @@ export default function AnnouncementCarousel() {
 
   // autoplay
   useEffect(() => {
+    if (featuredAnnouncements.length <= 1) return;
     const timer = setInterval(() => {
       nextSlide();
     }, 7000);
     return () => clearInterval(timer);
   }, [featuredAnnouncements]);
-
-
 
   const handleDotClick = (i: number) => setIndex(i);
 
@@ -115,65 +116,81 @@ export default function AnnouncementCarousel() {
       <div
         className="relative w-full max-w-[1200px] h-[650px] flex items-center justify-center px-4"
       >
-        {featuredAnnouncements.map((item, i) => {
-          const offset = (i - index + featuredAnnouncements.length) % featuredAnnouncements.length;
-          let x = 0,
-            scale = 1,
-            opacity = 1,
-            zIndex = 20;
+        {loading ? (
+             <h1 className="text-white/50 text-xl font-bold tracking-widest animate-pulse">Loading Updates...</h1>
+        ) : featuredAnnouncements.length === 0 ? (
+             <div className="flex flex-col items-center justify-center text-center p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10">
+                <p className="text-white/50 text-xl md:text-2xl font-bold uppercase tracking-widest leading-relaxed">
+                   No further announcements! <br/> check back later
+                </p>
+             </div>
+        ) : (
+             <>
+                {featuredAnnouncements.map((item, i) => {
+                  const offset = (i - index + featuredAnnouncements.length) % featuredAnnouncements.length;
+                  let x = 0,
+                    scale = 1,
+                    opacity = 1,
+                    zIndex = 20;
 
-          if (offset === 0) {
-            x = 0;
-            scale = 1.05;
-            opacity = 1;
-            zIndex = 50;
-          } else if (offset === 1) {
-            x = 450;
-            scale = 0.85;
-            opacity = 0.6;
-            zIndex = 30;
-          } else if (offset === featuredAnnouncements.length - 1) {
-            x = -450;
-            scale = 0.85;
-            opacity = 0.6;
-            zIndex = 30;
-          } else {
-            x = offset * 300;
-            scale = 0.7;
-            opacity = 0;
-            zIndex = 10;
-          }
+                  if (offset === 0) {
+                    x = 0;
+                    scale = 1.05;
+                    opacity = 1;
+                    zIndex = 50;
+                  } else if (offset === 1) {
+                    x = 450;
+                    scale = 0.85;
+                    opacity = 0.6;
+                    zIndex = 30;
+                  } else if (offset === featuredAnnouncements.length - 1) {
+                    x = -450;
+                    scale = 0.85;
+                    opacity = 0.6;
+                    zIndex = 30;
+                  } else {
+                    x = offset * 300;
+                    scale = 0.7;
+                    opacity = 0;
+                    zIndex = 10;
+                  }
 
-          return (
-            <motion.div
-              key={item.id}
-              className="absolute cursor-pointer"
-              animate={{ x, scale, opacity, zIndex }}
-              transition={{ type: "spring", stiffness: 220, damping: 25 }}
-            >
-              <CarouselCard item={item} onClick={() => setSelected(item)} />
-            </motion.div>
-          );
-        })}
+                  return (
+                    <motion.div
+                      key={item.id}
+                      className="absolute cursor-pointer"
+                      animate={{ x, scale, opacity, zIndex }}
+                      transition={{ type: "spring", stiffness: 220, damping: 25 }}
+                    >
+                      <CarouselCard item={item} onClick={() => setSelected(item)} />
+                    </motion.div>
+                  );
+                })}
 
+                {/* Navigation Buttons - Hide if 1 or 0 items */}
+                {featuredAnnouncements.length > 1 && (
+                    <>
+                        <button
+                          onClick={prevSlide}
+                          className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-white transition-all duration-300"
+                        >
+                          <ChevronLeft className="w-9 h-9" />
+                        </button>
 
-        <button
-          onClick={prevSlide}
-          className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-white transition-all duration-300"
-        >
-          <ChevronLeft className="w-9 h-9" />
-        </button>
-
-        <button
-          onClick={nextSlide}
-          className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-white transition-all duration-300"
-        >
-          <ChevronRight className="w-9 h-9" />
-        </button>
+                        <button
+                          onClick={nextSlide}
+                          className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/20 text-white transition-all duration-300"
+                        >
+                          <ChevronRight className="w-9 h-9" />
+                        </button>
+                    </>
+                )}
+             </>
+        )}
       </div>
 
       <div className="flex gap-2.5 mt-10">
-        {featuredAnnouncements.map((_, i) => (
+        {!loading && featuredAnnouncements.length > 1 && featuredAnnouncements.map((_, i) => (
           <motion.button
             key={i}
             onClick={() => handleDotClick(i)}
@@ -187,8 +204,6 @@ export default function AnnouncementCarousel() {
           />
         ))}
       </div>
-
-
 
       <AnimatePresence>
         {selected && (

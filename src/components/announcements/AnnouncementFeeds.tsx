@@ -185,9 +185,11 @@ interface AnnouncementsFeedProps {
     limit?: number;
     // Allows you to override the default image for different parts of your site
     defaultFallbackImage?: string;
+    // Number of items to skip (e.g., if shown in a carousel above)
+    skip?: number;
 }
 
-export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: AnnouncementsFeedProps) {
+export function AnnouncementsFeed({ limit = 10, skip = 0, defaultFallbackImage }: AnnouncementsFeedProps) {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<Announcement | null>(null);
@@ -198,8 +200,7 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
     // Fetch announcements in real-time
     useEffect(() => {
         setLoading(true);
-        // Note: We use a larger fetch limit and client-side filtering to ensure we get enough 'active' items 
-        // without complex composite indices for every combination of filters.
+
         const q = query(
             collection(db, "announcements"),
             orderBy("createdAt", "desc"),
@@ -215,7 +216,7 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
                     updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt,
                 } as Announcement))
                 .filter(a => a.status === "active")
-                .slice(0, limit); // Respect the requested limit after filtering
+                .slice(skip, skip + limit); // Skip the first 'n' featured items, then take 'limit' items
                 
             setAnnouncements(data);
             setLoading(false);
@@ -225,33 +226,15 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
         });
 
         return () => unsubscribe();
-    }, [limit]);
-
-    // Filter out the featured item for the grid
-    const featured = announcements[0];
-    const gridAnnouncements = announcements.slice(1);
+    }, [limit, skip]);
 
     return (
         <div className="w-full flex flex-col gap-16">
-
-            {/* 2. Featured Announcement */}
-            {loading ? (
-                <Skeleton className="h-[40vh] w-full max-w-6xl mx-auto rounded-xl" />
-            ) : (
-                featured && (
-                    <FeaturedAnnouncement
-                        item={featured}
-                        onSelect={setSelected}
-                        fallbackImage={fallbackImage}
-                    />
-                )
-            )}
-
             {/* 3. Announcements Grid */}
             <div className="px-6 sm:px-0 max-w-6xl mx-auto w-full">
                 <motion.div
                     animate="visible"
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 pb-20 items-stretch"
+                    className="flex flex-wrap justify-center gap-8 pb-20 items-stretch"
                     initial="hidden"
                     variants={{
                         hidden: {},
@@ -260,18 +243,23 @@ export function AnnouncementsFeed({ limit = 10, defaultFallbackImage }: Announce
                 >
                     {loading
                         ? <AnnouncementSkeleton />
-                        : gridAnnouncements.map((item) => (
-                            <AnnouncementCard
-                                key={item.id}
-                                fallbackImage={fallbackImage}
-                                item={item}
-                                onSelect={setSelected}
-                            />
+                        : announcements.map((item) => (
+                            // Flexbox item wrapper for proper centering and sizing
+                            <div 
+                                key={item.id} 
+                                className="w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.4rem)]"
+                            >
+                                <AnnouncementCard
+                                    fallbackImage={fallbackImage}
+                                    item={item}
+                                    onSelect={setSelected}
+                                />
+                            </div>
                         ))}
 
-                    {!loading && gridAnnouncements.length === 0 && (
-                        <div className="text-center col-span-full py-20 bg-zinc-900/30 rounded-[2rem] border border-white/5 border-dashed">
-                            <p className="text-white/30 font-bold uppercase tracking-widest text-sm">
+                    {!loading && announcements.length === 0 && (
+                        <div className="text-center col-span-full py-20 bg-zinc-900/50 backdrop-blur-md rounded-[2rem] border border-white/10 border-dashed">
+                            <p className="text-white/60 font-bold uppercase tracking-widest text-sm">
                                 No additional announcements found
                             </p>
                         </div>

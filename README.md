@@ -19,8 +19,9 @@ iSITE+ is a modern web application designed for students of the **Polytechnic Un
 - **Moderated Space**: Built-in recycle bin and reporting for a safe environment.
 
 ### 📋 Information & Tools
-- **Announcements**: Interactive modals for official university or organization updates.
+- **Announcements**: Interactive modals for official users. The home feed intelligently filters out "Featured News" to prevent redundancy.
 - **Profile Management**: View post and comment history (deleted posts/comments are automatically filtered out).
+- **iBot (AI Assistant)**: A smart chatbot powered by Gemini to assist users with platform queries and general information.
 - **iReader & iQr**: Tools for event attendance and identification (restricted to Admin/Moderator).
 - **iEvaluation**: Digital feedback system for student events.
 

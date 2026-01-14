@@ -52,7 +52,7 @@ export default function FeatureSection() {
         <h2 className="text-3xl sm:text-5xl font-bold mb-10 sm:mb-16 text-center bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 text-transparent bg-clip-text">
           Platform Features
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-10 max-w-6xl w-full">
+        <div className="flex flex-wrap justify-center gap-6 sm:gap-10 max-w-6xl w-full mx-auto">
           {features.map((feature, i) => {
             
             const colors = [
@@ -71,7 +71,10 @@ export default function FeatureSection() {
       key={i}
       {...fadeIn(i * 0.1)}
              
-                className="flex justify-center"
+                 // Width calculations to mimic grid with gaps:
+                 // SM (2 cols, gap-10=2.5rem): (100% - 2.5rem) / 2 = 50% - 1.25rem
+                 // LG (3 cols, gap-10=5rem total): (100% - 5rem) / 3 = 33.33% - 1.67rem
+                className="flex justify-center w-full sm:w-[calc(50%-1.25rem)] lg:w-[calc(33.33%-1.67rem)]"
               >
                 
                 <Card

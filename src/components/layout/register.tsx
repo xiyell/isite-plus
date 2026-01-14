@@ -448,7 +448,7 @@ export default function RegisterModal({ onRegister }: RegisterModalProps) {
                                                     <SelectItem value="4" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Section 4</SelectItem>
                                                     <SelectItem value="None" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">None</SelectItem>
                                                     <SelectItem value="Irregular" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Irregular</SelectItem>
-                                                    <SelectItem value="Alumni" className="focus:bg-zinc-800 focus:text-white cursor-pointer py-3 border-b border-white/5 last:border-0">Alumni</SelectItem>
+
                                                 </SelectContent>
                                             </Select>
                                         </div>

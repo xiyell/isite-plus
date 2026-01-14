@@ -680,30 +680,41 @@ export default function CommunityPage() {
       });
       return;
     }
-    if (
-      !confirm("Reject this post? This action can be undone by re-approving.")
-    )
-      return;
 
-    try {
-      await updatePostStatus(postId, "rejected");
+    toast({
+      title: "Reject Post?",
+      description: "This will mark the post as rejected. You can re-approve it later.",
+      variant: "destructive",
+      action: (
+        <ToastAction
+          altText="Confirm Reject"
+          className="bg-red-600 text-white hover:bg-red-700 border-none"
+          onClick={async () => {
+            try {
+              await updatePostStatus(postId, "rejected");
 
-      const updated = await fetchPosts();
-      updateOpenPostData(updated);
+              const updated = await fetchPosts();
+              updateOpenPostData(updated);
 
-      toast({
-        title: "Post Rejected",
-        description: "The post has been marked as rejected.",
-        variant: "warning",
-      });
-    } catch (err) {
-      console.error("Error rejecting post:", err);
-      toast({
-        title: "Rejection Failed",
-        description: "Failed to reject post due to an error.",
-        variant: "destructive",
-      });
-    }
+              toast({
+                title: "Post Rejected",
+                description: "The post has been marked as rejected.",
+                variant: "warning",
+              });
+            } catch (err) {
+              console.error("Error rejecting post:", err);
+              toast({
+                title: "Rejection Failed",
+                description: "Failed to reject post due to an error.",
+                variant: "destructive",
+              });
+            }
+          }}
+        >
+          Reject
+        </ToastAction>
+      ),
+    });
   };
 
   const handleDeleteComment = async (commentId: string) => {
@@ -1252,13 +1263,13 @@ export default function CommunityPage() {
           </>
         )}
 
-        {/* ---------------- VIEW POST MODAL (Glassy Dialog) (unchanged) ---------------- */}
+        {/* ---------------- VIEW POST MODAL (Glassy Dialog)---------------- */}
         <Dialog
           open={!!openPost || isPostLoading}
           onOpenChange={(open) => {
             if (!open) {
               setOpenPost(null);
-              setNewComment(""); // Clear comment when closing
+              setNewComment("");
             } else {
                // In case it's opened via other means not going through handleOpenPost (unlikely but safe)
                setOpenPost(null);
@@ -1344,7 +1355,7 @@ export default function CommunityPage() {
                         </span>
                       )}
 
-                      {/* Admin controls (Logic updated with toasts) */}
+                      {/* Admin controls */}
                       {isAdmin && openPost.status === "pending" && (
                         <>
                           <Button
@@ -1513,24 +1524,26 @@ export default function CommunityPage() {
                       </>
                     )}
 
-                    {/* Add comment input (Glassy) */}
+                    {/* Add comment input */}
                     <div className="mt-8 flex gap-3">
                       <Input
                         className={GLASSY_INPUT_CLASSES}
                         placeholder={
-                          currentUser
-                            ? "Share your thoughts..."
-                            : "Login to comment"
+                          !currentUser
+                            ? "Login to comment"
+                            : openPost.status === "pending"
+                              ? "Comments disabled for pending posts"
+                              : "Share your thoughts..."
                         }
                         type="text"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        disabled={!currentUser}
+                        disabled={!currentUser || openPost.status === "pending"}
                       />
                       <Button
                         className="rounded-full bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-semibold shadow-lg shadow-fuchsia-900/20 disabled:opacity-50 disabled:shadow-none border-0"
                         onClick={() => handleAddComment(openPost.id)}
-                        disabled={!currentUser || !newComment.trim()}
+                        disabled={!currentUser || !newComment.trim() || openPost.status === "pending"}
                       >
                         Send
                       </Button>

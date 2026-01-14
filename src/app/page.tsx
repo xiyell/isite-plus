@@ -69,7 +69,7 @@ export default function Home() {
       <section className="py-24 sm:py-32 flex flex-col gap-24 sm:gap-32">
         <AnnouncementCarousel />
         <div className="container mx-auto">
-          <AnnouncementsFeed limit={10} />
+          <AnnouncementsFeed limit={10} skip={3} />
         </div>
       </section>
       {/* -----------------------------------------------------------------
