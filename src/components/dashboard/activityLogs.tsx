@@ -38,9 +38,12 @@ import {
 } from "@/components/ui/select";
 
 import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/input";
 
-import { getLogs, LogEntry } from "@/actions/logs";
-import { Activity, Shield, User, FileText, Settings } from "lucide-react";
+import { getLogs, LogEntry, deleteAllLogs } from "@/actions/logs";
+import { Activity, Shield, User, FileText, Settings, Trash2, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/services/auth";
 
 /* ───────────────────────── CONSTANTS ───────────────────────── */
 
@@ -78,7 +81,6 @@ const getCategoryIcon = (category: string) => {
 };
 
 const sanitizeMessage = (message: string) => {
-  // Regex to remove patterns like (ID: xyz123)
   return message.replace(/\(ID: [^)]+\)/g, "").replace(/\s{2,}/g, " ").trim();
 };
 
@@ -95,6 +97,7 @@ const getPageNumbers = (current: number, total: number, max = 3) => {
 
 export default function ActivityLogsContent() {
   const { toast } = useToast();
+  const { user } = useAuth(); // Hook for auth
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,9 +135,68 @@ export default function ActivityLogsContent() {
         setLoading(false);
       }
     };
-
     fetchLogs();
   }, [toast]);
+
+  /* ─────────────── DELETE ALL LOGS ─────────────── */
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteAll = async () => {
+    if (!deletePassword || deletePassword.length < 6) {
+      toast({
+        title: "Password Required",
+        description: "Please enter your password to confirm this action.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      
+      if (!user?.uid) {
+        toast({
+          title: "Authentication Error",
+          description: "User not authenticated or still loading.",
+          variant: "destructive",
+        });
+        setIsDeleting(false);
+        return;
+      }
+
+      const result = await deleteAllLogs(user.uid, deletePassword);
+      
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message,
+          className: "bg-green-600 border-green-500 text-white",
+        });
+        setShowDeleteDialog(false);
+        setDeletePassword("");
+        // Refresh logs
+        const data = await getLogs();
+        setLogs(data);
+      } else {
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete logs. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   /* ─────────────── SORT ─────────────── */
   // NOTE: This sorting logic currently sorts ALL logs in memory.
@@ -210,10 +272,19 @@ export default function ActivityLogsContent() {
     <div className="min-h-screen p-8 text-white">
       <Card className={GLASSY_CARD}>
         <CardHeader>
-          {/* Card Title - Changed text-gray-400 to text-gray-300/text-white */}
-          <CardTitle className=" pt-4 text-sm uppercase text-white">
-            Activity Logs
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="pt-4 text-sm uppercase text-white">
+              Activity Logs
+            </CardTitle>
+            <Button
+              onClick={() => setShowDeleteDialog(true)}
+              variant="destructive"
+              className="bg-red-500 hover:bg-red-600 text-white border border-red-500 shadow-lg shadow-red-500/20 rounded-xl px-4 py-2 transition-all hover:scale-105 active:scale-95"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete All Logs
+            </Button>
+          </div>
         </CardHeader>
 
         <CardContent>
@@ -281,21 +352,21 @@ export default function ActivityLogsContent() {
             <>
               {/* DESKTOP VIEW (Hidden on Mobile) */}
               <div className="hidden lg:block border border-white/10 rounded-xl bg-black/40 overflow-hidden shadow-inner font-outfit">
-                <Table>
+                <Table className="table-fixed w-full">
                   <TableHeader className="bg-white/5 disabled:pointer-events-none">
                     <TableRow className="border-b border-white/10 hover:bg-transparent">
-                      <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Timestamp</TableHead>
-                      <TableHead className="w-[120px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Category</TableHead>
-                      <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Actor</TableHead>
-                      <TableHead className="w-[180px] text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Action</TableHead>
-                      <TableHead className="w-[100px] text-center text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4">Severity</TableHead>
-                      <TableHead className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] py-4 pr-6">Message</TableHead>
+                      <TableHead className="w-[180px] text-white font-bold uppercase tracking-widest text-[10px] py-4 pl-6">Timestamp</TableHead>
+                      <TableHead className="w-[120px] text-white font-bold uppercase tracking-widest text-[10px] py-4">Category</TableHead>
+                      <TableHead className="w-[180px] text-white font-bold uppercase tracking-widest text-[10px] py-4">Actor</TableHead>
+                      <TableHead className="w-[180px] text-white font-bold uppercase tracking-widest text-[10px] py-4">Action</TableHead>
+                      <TableHead className="w-[100px] text-center text-white font-bold uppercase tracking-widest text-[10px] py-4">Severity</TableHead>
+                      <TableHead className="text-white font-bold uppercase tracking-widest text-[10px] py-4 pr-6">Message</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedLogs.map((log) => (
                       <TableRow key={log.id} className="group hover:bg-white/5 transition-all duration-200 border-b border-white/5 last:border-0 h-16">
-                        <TableCell className="pl-6 font-mono text-[11px] text-zinc-400">{log.time}</TableCell>
+                        <TableCell className="pl-6 font-mono text-[11px] text-white">{log.time}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {getCategoryIcon(log.category)}
@@ -317,7 +388,7 @@ export default function ActivityLogsContent() {
                           </Badge>
                         </TableCell>
                         <TableCell className="pr-6 relative group cursor-help overflow-visible">
-                          <div className="text-[11px] text-zinc-300 truncate max-w-[300px] leading-relaxed">
+                          <div className="text-[11px] text-white truncate max-w-[300px] leading-relaxed">
                               {sanitizeMessage(log.message)}
                           </div>
                           
@@ -352,20 +423,20 @@ export default function ActivityLogsContent() {
                     </div>
 
                     <div className="bg-black/20 rounded-xl p-3 border border-white/5">
-                      <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+                      <p className="text-xs text-white leading-relaxed font-medium">
                         {sanitizeMessage(log.message)}
                       </p>
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end pt-2 border-t border-white/5 gap-3">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[9px] text-zinc-500 uppercase font-black tracking-tighter mb-0.5">Actor</span>
-                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                          <span className="text-[11px] font-bold text-white/90 break-all">{log.actorName}</span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-[9px] text-white uppercase font-black tracking-tighter mb-0.5">Actor</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-[11px] font-bold text-white truncate" title={log.actorName}>{log.actorName}</span>
                           <span className="text-[8px] px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-md font-black uppercase shrink-0">{log.actorRole}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-500 italic shrink-0">{log.time.split(',')[1].trim()}</span>
+                      <span className="text-[10px] font-mono text-white italic shrink-0">{log.time.split(',')[1].trim()}</span>
                     </div>
                   </div>
                 ))}
@@ -431,6 +502,64 @@ export default function ActivityLogsContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete All Logs Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-red-500/30 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="h-8 w-8 text-red-500" />
+              <h3 className="text-xl font-bold text-white">Delete All Logs?</h3>
+            </div>
+            
+            <p className="text-white mb-4">
+              This action will permanently delete <span className="text-red-400 font-bold">ALL</span> activity logs. 
+              This cannot be undone.
+            </p>
+
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+              <p className="text-sm text-red-300 font-medium">
+                ⚠️ <span className="font-bold">CRITICAL ACTION</span>: Only administrators can perform this operation.
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-6">
+              <label className="text-sm font-medium text-white">
+                Enter your password to confirm:
+              </label>
+              <Input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Your password"
+                className="bg-white/10 border-white/20 text-white"
+                disabled={isDeleting}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeletePassword("");
+                }}
+                variant="ghost"
+                disabled={isDeleting}
+                className="flex-1 border border-white/20 text-white hover:bg-white/10"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteAll}
+                disabled={isDeleting || !deletePassword}
+                className="flex-1 bg-red-800 hover:bg-red-900 text-white border border-red-700 shadow-lg shadow-red-900/20"
+              >
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

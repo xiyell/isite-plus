@@ -4,7 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import Post from "@/types/post";
 import { User } from "@/types/user";
 import Comment from "@/types/comment";
-import { addLog } from "./logs";
+import { addLog, getActorDisplayName } from "./logs"; // Import helper
 import { checkProfanity, checkSpam } from "@/lib/moderation";
 import { revalidatePath } from "next/cache";
 
@@ -176,6 +176,7 @@ export async function createCommunityPost(data: NewPostData) {
   const postedByRef = db.collection('users').doc(postedBy);
   const userSnap = await postedByRef.get();
   const user = userSnap.data();
+  const actorName = await getActorDisplayName(postedBy);
 
   // --- AUTOMATED MODERATION ---
   const isProfane = checkProfanity(data.title) || checkProfanity(data.description);
@@ -211,7 +212,7 @@ export async function createCommunityPost(data: NewPostData) {
       severity: "medium",
       actorRole: "system",
       actorName: "System",
-      message: `System auto-deleted post from ${user?.name}: "${data.title}". Reason: ${moderationReason}`,
+      message: `System auto-deleted post from ${actorName}: "${data.title}". Reason: ${moderationReason}`,
     });
     return { success: false, message: moderationReason };
   }
@@ -221,8 +222,8 @@ export async function createCommunityPost(data: NewPostData) {
     action: "CREATE_POST",
     severity: "low",
     actorRole: user?.role,
-    actorName: user?.name,
-    message: `User ${user?.name} created a new post: "${data.title}"`,
+    actorName: actorName,
+    message: `User ${actorName} created a new post: "${data.title}"`,
   });
 
   return { success: true };
@@ -241,6 +242,7 @@ export async function updateCommunityPost(postId: string, data: Partial<NewPostD
     if (!postSnap.exists) throw new Error("Post not found.");
     const originalPost = postSnap.data();
     const actor = actorSnap.data();
+    const actorName = await getActorDisplayName(actorUid);
 
     // Moderation Check on Edited Content
     const titleToCheck = data.title || originalPost?.title || "";
@@ -275,8 +277,8 @@ export async function updateCommunityPost(postId: string, data: Partial<NewPostD
         action: "UPDATE_POST",
         severity: "low",
         actorRole: actor?.role,
-        actorName: actor?.name,
-        message: `User ${actor?.name} updated post: "${titleToCheck}". Status: ${finalStatus}`,
+        actorName: actorName,
+        message: `User ${actorName} updated post: "${titleToCheck}". Status: ${finalStatus}`,
     });
 
     return { success: true, status: finalStatus, message: moderationReason };
@@ -370,6 +372,7 @@ export async function addCommunityComment(data: NewCommentData) {
 
   const commentedByRef = db.collection('users').doc(commentedBy);
   const user = (await commentedByRef.get()).data();
+  const actorName = await getActorDisplayName(commentedBy);
 
   // --- AUTOMATED MODERATION ---
   if (checkProfanity(text) || checkSpam(text)) {
@@ -391,8 +394,8 @@ export async function addCommunityComment(data: NewCommentData) {
     action: "CREATE_COMMENT",
     severity: "low",
     actorRole: user?.role,
-    actorName: user?.name,
-    message: `User ${user?.name} commented on "${postTitle}"`,
+    actorName: actorName,
+    message: `User ${actorName} commented on "${postTitle}"`,
   });
 }
 
@@ -418,6 +421,7 @@ export async function movePostToRecycleBin(postId: string, actorUid: string) {
 
   const userSnap = await userRef.get();
   const user = userSnap.data();
+  const actorName = await getActorDisplayName(actorUid);
 
   await postRef.update({
     status: "deleted",
@@ -433,8 +437,8 @@ export async function movePostToRecycleBin(postId: string, actorUid: string) {
     action: "MOVE_TO_RECYCLE_BIN",
     severity: "medium",
     actorRole: user?.role,
-    actorName: user?.name,
-    message: `Post "${postTitle}" was moved to recycle bin by ${user?.name}`,
+    actorName: actorName,
+    message: `Post "${postTitle}" was moved to recycle bin by ${actorName}`,
   });
 }
 
@@ -481,10 +485,9 @@ export async function getUserActivity(userId: string): Promise<{ posts: Post[], 
 
   const posts: Post[] = (await Promise.all(
     Array.from(postsMap.values()).map(fetchPostData)
-  )).filter(post => post.status !== 'deleted');
+  )).filter(post => ['approved', 'active'].includes((post.status || 'approved').toLowerCase()));
 
   // --- Deduplicate Comments ---
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const commentsMap = new Map<string, any>(); 
   commentsRefSnap.docs.forEach(d => commentsMap.set(d.id, d));
   commentsStrSnap.docs.forEach(d => commentsMap.set(d.id, d));
@@ -517,7 +520,7 @@ export async function getUserActivity(userId: string): Promise<{ posts: Post[], 
         const postSnapshots = await db.getAll(...refs);
         postSnapshots.forEach(snap => {
             // Check if post exists and is NOT deleted
-            if (snap.exists && snap.data()?.status !== 'deleted') {
+            if (snap.exists && ['approved', 'active'].includes(snap.data()?.status?.toLowerCase())) {
                 validPostIds.add(snap.id);
             }
         });

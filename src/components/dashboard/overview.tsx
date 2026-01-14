@@ -208,11 +208,13 @@ export default function OverviewContent() {
                         color: 'text-cyan-300'
                     },
                     {
-                        title: "Server Uptime",
-                        stat: stats.serverUptime.split(' ')[0],
-                        desc: `Last checked: ${stats.serverUptime.split('(')[1]?.replace(')', '') || 'N/A'}`,
+                        title: "System Latency",
+                        stat: stats.serverUptime.includes('ms') ? stats.serverUptime.split(' ')[1].replace('(', '').replace(')', '') : "Checking...",
+                        desc: stats.serverUptime.includes('ms') 
+                            ? (parseInt(stats.serverUptime.split('(')[1]) < 100 ? "Status: Excellent 🚀" : "Status: Operational 🟢")
+                            : "Pinging server...",
                         icon: Server,
-                        color: 'text-green-300'
+                        color: parseInt(stats.serverUptime.split('(')[1] || "0") > 200 ? 'text-yellow-300' : 'text-green-300'
                     },
                 ].map((card, i) => (
                     <Card key={i} className={GLASSY_CARD_CLASS} asChild>
@@ -241,40 +243,48 @@ export default function OverviewContent() {
                             Attendance Status <span className="text-sm font-normal text-gray-400 block sm:inline sm:ml-2">({latestEventDate || "Loading event..."})</span>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="h-[300px] w-full p-2 flex justify-center items-center">
+                    <CardContent className="h-[300px] w-full p-2 flex flex-col sm:flex-row justify-center items-center gap-6">
                         {attendanceData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={attendanceData}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={70}
-                                        outerRadius={90}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        nameKey="name"
-                                    >
-                                        {attendanceData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "12px", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
-                                        itemStyle={{ color: "#fff", fontWeight: 600 }}
-                                        formatter={(value: number) => [`${value} Students`, '']}
-                                        separator=""
-                                    />
-                                    <Legend
-                                        verticalAlign="middle"
-                                        align="right"
-                                        layout="vertical"
-                                        iconType="circle"
-                                        iconSize={10}
-                                        formatter={(value) => <span className="text-gray-300 text-sm ml-2">{value}</span>}
-                                    />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <>
+                                <div className="h-[200px] w-full sm:w-1/2">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={attendanceData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                                nameKey="name"
+                                            >
+                                                {attendanceData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "12px", color: "#f8fafc", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)" }}
+                                                itemStyle={{ color: "#fff", fontWeight: 600 }}
+                                                formatter={(value: number) => [`${value} Students`, '']}
+                                                separator=""
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                
+                                <div className="flex flex-col gap-4 w-full sm:w-1/3">
+                                    {attendanceData.map((item) => (
+                                        <div key={item.name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                                                <span className="text-sm font-medium text-gray-300">{item.name}</span>
+                                            </div>
+                                            <span className="text-lg font-bold text-white">{item.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         ) : (
                             <div className="text-center text-gray-500">No attendance data found for the latest event.</div>
                         )}

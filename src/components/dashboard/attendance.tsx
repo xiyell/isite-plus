@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { db } from "@/services/firebase";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 import {
     Pagination,
@@ -21,10 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Calendar, Activity, CheckCircle } from "lucide-react";
+import { Search, UserPlus, Calendar, Activity, CheckCircle, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-
-
 
 type AttendanceRecord = {
     id: string; // Unique ID from database
@@ -75,22 +75,31 @@ const Input = React.forwardRef<
 ));
 Input.displayName = "Input";
 
-// --- Main Component: AttendanceTracker ---
-
 export default function AttendanceTracker() {
     const [attendanceData, setAttendanceData] = useState<AttendanceRecord[]>([]);
-    const [eventList, setEventList] = useState<string[]>([]); // New state for list of sheet titles
-    const [selectedDate, setSelectedDate] = useState<string>(''); // Selected sheet title (e.g., '2025_12_14')
+    const [eventList, setEventList] = useState<string[]>([]);
+    const [selectedDate, setSelectedDate] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [loadingEvents, setLoadingEvents] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortKey, setSortKey] = useState<SortKeys>('timestamp');
     const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+    const [totalUsers, setTotalUsers] = useState(0);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 8;
+
+    // Fetch Total Users for "Missed" calculation
+    useEffect(() => {
+        // Only count 'user' role ideally, but following overview logic:
+        const q = query(collection(db, "users")); 
+        const unsub = onSnapshot(q, (snap) => {
+            setTotalUsers(snap.size);
+        });
+        return () => unsub();
+    }, []);
 
     // Helper to format sheet name (2025_12_14) to display date (Dec 14, 2025)
     const formatSheetTitle = (title: string): string => {
@@ -112,7 +121,9 @@ export default function AttendanceTracker() {
 
             // Set the latest event as the default selected date
             if (data.length > 0) {
-                setSelectedDate(data[data.length - 1]);
+                // Determine if there is already a selected date to avoid overwriting user choice on re-fetch if needed
+                // But initially selectedDate is '', so we set it.
+                setSelectedDate(prev => prev || data[data.length - 1]);
             } else {
                 setSelectedDate('');
             }
@@ -157,7 +168,7 @@ export default function AttendanceTracker() {
         }
     }, [selectedDate, fetchAttendanceData]);
 
-    // Sorting logic (Unchanged)
+    // Sorting logic
     const handleSort = (key: SortKeys) => {
         if (sortKey === key) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -168,7 +179,6 @@ export default function AttendanceTracker() {
     };
 
     const filteredAndSortedData = useMemo(() => {
-        // ... (Same filter/sort logic as before)
         const filtered = attendanceData.filter(record =>
             record.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             record.idNumber.includes(searchTerm) ||
@@ -208,13 +218,11 @@ export default function AttendanceTracker() {
         if (totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
     }, [filteredAndSortedData.length, currentPage]);
 
-    // --- Render Section ---
-
     return (
         <div className="space-y-8 text-white w-full font-outfit max-w-7xl mx-auto px-4 py-8">
             {/* Header & Status Card */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="md:col-span-2 lg:col-span-1 space-y-2">
                     <h1 className="text-4xl font-extrabold tracking-tight flex items-center gap-3 text-white">
                         Attendance Logs
                     </h1>
@@ -226,10 +234,22 @@ export default function AttendanceTracker() {
                 <div className="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center justify-between backdrop-blur-xl shadow-2xl">
                     <div className="space-y-1">
                         <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none">Total Attendees</span>
-                        <h2 className="text-3xl font-black text-white">{loadingEvents ? '-' : filteredAndSortedData.length}</h2>
+                        <h2 className="text-3xl font-black text-white">{loading || loadingEvents ? '-' : attendanceData.length}</h2>
                     </div>
                     <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/20">
                         <UserPlus className="h-6 w-6 text-indigo-400" />
+                    </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center justify-between backdrop-blur-xl shadow-2xl">
+                    <div className="space-y-1">
+                        <span className="text-[10px] font-black text-red-400 uppercase tracking-widest leading-none">Missed Attendees</span>
+                        <h2 className="text-3xl font-black text-white">
+                            {loading || loadingEvents ? '-' : Math.max(0, totalUsers - attendanceData.length)}
+                        </h2>
+                    </div>
+                    <div className="h-12 w-12 rounded-2xl bg-red-500/20 flex items-center justify-center border border-red-500/20">
+                        <UserMinus className="h-6 w-6 text-red-400" />
                     </div>
                 </div>
             </div>

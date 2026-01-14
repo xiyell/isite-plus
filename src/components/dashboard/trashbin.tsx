@@ -30,6 +30,7 @@ const getIconConfig = (type: TrashedItem['type']) => {
         case 'user': return { Icon: Users, color: 'bg-red-600/30 text-red-300' };
         case 'evaluation': return { Icon: Send, color: 'bg-purple-600/30 text-purple-300' };
         case 'ibot': return { Icon: Bot, color: 'bg-blue-600/30 text-blue-300' };
+        case 'log_batch': return { Icon: Activity, color: 'bg-orange-600/30 text-orange-300' };
         default: return { Icon: Send, color: 'bg-gray-600/30 text-gray-300' };
     }
 };
@@ -142,7 +143,7 @@ const TrashTable = ({ items, onAction, onEmpty, disabled }: TrashTableProps) => 
                         size="sm" 
                         onClick={onEmpty}
                         disabled={disabled}
-                        className="bg-red-600/20 text-white hover:bg-red-600/30 border border-red-500/30 rounded-xl"
+                        className="bg-red-500 hover:bg-red-600 text-white border border-red-500 shadow-lg shadow-red-500/20 rounded-xl px-4"
                     >
                         <Trash2 size={16} className="mr-2" />
                         Empty Category
@@ -377,6 +378,7 @@ export default function TrashBinDashboard() {
     const users = trashItems.filter(item => item.type === 'user');
     const evaluations = trashItems.filter(item => item.type === 'evaluation');
     const ibotItems = trashItems.filter(item => item.type === 'ibot');
+    const logBatches = trashItems.filter(item => item.type === 'log_batch');
 
     return (
         <div className="p-4 md:p-8 space-y-8 text-white min-h-[500px] font-outfit">
@@ -399,6 +401,7 @@ export default function TrashBinDashboard() {
                                 <TabsTrigger value="users" className="data-[state=active]:bg-red-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Users ({users.length})</TabsTrigger>
                                 <TabsTrigger value="evaluations" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Evaluations ({evaluations.length})</TabsTrigger>
                                 <TabsTrigger value="ibot" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">iBot ({ibotItems.length})</TabsTrigger>
+                                <TabsTrigger value="logs" className="data-[state=active]:bg-orange-600 data-[state=active]:text-white text-[11px] font-bold uppercase tracking-wider px-6 rounded-lg transition-all">Activity Logs ({logBatches.length})</TabsTrigger>
                             </TabsList>
                         </div>
                     </div>
@@ -424,6 +427,9 @@ export default function TrashBinDashboard() {
                                 </TabsContent>
                                 <TabsContent value="ibot">
                                     <TrashTable items={ibotItems} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('ibot')} disabled={isProcessing} />
+                                </TabsContent>
+                                <TabsContent value="logs">
+                                    <TrashTable items={logBatches} onAction={handleActionRequest} onEmpty={() => handleEmptyRequest('log_batch')} disabled={isProcessing} />
                                 </TabsContent>
                             </>
                         )}

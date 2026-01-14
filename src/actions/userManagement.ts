@@ -3,7 +3,7 @@
 import { db } from "@/services/firebase";
 import { getAdminDb } from "@/services/firebaseAdmin";
 import { FieldValue } from "firebase-admin/firestore";
-import { addLog } from "./logs"; // Your logging function
+import { addLog, getActorDisplayName } from "./logs"; // Import helper
 import { getAdminAuth } from "@/services/firebaseAdmin";
 
 export interface UserData {
@@ -35,14 +35,15 @@ export async function updateUserPassword(userId: string, newPassword: string, ac
     const actor = actorSnap.data();
     const targetUser = targetUserSnap.data();
     const targetName = targetUser?.name || "Unknown User";
+    const actorName = await getActorDisplayName(actorUid);
 
     await addLog({
       category: "users",
       action: "UPDATE_PASSWORD",
       severity: "high",
       actorRole: actor?.role,
-      actorName: actor?.name,
-      message: `Password updated for user "${targetName}" by ${actor?.name}`,
+      actorName: actorName,
+      message: `Password updated for user "${targetName}" by ${actorName}`,
     });
     return { success: true, message: `Password updated for user ${targetName}` };
   } catch (error) {
@@ -65,6 +66,7 @@ export async function moveUserToRecycleBin(userId: string, actorUid: string) {
     const actor = actorSnap.data();
     const userData = userSnap.data();
     const userName = userData?.name || "Unknown User";
+    const actorName = await getActorDisplayName(actorUid);
 
     // Perform the update
     await userRef.update({
@@ -79,8 +81,8 @@ export async function moveUserToRecycleBin(userId: string, actorUid: string) {
       action: "MOVE_TO_RECYCLE_BIN",
       severity: "high",
       actorRole: actor?.role,
-      actorName: actor?.name,
-      message: `User "${userName}" was moved to recycle bin by ${actor?.name}`,
+      actorName: actorName,
+      message: `User "${userName}" was moved to recycle bin by ${actorName}`,
     });
   } catch (error) {
     console.error("Failed to move user to recycle bin:", error);
@@ -103,6 +105,7 @@ export async function restoreUserFromRecycleBin(userId: string, actorUid: string
     const actor = actorSnap.data();
     const userData = userSnap.data();
     const userName = userData?.name || "Unknown User";
+    const actorName = await getActorDisplayName(actorUid);
 
     await userRef.update({
       status: "active",
@@ -116,8 +119,8 @@ export async function restoreUserFromRecycleBin(userId: string, actorUid: string
       action: "RESTORE_FROM_RECYCLE_BIN",
       severity: "medium",
       actorRole: actor?.role,
-      actorName: actor?.name,
-      message: `User "${userName}" was restored from recycle bin by ${actor?.name}`,
+      actorName: actorName,
+      message: `User "${userName}" was restored from recycle bin by ${actorName}`,
     });
   } catch (error) {
     console.error("Failed to restore user:", error);
@@ -141,14 +144,15 @@ export async function permanentlyDeleteUser(userId: string, actorUid: string) {
     const actor = actorSnap.data();
     const userData = userSnap.data();
     const userName = userData?.name || "Unknown User";
+    const actorName = await getActorDisplayName(actorUid);
 
     await addLog({
       category: "users",
       action: "PERMANENT_DELETE",
       severity: "high",
       actorRole: actor?.role,
-      actorName: actor?.name,
-      message: `User "${userName}" was permanently deleted by ${actor?.name}`,
+      actorName: actorName,
+      message: `User "${userName}" was permanently deleted by ${actorName}`,
     });
 
   } catch (error) {
@@ -174,6 +178,7 @@ export async function updateUserProfile(userId: string, data: any, actorUid: str
     const actor = actorSnap.data();
     const oldName = oldData?.name;
     const newName = data.name;
+    const actorName = await getActorDisplayName(actorUid);
 
     // Update the user document
     await userRef.update({
@@ -188,8 +193,8 @@ export async function updateUserProfile(userId: string, data: any, actorUid: str
         action: "UPDATE_PROFILE",
         severity: "medium",
         actorRole: actor?.role,
-        actorName: actor?.name,
-        message: `User name changed from "${oldName}" to "${newName}" by ${actor?.name || 'Unknown'}`,
+        actorName: actorName,
+        message: `User name changed from "${oldName}" to "${newName}" by ${actorName}`,
       });
     }
 

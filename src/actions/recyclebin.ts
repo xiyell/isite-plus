@@ -4,7 +4,7 @@
 import { getAdminDb, getAdminAuth } from "@/services/firebaseAdmin";
 import { Timestamp } from "firebase-admin/firestore";
 
-export type TrashType = "post" | "announcement" | "user" | "evaluation" | "ibot";
+export type TrashType = "post" | "announcement" | "user" | "evaluation" | "ibot" | "log_batch";
 
 export interface TrashedItem {
   id: string;
@@ -21,6 +21,7 @@ const COLLECTION_MAP: Record<TrashType, string> = {
   user: "users",
   evaluation: "evaluations",
   ibot: "ibot_responses",
+  log_batch: "trash_log_batches",
 };
 
 export async function getTrash(): Promise<TrashedItem[]> {
@@ -33,8 +34,10 @@ export async function getTrash(): Promise<TrashedItem[]> {
       if (type === 'user') {
         q = db.collection(colName).where("isDeleted", "==", true);
       } else if (type === 'announcement') {
-        // Fetch both 'deleted' and 'disabled' (which serves as soft-delete/trash for announcements now)
         q = db.collection(colName).where("status", "in", ["deleted", "disabled"]);
+      } else if (type === 'log_batch') {
+        // Log batches are always "deleted" by nature of being in this collection
+        q = db.collection(colName); 
       } else {
         q = db.collection(colName).where("status", "==", "deleted");
       }
@@ -44,7 +47,6 @@ export async function getTrash(): Promise<TrashedItem[]> {
         const d = doc.data();
         let deletedAt = "Unknown";
         if (d.deletedAt) {
-          // Handle Firestore Timestamp or Date
           if (typeof d.deletedAt.toDate === 'function') {
             deletedAt = d.deletedAt.toDate().toISOString();
           } else if (d.deletedAt instanceof Date) {
@@ -54,23 +56,22 @@ export async function getTrash(): Promise<TrashedItem[]> {
           }
         }
 
-        // Safe conversion of deletedBy which might be a DocumentReference
         let deletedByStr = "Unknown";
         if (d.deletedBy) {
           if (typeof d.deletedBy === 'string') {
             deletedByStr = d.deletedBy;
           } else if (d.deletedBy.id) {
-            // Handle Firestore DocumentReference (has .id property)
             deletedByStr = d.deletedBy.id;
-          } else if (d.deletedBy.path) {
-            deletedByStr = d.deletedBy.path;
           }
         }
 
-        // Title fallback for different types
         let title = d.title || d.name || d.email;
         if (type === 'ibot') {
           title = d.trigger || "Untitled Trigger";
+        }
+        if (type === 'log_batch') {
+            // Log batches just have a generated title like "Logs Backup..."
+            title = d.title || `Activity Logs w/ ${d.count || 0} entries`;
         }
 
         result.push({
@@ -90,17 +91,14 @@ export async function getTrash(): Promise<TrashedItem[]> {
       fetchDeleted('user', COLLECTION_MAP.user),
       fetchDeleted('evaluation', COLLECTION_MAP.evaluation),
       fetchDeleted('ibot', COLLECTION_MAP.ibot),
+      fetchDeleted('log_batch', COLLECTION_MAP.log_batch),
     ]);
 
     // --- RESOLVE NAMES ---
-    // Collect unique UIDs from deletedBy fields
     const uids = Array.from(new Set(result.map(item => item.deletedBy).filter(id => id && id !== "Unknown")));
     
     if (uids.length > 0) {
       const userMap: Record<string, string> = {};
-      
-      // Batch fetch users if there are many, but for now we can do them in parallel or chunks
-      // Firestore 'in' query limit is 30.
       const chunks = [];
       for (let i = 0; i < uids.length; i += 30) {
         chunks.push(uids.slice(i, i + 30));
@@ -113,7 +111,6 @@ export async function getTrash(): Promise<TrashedItem[]> {
         });
       }));
 
-      // Map UIDs to names in the result
       result.forEach(item => {
         if (userMap[item.deletedBy]) {
           item.deletedBy = userMap[item.deletedBy];
@@ -124,7 +121,6 @@ export async function getTrash(): Promise<TrashedItem[]> {
     return result;
   } catch (error) {
     console.error("Server Action getTrash Error:", error);
-    // Return empty array instead of crashing layout
     return [];
   }
 }
@@ -133,6 +129,40 @@ export async function restoreItem(id: string, type: TrashType) {
   try {
     const db = getAdminDb();
     const ref = db.collection(COLLECTION_MAP[type]).doc(id);
+
+    if (type === 'log_batch') {
+        const batchDoc = await ref.get();
+        if (!batchDoc.exists) throw new Error("Batch not found");
+
+        const logsSnap = await ref.collection('logs').get();
+        const restoreBatch = db.batch();
+        let opCount = 0;
+        const batches = [];
+
+        // Move items back to activitylogs
+        logsSnap.docs.forEach(doc => {
+            const data = doc.data();
+            const logRef = db.collection('activitylogs').doc(); // New ID or preserve? Let's give new ID to avoid conflict, or use doc.id? 
+            // Better to use doc.id if we want exact restoration, but logs are immutable usually.
+            // Let's use clean add.
+            restoreBatch.set(logRef, data);
+            
+            opCount++;
+            if (opCount >= 450) {
+                batches.push(restoreBatch.commit());
+                opCount = 0;
+            }
+        });
+
+        if (opCount > 0) batches.push(restoreBatch.commit());
+        await Promise.all(batches);
+
+        // Delete the batch doc (and subcollection needs recursive delete usually, but we can just delete parent doc reference in UI, 
+        // technically subcollections persist in Firestore but act as orphaned. For proper cleanup we should delete subcollection.)
+        // We will call the recursive delete helper here.
+        await recursiveDelete(ref);
+        return { success: true };
+    }
 
     let updateData = {};
     if (type === "post") {
@@ -166,14 +196,17 @@ export async function permanentlyDeleteItem(id: string, type: TrashType) {
             await auth.deleteUser(id);
             console.log(`User ${id} deleted from Authentication.`);
         } catch (authError) {
-            console.error(`Failed to delete user ${id} from Authentication (might already be deleted):`, authError);
-            // We continue to delete from Firestore even if auth delete fails (e.g. user not found)
+            console.error(`Failed to delete user ${id} from Authentication:`, authError);
         }
     }
 
-    // 2. Delete from Firestore (Soft-deleted record)
     const ref = db.collection(COLLECTION_MAP[type]).doc(id);
-    await ref.delete();
+
+    if (type === 'log_batch') {
+        await recursiveDelete(ref);
+    } else {
+        await ref.delete();
+    }
     
     return { success: true };
   } catch (error) {
@@ -194,6 +227,8 @@ export async function emptyTrash(type: TrashType) {
         q = db.collection(colName).where("isDeleted", "==", true);
     } else if (type === 'announcement') {
         q = db.collection(colName).where("status", "in", ["deleted", "disabled"]);
+    } else if (type === 'log_batch') {
+        q = db.collection(colName);
     } else {
         q = db.collection(colName).where("status", "==", "deleted");
     }
@@ -201,8 +236,13 @@ export async function emptyTrash(type: TrashType) {
 
     if (snap.empty) return { success: true, count: 0 };
 
-    // Firestore batch limit is 500. Handle chunks if needed, but for now assuming one batch or multiple calls.
-    // If strict 500 limit is needed, we should loop. Here is a simple loop implementation.
+    // Use Recursive Delete for log_batch to clean subcollections
+    if (type === 'log_batch') {
+       const deletePromises = snap.docs.map(doc => recursiveDelete(doc.ref));
+       await Promise.all(deletePromises);
+       return { success: true, count: snap.size };
+    }
+
     const batches = [];
     let currentBatch = db.batch();
     let batchCount = 0;
@@ -233,10 +273,8 @@ export async function emptyTrash(type: TrashType) {
         batches.push(currentBatch.commit());
     }
 
-    // 3. Commit Firestore Batches
     await Promise.all(batches);
 
-    // 4. Wait for Auth deletions
     if (type === 'user') {
         await Promise.all(userDeletePromises);
     }
@@ -246,4 +284,11 @@ export async function emptyTrash(type: TrashType) {
     console.error("Error emptying trash:", error);
     throw new Error("Failed to empty trash");
   }
+}
+
+// Helper for recursive delete (for log batches)
+async function recursiveDelete(docRef: FirebaseFirestore.DocumentReference) {
+    const db = getAdminDb();
+    const bulkWriter = db.bulkWriter();
+    await db.recursiveDelete(docRef, bulkWriter);
 }
